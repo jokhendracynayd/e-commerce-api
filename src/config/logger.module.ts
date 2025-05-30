@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
-import { WinstonModule, utilities as nestWinstonModuleUtilities } from 'nest-winston';
+import {
+  WinstonModule,
+  utilities as nestWinstonModuleUtilities,
+} from 'nest-winston';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as winston from 'winston';
 import * as DailyRotateFile from 'winston-daily-rotate-file';
@@ -14,7 +17,7 @@ import * as fs from 'fs';
       useFactory: (configService: ConfigService) => {
         const nodeEnv = configService.get('NODE_ENV', 'development');
         const logsDir = path.join(process.cwd(), 'logs');
-        
+
         // Ensure logs directory exists
         if (!fs.existsSync(logsDir)) {
           fs.mkdirSync(logsDir, { recursive: true });
@@ -99,4 +102,4 @@ import * as fs from 'fs';
   ],
   exports: [WinstonModule],
 })
-export class LoggerModule {} 
+export class LoggerModule {}

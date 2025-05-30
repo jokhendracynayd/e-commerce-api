@@ -16,7 +16,8 @@ export interface Response<T> {
 
 @Injectable()
 export class TransformInterceptor<T>
-  implements NestInterceptor<T, Response<T>> {
+  implements NestInterceptor<T, Response<T>>
+{
   intercept(
     context: ExecutionContext,
     next: CallHandler,
@@ -27,7 +28,7 @@ export class TransformInterceptor<T>
     const status = response.statusCode || HttpStatus.OK;
 
     return next.handle().pipe(
-      map(data => ({
+      map((data) => ({
         statusCode: status,
         message: this.getResponseMessage(request.method, status),
         data: data || {},
@@ -50,4 +51,4 @@ export class TransformInterceptor<T>
         return 'Request processed successfully';
     }
   }
-} 
+}

@@ -44,7 +44,7 @@ export const getFileExtension = (filename: string): string => {
 export const sanitizeFilename = (filename: string): string => {
   // Remove any path information
   const baseName = filename.split(/[\\/]/).pop() || '';
-  
+
   // Replace special characters with underscores
   return baseName.replace(/[^a-zA-Z0-9._-]/g, '_');
 };
@@ -55,7 +55,8 @@ export const sanitizeFilename = (filename: string): string => {
 export const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  if (bytes < 1024 * 1024 * 1024)
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 };
 
@@ -68,6 +69,8 @@ export const generateDateBasedFolder = (baseFolder: string = ''): string => {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
-  
-  return baseFolder ? `${baseFolder}/${year}/${month}/${day}` : `${year}/${month}/${day}`;
-}; 
+
+  return baseFolder
+    ? `${baseFolder}/${year}/${month}/${day}`
+    : `${year}/${month}/${day}`;
+};

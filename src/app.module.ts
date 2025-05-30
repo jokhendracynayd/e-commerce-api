@@ -8,8 +8,14 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ProductsModule } from './modules/products/products.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { BrandsModule } from './modules/brands/brands.module';
+import { TagsModule } from './modules/tags/tags.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { CartsModule } from './modules/carts/carts.module';
+import { UsersModule } from './modules/users/users.module';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
-import { RolesGuard } from './guards/roles.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 import { AllExceptionsFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 import { AppLogger } from './common/services/logger.service';
@@ -22,7 +28,13 @@ import { AppLogger } from './common/services/logger.service';
     AuthModule,
     ProductsModule,
     CategoriesModule,
+    BrandsModule,
+    TagsModule,
     UploadsModule,
+    InventoryModule,
+    OrdersModule,
+    CartsModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [

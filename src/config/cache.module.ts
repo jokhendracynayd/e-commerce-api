@@ -12,7 +12,7 @@ import * as redisStore from 'cache-manager-redis-store';
       useFactory: async (configService: ConfigService) => {
         const host = configService.get('REDIS_HOST');
         const port = configService.get('REDIS_PORT');
-        
+
         // For cache-manager-redis-store v2.0.0
         return {
           store: redisStore,
@@ -25,4 +25,4 @@ import * as redisStore from 'cache-manager-redis-store';
     }),
   ],
 })
-export class CacheModule {} 
+export class CacheModule {}

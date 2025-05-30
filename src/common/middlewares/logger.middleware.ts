@@ -8,11 +8,9 @@ export class LoggerMiddleware implements NestMiddleware {
   use(request: Request, response: Response, next: NextFunction): void {
     const { method, originalUrl, ip } = request;
     const userAgent = request.get('user-agent') || '';
-    
+
     // Log the request when it starts
-    this.logger.log(
-      `${method} ${originalUrl} - ${ip} - ${userAgent}`,
-    );
+    this.logger.log(`${method} ${originalUrl} - ${ip} - ${userAgent}`);
 
     // Get timestamp before processing
     const startTime = Date.now();
@@ -26,7 +24,7 @@ export class LoggerMiddleware implements NestMiddleware {
 
       // Set different log levels based on status code
       const logMessage = `${method} ${originalUrl} ${statusCode} ${contentLength} - ${processingTime}ms`;
-      
+
       if (statusCode >= 500) {
         this.logger.error(logMessage);
       } else if (statusCode >= 400) {
@@ -38,4 +36,4 @@ export class LoggerMiddleware implements NestMiddleware {
 
     next();
   }
-} 
+}

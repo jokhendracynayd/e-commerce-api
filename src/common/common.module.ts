@@ -3,13 +3,18 @@ import { LoggerModule } from '../config/logger.module';
 import { AppLogger } from './services/logger.service';
 import { LoggerMiddleware } from './middlewares/logger.middleware';
 import { DatabaseModule } from './database.module';
+import { APP_GUARD } from '@nestjs/core';
+import { RolesGuard } from './guards/roles.guard';
 
 @Module({
-  imports: [
-    LoggerModule,
-    DatabaseModule,
+  imports: [LoggerModule, DatabaseModule],
+  providers: [
+    AppLogger,
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
   ],
-  providers: [AppLogger],
   exports: [AppLogger, DatabaseModule],
 })
 export class CommonModule implements NestModule {
@@ -17,4 +22,4 @@ export class CommonModule implements NestModule {
     // Apply logger middleware to all routes
     consumer.apply(LoggerMiddleware).forRoutes('*');
   }
-} 
+}

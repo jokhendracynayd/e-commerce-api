@@ -1,11 +1,24 @@
-import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import { AppLogger } from '../../common/services/logger.service';
 import { ErrorCode } from '../../common/constants/error-codes.enum';
-import { getFileExtension, sanitizeFilename, generateDateBasedFolder } from './uploads.utils';
+import {
+  getFileExtension,
+  sanitizeFilename,
+  generateDateBasedFolder,
+} from './uploads.utils';
 
 export type UploadedFileInfo = {
   key: string;
@@ -31,7 +44,7 @@ export class UploadsService {
 
     // Initialize S3 client
     const s3Config = this.configService.get('s3');
-    
+
     if (!s3Config) {
       throw new Error('S3 configuration is missing');
     }
@@ -43,7 +56,7 @@ export class UploadsService {
 
     this.bucket = s3Config.bucket;
     this.baseUrl = s3Config.baseUrl;
-    
+
     // Set file upload restrictions
     this.allowedMimeTypes = [
       'image/jpeg',
@@ -60,7 +73,7 @@ export class UploadsService {
       'application/zip',
       'application/x-zip-compressed',
     ];
-    
+
     // 10MB max file size
     this.maxFileSize = 10 * 1024 * 1024;
   }
@@ -71,7 +84,10 @@ export class UploadsService {
   validateFile(file: Express.Multer.File): void {
     // Validate file exists
     if (!file) {
-      throw new BadRequestException('File is required', ErrorCode.INVALID_INPUT);
+      throw new BadRequestException(
+        'File is required',
+        ErrorCode.INVALID_INPUT,
+      );
     }
 
     // Validate file size
@@ -94,25 +110,31 @@ export class UploadsService {
   /**
    * Generates a unique file key based on original filename, folder and timestamp
    */
-  generateFileKey(file: Express.Multer.File, folder: string = 'general'): string {
+  generateFileKey(
+    file: Express.Multer.File,
+    folder: string = 'general',
+  ): string {
     const sanitizedName = sanitizeFilename(file.originalname);
     const fileExtension = getFileExtension(sanitizedName);
     const timestamp = Date.now();
     const uuid = uuidv4();
     const dateBasedFolder = generateDateBasedFolder(folder);
-    
+
     return `${dateBasedFolder}/${timestamp}-${uuid}.${fileExtension}`;
   }
 
   /**
    * Uploads a file to S3
    */
-  async uploadFile(file: Express.Multer.File, folder: string = 'general'): Promise<UploadedFileInfo> {
+  async uploadFile(
+    file: Express.Multer.File,
+    folder: string = 'general',
+  ): Promise<UploadedFileInfo> {
     try {
       this.validateFile(file);
-      
+
       const key = this.generateFileKey(file, folder);
-      
+
       // Upload file to S3
       await this.s3Client.send(
         new PutObjectCommand({
@@ -130,7 +152,7 @@ export class UploadsService {
       );
 
       const url = `${this.baseUrl}/${key}`;
-      
+
       this.logger.log(`File uploaded successfully: ${key}`);
 
       return {
@@ -144,7 +166,7 @@ export class UploadsService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      
+
       this.logger.error(`Failed to upload file: ${error.message}`, error);
       throw new InternalServerErrorException(
         'Failed to upload file to storage',
@@ -161,10 +183,13 @@ export class UploadsService {
     folder: string = 'general',
   ): Promise<UploadedFileInfo[]> {
     if (!files || files.length === 0) {
-      throw new BadRequestException('No files provided', ErrorCode.INVALID_INPUT);
+      throw new BadRequestException(
+        'No files provided',
+        ErrorCode.INVALID_INPUT,
+      );
     }
 
-    const uploadPromises = files.map(file => this.uploadFile(file, folder));
+    const uploadPromises = files.map((file) => this.uploadFile(file, folder));
     return Promise.all(uploadPromises);
   }
 
@@ -214,7 +239,7 @@ export class UploadsService {
       const uuid = uuidv4();
       const dateBasedFolder = generateDateBasedFolder(folder);
       const key = `${dateBasedFolder}/${timestamp}-${uuid}.${fileExtension}`;
-      
+
       const command = new PutObjectCommand({
         Bucket: this.bucket,
         Key: key,
@@ -225,11 +250,13 @@ export class UploadsService {
         },
       });
 
-      const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn: 3600 }); // 1 hour
+      const uploadUrl = await getSignedUrl(this.s3Client, command, {
+        expiresIn: 3600,
+      }); // 1 hour
       const publicUrl = `${this.baseUrl}/${key}`;
 
       this.logger.log(`Presigned URL generated for file: ${key}`);
-      
+
       return {
         key,
         uploadUrl,
@@ -239,8 +266,11 @@ export class UploadsService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      
-      this.logger.error(`Failed to generate presigned URL: ${error.message}`, error);
+
+      this.logger.error(
+        `Failed to generate presigned URL: ${error.message}`,
+        error,
+      );
       throw new InternalServerErrorException(
         'Failed to generate upload URL',
         ErrorCode.INTERNAL_SERVER_ERROR,
@@ -251,24 +281,32 @@ export class UploadsService {
   /**
    * Generate a presigned URL for downloading/viewing a file
    */
-  async generatePresignedDownloadUrl(key: string, expiresIn: number = 3600): Promise<string> {
+  async generatePresignedDownloadUrl(
+    key: string,
+    expiresIn: number = 3600,
+  ): Promise<string> {
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucket,
         Key: key,
       });
 
-      const downloadUrl = await getSignedUrl(this.s3Client, command, { expiresIn });
-      
+      const downloadUrl = await getSignedUrl(this.s3Client, command, {
+        expiresIn,
+      });
+
       this.logger.log(`Presigned download URL generated for file: ${key}`);
-      
+
       return downloadUrl;
     } catch (error) {
-      this.logger.error(`Failed to generate download URL: ${error.message}`, error);
+      this.logger.error(
+        `Failed to generate download URL: ${error.message}`,
+        error,
+      );
       throw new InternalServerErrorException(
         'Failed to generate download URL',
         ErrorCode.INTERNAL_SERVER_ERROR,
       );
     }
   }
-} 
+}

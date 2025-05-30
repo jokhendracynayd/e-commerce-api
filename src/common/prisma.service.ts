@@ -2,10 +2,16 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   constructor() {
     super({
-      log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
+      log:
+        process.env.NODE_ENV === 'development'
+          ? ['query', 'info', 'warn', 'error']
+          : ['error'],
     });
   }
 
@@ -21,7 +27,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     if (process.env.NODE_ENV !== 'production') {
       // Only available in non-production environments for safety
       const models = Reflect.ownKeys(this).filter((key) => {
-        return typeof key === 'string' && !key.startsWith('_') && !key.startsWith('$');
+        return (
+          typeof key === 'string' &&
+          !key.startsWith('_') &&
+          !key.startsWith('$')
+        );
       });
 
       return Promise.all(
@@ -31,4 +41,4 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       );
     }
   }
-} 
+}

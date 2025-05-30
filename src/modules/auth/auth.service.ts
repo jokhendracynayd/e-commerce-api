@@ -1,12 +1,24 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma.service';
 import { RegisterDto } from './dto/register.dto';
-import { UserDto, AuthResponseDto, TokenResponseDto } from './dto/auth-response.dto';
+import {
+  UserDto,
+  AuthResponseDto,
+  TokenResponseDto,
+} from './dto/auth-response.dto';
+import { AdminRegisterDto } from './dto/admin-register.dto';
 import * as bcrypt from 'bcrypt';
 import { AppLogger } from '../../common/services/logger.service';
 import { ErrorCode } from '../../common/constants/error-codes.enum';
+import { Role } from '@prisma/client';
 
 // Define the UserStatus enum locally to match Prisma schema
 enum UserStatus {
@@ -39,7 +51,9 @@ export class AuthService {
     // Check if user is allowed to login
     if (user.status === UserStatus.BLOCKED) {
       this.logger.warn(`Blocked user attempted to login: ${email}`);
-      throw new UnauthorizedException('Your account has been blocked. Please contact support.');
+      throw new UnauthorizedException(
+        'Your account has been blocked. Please contact support.',
+      );
     }
 
     // Update failed login attempts if password is wrong
@@ -47,21 +61,26 @@ export class AuthService {
     if (!isPasswordValid) {
       await this.prismaService.user.update({
         where: { id: user.id },
-        data: { 
+        data: {
           failedLoginAttempts: {
-            increment: 1
-          }
-        }
+            increment: 1,
+          },
+        },
       });
 
       // Check if we need to block the user due to too many failed attempts
-      if (user.failedLoginAttempts >= 4) { // 5 attempts total (current + 4 previous)
+      if (user.failedLoginAttempts >= 4) {
+        // 5 attempts total (current + 4 previous)
         await this.prismaService.user.update({
           where: { id: user.id },
-          data: { status: UserStatus.BLOCKED }
+          data: { status: UserStatus.BLOCKED },
         });
-        this.logger.warn(`User blocked due to too many failed login attempts: ${email}`);
-        throw new UnauthorizedException('Account blocked due to too many failed login attempts. Please contact support.');
+        this.logger.warn(
+          `User blocked due to too many failed login attempts: ${email}`,
+        );
+        throw new UnauthorizedException(
+          'Account blocked due to too many failed login attempts. Please contact support.',
+        );
       }
 
       this.logger.warn(`Failed login attempt for user: ${email}`);
@@ -75,7 +94,7 @@ export class AuthService {
         failedLoginAttempts: 0,
         lastLoginAt: new Date(),
         loginIp: this.getClientIp(),
-      }
+      },
     });
 
     const { password: _, ...result } = user;
@@ -96,7 +115,10 @@ export class AuthService {
 
     if (existingUserByEmail) {
       this.logger.warn(`Registration attempt with existing email: ${email}`);
-      throw new ConflictException('Email already exists', ErrorCode.EMAIL_ALREADY_EXISTS);
+      throw new ConflictException(
+        'Email already exists',
+        ErrorCode.EMAIL_ALREADY_EXISTS,
+      );
     }
 
     // Hash password
@@ -151,11 +173,11 @@ export class AuthService {
 
   async login(user: UserDto): Promise<AuthResponseDto> {
     const payload = { email: user.email, sub: user.id, role: user.role };
-    
+
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN', '15m')
+      expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN', '15m'),
     });
-    
+
     const refreshToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN', '7d'),
     });
@@ -163,7 +185,7 @@ export class AuthService {
     // Store refresh token in database
     await this.prismaService.user.update({
       where: { id: user.id },
-      data: { 
+      data: {
         refreshToken: await bcrypt.hash(refreshToken, 10),
         lastLoginAt: new Date(),
         loginIp: this.getClientIp(),
@@ -189,7 +211,10 @@ export class AuthService {
     };
   }
 
-  async refreshToken(userId: string, refreshToken: string): Promise<TokenResponseDto> {
+  async refreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<TokenResponseDto> {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
     });
@@ -201,11 +226,18 @@ export class AuthService {
 
     // Check if user is allowed to refresh token
     if (user.status === UserStatus.BLOCKED) {
-      this.logger.warn(`Blocked user attempted to refresh token: ${user.email}`);
-      throw new UnauthorizedException('Your account has been blocked. Please contact support.');
+      this.logger.warn(
+        `Blocked user attempted to refresh token: ${user.email}`,
+      );
+      throw new UnauthorizedException(
+        'Your account has been blocked. Please contact support.',
+      );
     }
 
-    const isRefreshTokenValid = await bcrypt.compare(refreshToken, user.refreshToken);
+    const isRefreshTokenValid = await bcrypt.compare(
+      refreshToken,
+      user.refreshToken,
+    );
 
     if (!isRefreshTokenValid) {
       this.logger.warn(`Invalid refresh token for user: ${user.email}`);
@@ -213,12 +245,12 @@ export class AuthService {
     }
 
     const payload = { email: user.email, sub: user.id, role: user.role };
-    
+
     this.logger.log(`Token refreshed for user: ${user.email}`);
 
     return {
       accessToken: this.jwtService.sign(payload, {
-        expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN', '15m')
+        expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN', '15m'),
       }),
     };
   }
@@ -228,9 +260,293 @@ export class AuthService {
       where: { id: userId },
       data: { refreshToken: null },
     });
-    
+
     this.logger.log(`User logged out: ${userId}`);
     return { success: true };
+  }
+
+  async registerAdmin(adminRegisterDto: AdminRegisterDto): Promise<UserDto> {
+    const { email, password, fullName, phone, adminSecretKey } =
+      adminRegisterDto;
+
+    // Verify admin secret key
+    const configuredSecretKey =
+      this.configService.get<string>('ADMIN_SECRET_KEY');
+    if (!configuredSecretKey || adminSecretKey !== configuredSecretKey) {
+      this.logger.warn(
+        `Admin registration attempt with invalid secret key from: ${email}`,
+      );
+      throw new ForbiddenException('Invalid admin secret key');
+    }
+
+    // Check if email exists
+    const existingUserByEmail = await this.prismaService.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUserByEmail) {
+      this.logger.warn(
+        `Admin registration attempt with existing email: ${email}`,
+      );
+      throw new ConflictException(
+        'Email already exists',
+        ErrorCode.EMAIL_ALREADY_EXISTS,
+      );
+    }
+
+    // Check if phone exists (if provided)
+    if (phone) {
+      const existingUserByPhone = await this.prismaService.user.findUnique({
+        where: { phone },
+      });
+
+      if (existingUserByPhone) {
+        this.logger.warn(
+          `Admin registration attempt with existing phone: ${phone}`,
+        );
+        throw new ConflictException(
+          'Phone number already exists',
+          ErrorCode.PHONE_ALREADY_EXISTS,
+        );
+      }
+    }
+
+    // Check if password meets complexity requirements
+    this.validatePasswordStrength(password);
+
+    // Hash password with a stronger hash (12 rounds for admin)
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Split full name into first name and last name
+    const nameParts = fullName.trim().split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+    try {
+      // Create new admin user
+      const user = await this.prismaService.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          firstName,
+          lastName,
+          phone,
+          status: UserStatus.ACTIVE,
+          role: Role.ADMIN,
+          isEmailVerified: true, // Auto-verify admin emails
+          signupIp: this.getClientIp(),
+          lastPasswordChange: new Date(),
+        },
+      });
+
+      // Log the admin creation but don't include sensitive details
+      this.logger.log(`New admin user registered: ${email}`);
+
+      // Create cart for admin user (admins might need to test the cart functionality)
+      await this.prismaService.cart.create({
+        data: {
+          userId: user.id,
+        },
+      });
+
+      // Create wishlist for admin user
+      await this.prismaService.wishlist.create({
+        data: {
+          userId: user.id,
+        },
+      });
+
+      const { password: _, ...result } = user;
+      return {
+        ...result,
+        is_email_verified: user.isEmailVerified,
+        is_phone_verified: user.isPhoneVerified,
+      } as UserDto;
+    } catch (error) {
+      this.logger.error(
+        `Failed to register admin user: ${error.message}`,
+        error,
+      );
+      throw new BadRequestException('Failed to register admin user');
+    }
+  }
+
+  async adminLogin(email: string, password: string): Promise<AuthResponseDto> {
+    // Add additional admin login attempt logging
+    this.logger.log(`Admin login attempt for email: ${email}`);
+
+    const user = await this.validateAdminUser(email, password);
+
+    // Log successful admin login
+    this.logger.log(`Admin login successful: ${email} (ID: ${user.id})`);
+
+    // Create admin session with special privileges
+    return this.login(user);
+  }
+
+  async validateAdminUser(email: string, password: string): Promise<UserDto> {
+    const user = await this.prismaService.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      this.logger.warn(`Admin login attempt with non-existent email: ${email}`);
+      // Use same error message as regular login to prevent email enumeration
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Check if user is an admin
+    if (user.role !== Role.ADMIN) {
+      this.logger.warn(
+        `Non-admin attempted to login through admin route: ${email}`,
+      );
+      throw new UnauthorizedException('Access denied');
+    }
+
+    // Check if user is allowed to login
+    if (user.status === UserStatus.BLOCKED) {
+      this.logger.warn(`Blocked admin attempted to login: ${email}`);
+      throw new UnauthorizedException(
+        'Your account has been blocked. Please contact support.',
+      );
+    }
+
+    // Check for account inactivity (admins should use their accounts regularly)
+    if (user.lastLoginAt) {
+      const inactivityPeriod = this.configService.get<number>(
+        'ADMIN_INACTIVITY_DAYS',
+        30,
+      );
+      const lastActiveDate = new Date(user.lastLoginAt);
+      const inactivityThreshold = new Date();
+      inactivityThreshold.setDate(
+        inactivityThreshold.getDate() - inactivityPeriod,
+      );
+
+      if (lastActiveDate < inactivityThreshold) {
+        this.logger.warn(
+          `Admin account inactive for over ${inactivityPeriod} days: ${email}`,
+        );
+        await this.prismaService.user.update({
+          where: { id: user.id },
+          data: { status: UserStatus.BLOCKED },
+        });
+        throw new UnauthorizedException(
+          'Account blocked due to inactivity. Please contact support.',
+        );
+      }
+    }
+
+    // Validate password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      await this.prismaService.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: {
+            increment: 1,
+          },
+        },
+      });
+
+      // Stricter limits for admin accounts - only 3 attempts allowed
+      if (user.failedLoginAttempts >= 2) {
+        // 3 attempts total (current + 2 previous)
+        await this.prismaService.user.update({
+          where: { id: user.id },
+          data: { status: UserStatus.BLOCKED },
+        });
+        this.logger.warn(
+          `Admin user blocked due to too many failed login attempts: ${email}`,
+        );
+        throw new UnauthorizedException(
+          'Account blocked due to too many failed login attempts. Please contact support.',
+        );
+      }
+
+      this.logger.warn(`Failed admin login attempt for user: ${email}`);
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Check if password requires a change (enforce periodic password changes for admins)
+    if (user.lastPasswordChange) {
+      const passwordChangePeriod = this.configService.get<number>(
+        'ADMIN_PASSWORD_CHANGE_DAYS',
+        90,
+      );
+      const lastPasswordChange = new Date(user.lastPasswordChange);
+      const passwordChangeThreshold = new Date();
+      passwordChangeThreshold.setDate(
+        passwordChangeThreshold.getDate() - passwordChangePeriod,
+      );
+
+      if (lastPasswordChange < passwordChangeThreshold) {
+        // Don't block login, but add a flag to indicate password change is required
+        // This can be handled by the front-end to redirect to password change page
+        const { password: _, ...result } = user;
+        return {
+          ...result,
+          is_email_verified: user.isEmailVerified,
+          is_phone_verified: user.isPhoneVerified,
+          password_change_required: true,
+        } as UserDto;
+      }
+    }
+
+    // Reset failed login attempts and update last login
+    await this.prismaService.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginAttempts: 0,
+        lastLoginAt: new Date(),
+        loginIp: this.getClientIp(),
+      },
+    });
+
+    const { password: _, ...result } = user;
+    return {
+      ...result,
+      is_email_verified: user.isEmailVerified,
+      is_phone_verified: user.isPhoneVerified,
+    } as UserDto;
+  }
+
+  // Helper method to validate password strength
+  private validatePasswordStrength(password: string): void {
+    // Password must be at least 8 characters
+    if (password.length < 8) {
+      throw new BadRequestException(
+        'Password must be at least 8 characters long',
+      );
+    }
+
+    // Password must contain at least one uppercase letter
+    if (!/[A-Z]/.test(password)) {
+      throw new BadRequestException(
+        'Password must contain at least one uppercase letter',
+      );
+    }
+
+    // Password must contain at least one lowercase letter
+    if (!/[a-z]/.test(password)) {
+      throw new BadRequestException(
+        'Password must contain at least one lowercase letter',
+      );
+    }
+
+    // Password must contain at least one number
+    if (!/[0-9]/.test(password)) {
+      throw new BadRequestException(
+        'Password must contain at least one number',
+      );
+    }
+
+    // Password must contain at least one special character
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      throw new BadRequestException(
+        'Password must contain at least one special character',
+      );
+    }
   }
 
   private getClientIp(): string {
@@ -238,4 +554,81 @@ export class AuthService {
     // For now, return placeholder
     return '127.0.0.1';
   }
-} 
+
+  async changeAdminPassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string,
+  ): Promise<{ success: boolean }> {
+    // Validate that new password and confirmation match
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException(
+        'New password and confirmation do not match',
+      );
+    }
+
+    // Find the admin user
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Verify this is an admin user
+    if (user.role !== Role.ADMIN) {
+      this.logger.warn(
+        `Non-admin attempted to use admin password change: ${user.email}`,
+      );
+      throw new ForbiddenException('Access denied - Admin privileges required');
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
+    if (!isCurrentPasswordValid) {
+      this.logger.warn(
+        `Admin password change with invalid current password: ${user.email}`,
+      );
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    // Check if new password is the same as the current one
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'New password must be different from current password',
+      );
+    }
+
+    // Validate password strength
+    this.validatePasswordStrength(newPassword);
+
+    // Hash new password with a stronger hash (12 rounds for admin)
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password
+    await this.prismaService.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        lastPasswordChange: new Date(),
+      },
+    });
+
+    this.logger.log(`Admin password changed successfully: ${user.email}`);
+
+    // Invalidate all existing sessions by removing refresh token
+    // This forces the admin to log in again with the new password
+    await this.prismaService.user.update({
+      where: { id: userId },
+      data: { refreshToken: null },
+    });
+
+    return { success: true };
+  }
+}

@@ -6,6 +6,8 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthController } from './auth.controller';
 import { CommonModule } from '../../common/common.module';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -26,4 +28,4 @@ import { CommonModule } from '../../common/common.module';
   providers: [AuthService, JwtStrategy],
   exports: [AuthService],
 })
-export class AuthModule {} 
+export class AuthModule {}

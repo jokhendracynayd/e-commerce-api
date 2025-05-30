@@ -11,7 +11,9 @@ export default registerAs('s3', () => {
 
   for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
-      throw new Error(`Environment variable ${envVar} is required for S3 configuration`);
+      throw new Error(
+        `Environment variable ${envVar} is required for S3 configuration`,
+      );
     }
   }
 
@@ -22,6 +24,8 @@ export default registerAs('s3', () => {
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
     bucket: process.env.AWS_S3_BUCKET,
-    baseUrl: process.env.AWS_S3_URL || `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com`,
+    baseUrl:
+      process.env.AWS_S3_URL ||
+      `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com`,
   };
-}); 
+});

@@ -82,10 +82,16 @@ export class UploadsController {
     @Body() uploadFileDto: UploadFileDto,
   ): Promise<UploadedFileInfo> {
     if (!file) {
-      throw new BadRequestException('File is required', ErrorCode.INVALID_INPUT);
+      throw new BadRequestException(
+        'File is required',
+        ErrorCode.INVALID_INPUT,
+      );
     }
 
-    return this.uploadsService.uploadFile(file, uploadFileDto.folder || 'general');
+    return this.uploadsService.uploadFile(
+      file,
+      uploadFileDto.folder || 'general',
+    );
   }
 
   @Post('multiple')
@@ -133,14 +139,22 @@ export class UploadsController {
     @Body() uploadFileDto: UploadFileDto,
   ): Promise<UploadedFileInfo[]> {
     if (!files || files.length === 0) {
-      throw new BadRequestException('Files are required', ErrorCode.INVALID_INPUT);
+      throw new BadRequestException(
+        'Files are required',
+        ErrorCode.INVALID_INPUT,
+      );
     }
 
-    return this.uploadsService.uploadMultipleFiles(files, uploadFileDto.folder || 'general');
+    return this.uploadsService.uploadMultipleFiles(
+      files,
+      uploadFileDto.folder || 'general',
+    );
   }
 
   @Post('presigned-url')
-  @ApiOperation({ summary: 'Generate a presigned URL for direct client-side uploads' })
+  @ApiOperation({
+    summary: 'Generate a presigned URL for direct client-side uploads',
+  })
   @ApiBody({
     type: PresignedUrlDto,
     description: 'Information about the file to upload',
@@ -163,10 +177,17 @@ export class UploadsController {
     const { fileName, contentType, folder } = presignedUrlDto;
 
     if (!fileName || !contentType) {
-      throw new BadRequestException('fileName and contentType are required', ErrorCode.INVALID_INPUT);
+      throw new BadRequestException(
+        'fileName and contentType are required',
+        ErrorCode.INVALID_INPUT,
+      );
     }
 
-    return this.uploadsService.generatePresignedUploadUrl(fileName, contentType, folder || 'general');
+    return this.uploadsService.generatePresignedUploadUrl(
+      fileName,
+      contentType,
+      folder || 'general',
+    );
   }
 
   @Delete(':key')
@@ -189,10 +210,13 @@ export class UploadsController {
   @Roles('ADMIN') // Only admins can delete files
   async deleteFile(@Param('key') key: string): Promise<{ success: boolean }> {
     if (!key) {
-      throw new BadRequestException('File key is required', ErrorCode.INVALID_INPUT);
+      throw new BadRequestException(
+        'File key is required',
+        ErrorCode.INVALID_INPUT,
+      );
     }
 
     const success = await this.uploadsService.deleteFile(key);
     return { success };
   }
-} 
+}

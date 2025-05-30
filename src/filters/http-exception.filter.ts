@@ -20,7 +20,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    
+
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
     let errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
@@ -30,43 +30,48 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const errorResponse = exception.getResponse();
-      
+
       // Handle custom exceptions with errorCode
-      if (typeof errorResponse === 'object' && 'errorCode' in errorResponse && 'message' in errorResponse) {
+      if (
+        typeof errorResponse === 'object' &&
+        'errorCode' in errorResponse &&
+        'message' in errorResponse
+      ) {
         errorCode = errorResponse.errorCode as ErrorCode;
         message = errorResponse.message as string;
-        
+
         // Extract any additional details
         errorDetails = { ...errorResponse };
         delete errorDetails.errorCode;
         delete errorDetails.message;
       } else {
         // Standard NestJS exceptions
-        message = 
+        message =
           typeof errorResponse === 'object' && 'message' in errorResponse
             ? Array.isArray(errorResponse.message)
               ? errorResponse.message[0]
               : errorResponse.message
             : exception.message;
-        
+
         // Determine error code based on status
         errorCode = this.getErrorCodeFromStatus(status);
       }
-    } 
+    }
     // Prisma errors
     else if (exception instanceof PrismaClientKnownRequestError) {
       const prismaError = this.handlePrismaError(exception);
       status = prismaError.status;
       message = prismaError.message;
-      errorCode = prismaError.code as ErrorCode;
+      errorCode = prismaError.code;
       errorDetails = { prismaError: exception.code, meta: exception.meta };
-    } 
+    }
     // Unknown exceptions
     else if (exception instanceof Error) {
       message = exception.message;
-      errorDetails = { 
+      errorDetails = {
         name: exception.name,
-        stack: process.env.NODE_ENV === 'development' ? exception.stack : undefined 
+        stack:
+          process.env.NODE_ENV === 'development' ? exception.stack : undefined,
       };
     }
 
@@ -119,7 +124,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
   }
 
-  private handlePrismaError(error: PrismaClientKnownRequestError): { status: number; message: string; code: ErrorCode } {
+  private handlePrismaError(error: PrismaClientKnownRequestError): {
+    status: number;
+    message: string;
+    code: ErrorCode;
+  } {
     switch (error.code) {
       case 'P2002': // Unique constraint violation
         return {
@@ -153,4 +162,4 @@ export class AllExceptionsFilter implements ExceptionFilter {
         };
     }
   }
-} 
+}

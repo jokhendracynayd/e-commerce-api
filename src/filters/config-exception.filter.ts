@@ -15,17 +15,17 @@ export class ConfigExceptionFilter implements ExceptionFilter {
   catch(exception: Error, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    
+
     // Check if it's a configuration error
     if (exception.message.includes('Config validation error')) {
       this.logger.error(`Configuration error: ${exception.message}`);
-      
+
       // Extract the specific missing variables from the error message
       const missingVars = exception.message
         .replace('Config validation error: ', '')
         .split('. ')
-        .map(msg => msg.trim());
-      
+        .map((msg) => msg.trim());
+
       response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         errorCode: ErrorCode.CONFIGURATION_ERROR,
@@ -39,4 +39,4 @@ export class ConfigExceptionFilter implements ExceptionFilter {
       throw exception;
     }
   }
-} 
+}

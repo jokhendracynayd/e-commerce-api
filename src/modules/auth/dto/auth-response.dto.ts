@@ -1,32 +1,41 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UserDto {
-  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({ description: 'User ID' })
   id: string;
 
-  @ApiProperty({ example: 'user@example.com' })
+  @ApiProperty({ description: 'User email' })
   email: string;
 
-  @ApiProperty({ example: 'John', required: false })
+  @ApiProperty({ description: 'User first name', required: false })
   firstName?: string;
 
-  @ApiProperty({ example: 'Doe', required: false })
+  @ApiProperty({ description: 'User last name', required: false })
   lastName?: string;
 
-  @ApiProperty({ example: 'USER' })
+  @ApiProperty({ description: 'User role', enum: ['USER', 'ADMIN', 'SELLER'] })
   role: string;
 
-  @ApiProperty({ example: '+1234567890', required: false })
+  @ApiProperty({ description: 'User phone number', required: false })
   phone?: string;
 
-  @ApiProperty({ example: true, required: false })
-  is_email_verified?: boolean;
+  @ApiProperty({ description: 'Whether user email is verified' })
+  is_email_verified: boolean;
 
-  @ApiProperty({ example: false, required: false })
-  is_phone_verified?: boolean;
+  @ApiProperty({ description: 'Whether user phone is verified' })
+  is_phone_verified: boolean;
 
-  @ApiProperty({ example: 'ACTIVE' })
+  @ApiProperty({
+    description: 'User account status',
+    enum: ['ACTIVE', 'BLOCKED', 'PENDING_VERIFICATION'],
+  })
   status: string;
+
+  @ApiProperty({
+    description: 'Whether admin password change is required',
+    required: false,
+  })
+  password_change_required?: boolean;
 }
 
 export class AuthResponseDto {
@@ -57,4 +66,4 @@ export class TokenResponseDto {
 export class LogoutResponseDto {
   @ApiProperty({ example: true })
   success: boolean;
-} 
+}

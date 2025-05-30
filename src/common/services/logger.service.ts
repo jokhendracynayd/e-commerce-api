@@ -1,4 +1,8 @@
-import { Injectable, LoggerService as NestLoggerService, Scope } from '@nestjs/common';
+import {
+  Injectable,
+  LoggerService as NestLoggerService,
+  Scope,
+} from '@nestjs/common';
 import { Logger } from 'winston';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Inject } from '@nestjs/common';
@@ -75,12 +79,15 @@ export class AppLogger implements NestLoggerService {
           message: message.message,
           stack: message.stack,
           // Extract additional properties from error object, excluding message
-          ...(Object.getOwnPropertyNames(message)
-            .filter(prop => prop !== 'message' && prop !== 'stack')
-            .reduce((obj, prop) => {
-              obj[prop] = message[prop];
-              return obj;
-            }, {} as Record<string, any>)),
+          ...Object.getOwnPropertyNames(message)
+            .filter((prop) => prop !== 'message' && prop !== 'stack')
+            .reduce(
+              (obj, prop) => {
+                obj[prop] = message[prop];
+                return obj;
+              },
+              {} as Record<string, any>,
+            ),
         };
       } else {
         logObject = {
@@ -107,4 +114,4 @@ export class AppLogger implements NestLoggerService {
 
     return logObject;
   }
-} 
+}

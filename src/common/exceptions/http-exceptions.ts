@@ -2,11 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { ErrorCode } from '../constants/error-codes.enum';
 
 export class CustomHttpException extends HttpException {
-  constructor(
-    message: string,
-    status: HttpStatus,
-    errorCode: ErrorCode,
-  ) {
+  constructor(message: string, status: HttpStatus, errorCode: ErrorCode) {
     super(
       {
         message,
@@ -48,19 +44,28 @@ export class ConflictException extends CustomHttpException {
 }
 
 export class UnprocessableEntityException extends CustomHttpException {
-  constructor(message = 'Unprocessable entity', errorCode = ErrorCode.UNPROCESSABLE_ENTITY) {
+  constructor(
+    message = 'Unprocessable entity',
+    errorCode = ErrorCode.UNPROCESSABLE_ENTITY,
+  ) {
     super(message, HttpStatus.UNPROCESSABLE_ENTITY, errorCode);
   }
 }
 
 export class TooManyRequestsException extends CustomHttpException {
-  constructor(message = 'Too many requests', errorCode = ErrorCode.TOO_MANY_REQUESTS) {
+  constructor(
+    message = 'Too many requests',
+    errorCode = ErrorCode.TOO_MANY_REQUESTS,
+  ) {
     super(message, HttpStatus.TOO_MANY_REQUESTS, errorCode);
   }
 }
 
 export class InternalServerErrorException extends CustomHttpException {
-  constructor(message = 'Internal server error', errorCode = ErrorCode.INTERNAL_SERVER_ERROR) {
+  constructor(
+    message = 'Internal server error',
+    errorCode = ErrorCode.INTERNAL_SERVER_ERROR,
+  ) {
     super(message, HttpStatus.INTERNAL_SERVER_ERROR, errorCode);
   }
-} 
+}

@@ -15,16 +15,16 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
       bufferLogs: true,
     });
-    
+
     // Use Winston for logging
     app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
-    
+
     // Get the Winston logger
     const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
-    
+
     // Apply config exception filter first
     app.useGlobalFilters(new ConfigExceptionFilter());
-    
+
     // Get config service
     const configService = app.get(ConfigService);
     const port = configService.get<number>('PORT', 3001);
@@ -50,17 +50,17 @@ async function bootstrap() {
           enableImplicitConversion: true,
         },
         exceptionFactory: (errors) => {
-          const messages = errors.map(error => {
+          const messages = errors.map((error) => {
             if (error.constraints) {
               return Object.values(error.constraints).join(', ');
             }
             return 'Invalid input';
           });
-          
+
           // Use our custom exception
           return new BadRequestException(
             messages.join('; '),
-            ErrorCode.VALIDATION_ERROR
+            ErrorCode.VALIDATION_ERROR,
           );
         },
       }),
@@ -77,9 +77,9 @@ async function bootstrap() {
       .addTag('orders', 'Order management endpoints')
       .addTag('carts', 'Shopping cart endpoints')
       .addBearerAuth(
-        { 
-          type: 'http', 
-          scheme: 'bearer', 
+        {
+          type: 'http',
+          scheme: 'bearer',
           bearerFormat: 'JWT',
           name: 'Authorization',
           description: 'Enter JWT token',
@@ -88,10 +88,10 @@ async function bootstrap() {
         'JWT-auth',
       )
       .build();
-    
+
     // Prefix all routes with /api/v1
     app.setGlobalPrefix('api/v1');
-    
+
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('api/v1/docs', app, document, {
       explorer: true,
@@ -108,8 +108,12 @@ async function bootstrap() {
     });
 
     await app.listen(port);
-    logger.log(`Application is running on: ${await app.getUrl()} in ${nodeEnv} mode`);
-    logger.log(`API Documentation available at: ${await app.getUrl()}/api/v1/docs`);
+    logger.log(
+      `Application is running on: ${await app.getUrl()} in ${nodeEnv} mode`,
+    );
+    logger.log(
+      `API Documentation available at: ${await app.getUrl()}/api/v1/docs`,
+    );
   } catch (error) {
     // Use standard logger for bootstrap failures since Winston might not be available
     console.error(`Failed to start application: ${error.message}`, error.stack);

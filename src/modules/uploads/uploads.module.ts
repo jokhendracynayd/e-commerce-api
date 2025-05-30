@@ -9,4 +9,4 @@ import { CommonModule } from '../../common/common.module';
   providers: [UploadsService],
   exports: [UploadsService],
 })
-export class UploadsModule {} 
+export class UploadsModule {}
