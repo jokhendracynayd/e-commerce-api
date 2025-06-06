@@ -8,6 +8,23 @@ import { ErrorCode } from './common/constants/error-codes.enum';
 import { BadRequestException } from './common/exceptions/http-exceptions';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { CategoryResponseDto } from './modules/categories/dto/category-response.dto';
+import { BrandResponseDto } from './modules/brands/dto/brand-response.dto';
+import { AddressDto } from './modules/users/dto/address.dto';
+import { UpdateProductTagsDto } from './modules/products/dto/update-product-tags.dto';
+import { ProductResponseDto } from './modules/products/dto/product-response.dto';
+import { 
+  CouponResponseDto,
+  CouponType,
+  CouponStatus,
+  CreateCouponDto,
+  UpdateCouponDto,
+  ApplyCouponDto,
+  ValidateCouponDto,
+  CategoryDto,
+  ProductDto,
+  CartItemDto
+} from './modules/coupons/dto';
 
 async function bootstrap() {
   try {
@@ -76,6 +93,13 @@ async function bootstrap() {
       .addTag('categories', 'Category management endpoints')
       .addTag('orders', 'Order management endpoints')
       .addTag('carts', 'Shopping cart endpoints')
+      .addTag('tags', 'Tag management endpoints')
+      .addTag('brands', 'Brand management endpoints')
+      .addTag('users', 'User management endpoints')
+      .addTag('uploads', 'File upload endpoints')
+      .addTag('analytics', 'Analytics and reporting endpoints')
+      .addTag('coupons', 'Coupon management endpoints')
+      .addTag('deals', 'Deals and promotions endpoints')
       .addBearerAuth(
         {
           type: 'http',
@@ -92,7 +116,23 @@ async function bootstrap() {
     // Prefix all routes with /api/v1
     app.setGlobalPrefix('api/v1');
 
-    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    const document = SwaggerModule.createDocument(app, swaggerConfig, {
+      extraModels: [
+        CategoryResponseDto, 
+        BrandResponseDto, 
+        AddressDto,
+        UpdateProductTagsDto,
+        ProductResponseDto,
+        CouponResponseDto,
+        CreateCouponDto,
+        UpdateCouponDto,
+        ApplyCouponDto,
+        ValidateCouponDto,
+        CartItemDto,
+        CategoryDto,
+        ProductDto
+      ],
+    });
     SwaggerModule.setup('api/v1/docs', app, document, {
       explorer: true,
       swaggerOptions: {

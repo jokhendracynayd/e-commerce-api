@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ProductVisibility, DealType } from '@prisma/client';
+import { CategoryResponseDto } from '../../categories/dto/category-response.dto';
+import { BrandResponseDto } from '../../brands/dto/brand-response.dto';
 
 export class ProductImageResponseDto {
   @ApiProperty({
@@ -200,46 +202,6 @@ export class ProductDealResponseDto {
     example: '2023-07-20T12:00:00Z',
   })
   updatedAt: Date;
-}
-
-export class CategoryResponseDto {
-  @ApiProperty({
-    description: 'Category ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  id: string;
-
-  @ApiProperty({
-    description: 'Category name',
-    example: 'Smartphones',
-  })
-  name: string;
-
-  @ApiProperty({
-    description: 'Category slug',
-    example: 'smartphones',
-  })
-  slug: string;
-}
-
-export class BrandResponseDto {
-  @ApiProperty({
-    description: 'Brand ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  id: string;
-
-  @ApiProperty({
-    description: 'Brand name',
-    example: 'Apple',
-  })
-  name: string;
-
-  @ApiProperty({
-    description: 'Brand slug',
-    example: 'apple',
-  })
-  slug: string;
 }
 
 export class ProductResponseDto {

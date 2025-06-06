@@ -1089,6 +1089,55 @@ export class ProductsService {
     }
   }
 
+  // Update product tags
+  async updateTags(
+    id: string,
+    tagIds: string[],
+  ): Promise<ProductResponseDto> {
+    try {
+      // Verify product exists
+      await this.findOne(id);
+
+      // Update tags in a transaction
+      await this.prismaService.$transaction(async (prisma) => {
+        // Remove existing tag connections
+        await prisma.productTag.deleteMany({
+          where: { productId: id },
+        });
+
+        // Create new tag connections if any
+        if (tagIds && tagIds.length > 0) {
+          await Promise.all(
+            tagIds.map((tagId) =>
+              prisma.productTag.create({
+                data: {
+                  productId: id,
+                  tagId,
+                },
+              }),
+            ),
+          );
+        }
+      });
+
+      this.logger.log(`Updated tags for product: ${id}`);
+
+      // Return the updated product with relations
+      return this.findOne(id);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(
+        `Error updating tags for product ${id}: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        `Failed to update tags for product with ID ${id}`,
+      );
+    }
+  }
+
   // Helper method to transform a product to DTO format
   private transformProductToDto(product: any): ProductResponseDto {
     // Transform tags

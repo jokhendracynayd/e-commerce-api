@@ -141,6 +141,8 @@ export class BrandsService {
           slug,
           description: createBrandDto.description,
           logo: createBrandDto.logo,
+          website: createBrandDto.website,
+          isFeatured: createBrandDto.isFeatured,
         },
       });
 

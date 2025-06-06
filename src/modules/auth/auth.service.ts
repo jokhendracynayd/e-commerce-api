@@ -150,13 +150,6 @@ export class AuthService {
         },
       });
 
-      // Create wishlist for new user
-      await this.prismaService.wishlist.create({
-        data: {
-          userId: user.id,
-        },
-      });
-
       this.logger.log(`New user registered: ${email}`);
 
       const { password: _, ...result } = user;
@@ -344,13 +337,6 @@ export class AuthService {
 
       // Create cart for admin user (admins might need to test the cart functionality)
       await this.prismaService.cart.create({
-        data: {
-          userId: user.id,
-        },
-      });
-
-      // Create wishlist for admin user
-      await this.prismaService.wishlist.create({
         data: {
           userId: user.id,
         },

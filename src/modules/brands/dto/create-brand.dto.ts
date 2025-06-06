@@ -5,6 +5,8 @@ import {
   IsOptional,
   MaxLength,
   MinLength,
+  IsBoolean,
+  IsUrl,
 } from 'class-validator';
 
 export class CreateBrandDto {
@@ -37,4 +39,23 @@ export class CreateBrandDto {
   @IsString()
   @MaxLength(500, { message: 'Logo URL must be at most 500 characters long' })
   logo?: string;
+
+  @ApiPropertyOptional({
+    description: 'Brand website URL',
+    example: 'https://www.apple.com',
+  })
+  @IsOptional()
+  @IsString()
+  @IsUrl({}, { message: 'Website must be a valid URL' })
+  @MaxLength(500, { message: 'Website URL must be at most 500 characters long' })
+  website?: string;
+
+  @ApiPropertyOptional({
+    description: 'Whether the brand is featured',
+    example: true,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean({ message: 'isFeatured must be a boolean value' })
+  isFeatured?: boolean;
 }

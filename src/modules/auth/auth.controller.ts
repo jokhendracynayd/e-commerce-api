@@ -37,12 +37,14 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { Public } from '../../common/guards/jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('register')
   @ApiOperation({
     summary: 'Register a new user with email, password, and full name',
@@ -58,6 +60,7 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User login' })
@@ -76,6 +79,7 @@ export class AuthController {
     return this.authService.login(user);
   }
 
+  @Public()
   @Post('admin/register')
   @ApiOperation({ summary: 'Register a new admin user with secure key' })
   @ApiResponse({
@@ -92,6 +96,7 @@ export class AuthController {
     return this.authService.registerAdmin(adminRegisterDto);
   }
 
+  @Public()
   @Post('admin/login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Admin login' })
@@ -113,9 +118,9 @@ export class AuthController {
     );
   }
 
-  @Post('admin/change-password')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
+  @Post('admin/change-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Change admin password' })
   @ApiResponse({
@@ -152,6 +157,7 @@ export class AuthController {
     );
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
@@ -172,7 +178,6 @@ export class AuthController {
   }
 
   @Post('logout')
-  @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User logout' })
   @ApiResponse({
@@ -187,7 +192,6 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({
     status: 200,
@@ -200,9 +204,9 @@ export class AuthController {
     return req.user;
   }
 
-  @Get('admin/me')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
+  @Get('admin/me')
   @ApiOperation({ summary: 'Get current admin profile' })
   @ApiResponse({
     status: 200,

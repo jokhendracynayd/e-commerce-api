@@ -33,7 +33,6 @@ export class RolesGuard implements CanActivate {
       this.logger.warn('No user found in request when checking roles');
       throw new ForbiddenException('Access denied');
     }
-
     if (!user.role) {
       this.logger.warn(`User ${user.id} has no assigned role`);
       throw new ForbiddenException('Access denied');

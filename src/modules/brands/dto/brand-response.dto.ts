@@ -33,6 +33,20 @@ export class BrandResponseDto {
   })
   logo: string | null;
 
+  @ApiPropertyOptional({
+    description: 'Brand website URL',
+    example: 'https://www.apple.com',
+    nullable: true,
+  })
+  website: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Whether the brand is featured',
+    example: true,
+    default: false,
+  })
+  isFeatured: boolean;
+
   @ApiProperty({
     description: 'Brand creation date',
     example: '2023-07-21T12:00:00Z',

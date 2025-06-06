@@ -13,6 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
+import { CreateAddressDto as AddressDto } from '../../users/dto/address.dto';
 
 export class OrderItemDto {
   @ApiProperty({
@@ -40,48 +41,6 @@ export class OrderItemDto {
   @IsPositive()
   @Type(() => Number)
   quantity: number;
-}
-
-export class AddressDto {
-  @ApiProperty({
-    description: 'Street address',
-    example: '123 Main St',
-  })
-  @IsString()
-  @IsNotEmpty()
-  street: string;
-
-  @ApiProperty({
-    description: 'City',
-    example: 'New York',
-  })
-  @IsString()
-  @IsNotEmpty()
-  city: string;
-
-  @ApiProperty({
-    description: 'State/Province/Region',
-    example: 'NY',
-  })
-  @IsString()
-  @IsNotEmpty()
-  state: string;
-
-  @ApiProperty({
-    description: 'Zip/Postal code',
-    example: '10001',
-  })
-  @IsString()
-  @IsNotEmpty()
-  zipCode: string;
-
-  @ApiProperty({
-    description: 'Country',
-    example: 'USA',
-  })
-  @IsString()
-  @IsNotEmpty()
-  country: string;
 }
 
 export class CreateOrderDto {

@@ -8,7 +8,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
-import { AddressDto } from './create-order.dto';
+import { CreateAddressDto as AddressDto } from '../../users/dto/address.dto';
 
 export class UpdateOrderDto {
   @ApiPropertyOptional({

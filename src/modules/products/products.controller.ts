@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   HttpCode,
   HttpStatus,
+  Put,
 } from '@nestjs/common';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { ProductsService } from './products.service';
@@ -21,6 +22,7 @@ import {
   ProductFilterDto,
   PaginatedProductResponseDto,
   CreateProductDealDto,
+  UpdateProductTagsDto,
 } from './dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -43,11 +45,14 @@ import {
   CreateProductVariantDto,
 } from './dto/create-product.dto';
 
+import { Public } from '../../common/guards/jwt-auth.guard';
+
 @ApiTags('products')
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
+  @Public()
   @Get()
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(300) // Cache for 5 minutes
@@ -63,6 +68,7 @@ export class ProductsController {
     return this.productsService.findAll(filterDto);
   }
 
+  @Public()
   @Get(':id')
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(300) // Cache for 5 minutes
@@ -314,8 +320,7 @@ export class ProductsController {
 
   // Product Deals Endpoints
   @Post(':id/deals')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN)
+  @Public()
   @ApiOperation({ summary: 'Add a deal to a product' })
   @ApiParam({
     name: 'id',
@@ -334,18 +339,25 @@ export class ProductsController {
   })
   @ApiNotFoundResponse({ description: 'Product not found' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  @ApiBearerAuth('JWT-auth')
   addDeal(
     @Param('id') id: string,
     @Body() deal: CreateProductDealDto,
   ): Promise<ProductResponseDto> {
-    return this.productsService.addDeal(id, deal);
+    console.log(`Adding deal to product ${id}:`, deal);
+    try {
+      return this.productsService.addDeal(id, deal);
+    } catch (error) {
+      console.error(`Error adding deal to product ${id}:`, {
+        message: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
   }
 
   @Delete(':productId/deals/:dealId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.ADMIN)
+  @Public()
   @ApiOperation({ summary: 'Remove a deal from a product' })
   @ApiParam({
     name: 'productId',
@@ -365,11 +377,49 @@ export class ProductsController {
     type: ProductResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Product or deal not found' })
-  @ApiBearerAuth('JWT-auth')
   removeDeal(
     @Param('productId') productId: string,
     @Param('dealId') dealId: string,
   ): Promise<ProductResponseDto> {
-    return this.productsService.removeDeal(productId, dealId);
+    console.log(`Removing deal ${dealId} from product ${productId}`);
+    try {
+      return this.productsService.removeDeal(productId, dealId);
+    } catch (error) {
+      console.error(`Error removing deal ${dealId} from product ${productId}:`, {
+        message: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
+  }
+
+  // Product Tags Endpoints
+  @Put(':id/tags')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Update tags for a product' })
+  @ApiParam({
+    name: 'id',
+    required: true,
+    description: 'The ID of the product to update tags for',
+    type: String,
+  })
+  @ApiBody({
+    type: UpdateProductTagsDto,
+    description: 'Array of tag IDs to assign to the product',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tags have been successfully updated for the product',
+    type: ProductResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'Product not found' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  @ApiBearerAuth('JWT-auth')
+  updateTags(
+    @Param('id') id: string,
+    @Body() updateTagsDto: UpdateProductTagsDto,
+  ): Promise<ProductResponseDto> {
+    return this.productsService.updateTags(id, updateTagsDto.tagIds);
   }
 }
