@@ -387,17 +387,24 @@ model InventoryLog {
 }
 
 model Address {
-  id        String   @id @default(uuid())
-  street    String
-  city      String
-  state     String
-  zipCode   String   @map("zip_code")
-  country   String
-  isDefault Boolean  @default(false) @map("is_default")
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(uuid())
+  street        String
+  city          String
+  state         String
+  zipCode       String   @map("zip_code")
+  country       String
+  isDefault     Boolean  @default(false) @map("is_default")
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  // Additional fields for frontend
+  name          String?
+  mobileNumber  String?  @map("mobile_number")
+  locality      String?
+  landmark      String?
+  alternatePhone String? @map("alternate_phone")
+  addressType   String?  @map("address_type")
 
   @@map("addresses")
 }

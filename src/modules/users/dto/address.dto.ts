@@ -44,6 +44,42 @@ export class AddressDto {
   })
   isDefault: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Recipient name',
+    example: 'John Doe',
+  })
+  name?: string;
+
+  @ApiPropertyOptional({
+    description: 'Mobile phone number',
+    example: '1234567890',
+  })
+  mobileNumber?: string;
+
+  @ApiPropertyOptional({
+    description: 'Locality or neighborhood',
+    example: 'Downtown',
+  })
+  locality?: string;
+
+  @ApiPropertyOptional({
+    description: 'Landmark for easier identification',
+    example: 'Near Central Park',
+  })
+  landmark?: string;
+
+  @ApiPropertyOptional({
+    description: 'Alternative phone number',
+    example: '0987654321',
+  })
+  alternatePhone?: string;
+
+  @ApiPropertyOptional({
+    description: 'Type of address (Home/Work)',
+    example: 'Home',
+  })
+  addressType?: string;
+
   @ApiProperty({
     description: 'Creation date',
     example: '2023-01-01T12:00:00Z',
@@ -106,6 +142,54 @@ export class CreateAddressDto {
   @IsBoolean()
   @IsOptional()
   isDefault?: boolean = false;
+
+  @ApiPropertyOptional({
+    description: 'Recipient name',
+    example: 'John Doe',
+  })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional({
+    description: 'Mobile phone number',
+    example: '1234567890',
+  })
+  @IsString()
+  @IsOptional()
+  mobileNumber?: string;
+
+  @ApiPropertyOptional({
+    description: 'Locality or neighborhood',
+    example: 'Downtown',
+  })
+  @IsString()
+  @IsOptional()
+  locality?: string;
+
+  @ApiPropertyOptional({
+    description: 'Landmark for easier identification',
+    example: 'Near Central Park',
+  })
+  @IsString()
+  @IsOptional()
+  landmark?: string;
+
+  @ApiPropertyOptional({
+    description: 'Alternative phone number',
+    example: '0987654321',
+  })
+  @IsString()
+  @IsOptional()
+  alternatePhone?: string;
+
+  @ApiPropertyOptional({
+    description: 'Type of address (Home/Work)',
+    example: 'Home',
+  })
+  @IsString()
+  @IsOptional()
+  addressType?: string;
 }
 
 export class UpdateAddressDto {
@@ -156,4 +240,52 @@ export class UpdateAddressDto {
   @IsBoolean()
   @IsOptional()
   isDefault?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Recipient name',
+    example: 'John Doe',
+  })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional({
+    description: 'Mobile phone number',
+    example: '1234567890',
+  })
+  @IsString()
+  @IsOptional()
+  mobileNumber?: string;
+
+  @ApiPropertyOptional({
+    description: 'Locality or neighborhood',
+    example: 'Downtown',
+  })
+  @IsString()
+  @IsOptional()
+  locality?: string;
+
+  @ApiPropertyOptional({
+    description: 'Landmark for easier identification',
+    example: 'Near Central Park',
+  })
+  @IsString()
+  @IsOptional()
+  landmark?: string;
+
+  @ApiPropertyOptional({
+    description: 'Alternative phone number',
+    example: '0987654321',
+  })
+  @IsString()
+  @IsOptional()
+  alternatePhone?: string;
+
+  @ApiPropertyOptional({
+    description: 'Type of address (Home/Work)',
+    example: 'Home',
+  })
+  @IsString()
+  @IsOptional()
+  addressType?: string;
 }

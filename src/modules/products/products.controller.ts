@@ -62,6 +62,21 @@ export class ProductsController {
     description: 'Returns paginated list of products',
     type: PaginatedProductResponseDto,
   })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
+  @ApiQuery({ name: 'search', required: false, description: 'Search term for product title or description' })
+  @ApiQuery({ name: 'categoryId', required: false, description: 'Category ID to filter products' })
+  @ApiQuery({ name: 'categorySlug', required: false, description: 'Category slug to filter products (alternative to categoryId)' })
+  @ApiQuery({ name: 'recursive', required: false, type: Boolean, description: 'Whether to include products from all subcategories recursively' })
+  @ApiQuery({ name: 'subCategoryId', required: false, description: 'Subcategory ID to filter products' })
+  @ApiQuery({ name: 'brandId', required: false, description: 'Brand ID to filter products' })
+  @ApiQuery({ name: 'tagIds', required: false, description: 'Comma-separated list of tag IDs' })
+  @ApiQuery({ name: 'minPrice', required: false, type: Number, description: 'Minimum price filter' })
+  @ApiQuery({ name: 'maxPrice', required: false, type: Number, description: 'Maximum price filter' })
+  @ApiQuery({ name: 'inStock', required: false, type: Boolean, description: 'Filter for products in stock' })
+  @ApiQuery({ name: 'isFeatured', required: false, type: Boolean, description: 'Filter for featured products' })
+  @ApiQuery({ name: 'sortBy', required: false, description: 'Field to sort by', default: 'createdAt' })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'], description: 'Sort direction', default: 'desc' })
   findAll(
     @Query() filterDto: ProductFilterDto,
   ): Promise<PaginatedProductResponseDto> {

@@ -8,6 +8,8 @@ import {
   Get,
   Req,
   Ip,
+  Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -33,11 +35,14 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiForbiddenResponse,
+  ApiCookieAuth,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Public } from '../../common/guards/jwt-auth.guard';
+import { Response } from 'express';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -71,12 +76,15 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   @ApiBody({ type: LoginDto })
-  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<AuthResponseDto> {
     const user = await this.authService.validateUser(
       loginDto.email,
       loginDto.password,
     );
-    return this.authService.login(user);
+    return this.authService.login(user, res);
   }
 
   @Public()
@@ -111,10 +119,12 @@ export class AuthController {
   @ApiBody({ type: AdminLoginDto })
   async adminLogin(
     @Body() adminLoginDto: AdminLoginDto,
+    @Res({ passthrough: true }) res: Response
   ): Promise<AuthResponseDto> {
     return this.authService.adminLogin(
       adminLoginDto.email,
       adminLoginDto.password,
+      res
     );
   }
 
@@ -167,13 +177,27 @@ export class AuthController {
     type: TokenResponseDto,
   })
   @ApiUnauthorizedResponse({ description: 'Invalid refresh token' })
-  @ApiBody({ type: RefreshTokenDto })
+  @ApiCookieAuth('refresh_token')
   async refreshToken(
     @Body() refreshTokenDto: RefreshTokenDto,
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response
   ): Promise<TokenResponseDto> {
+    // First try to get refresh token from cookie
+    const refreshTokenFromCookie = req.cookies?.refresh_token;
+    
+    // If no cookie, fall back to body
+    const refreshToken = refreshTokenFromCookie || refreshTokenDto.refreshToken;
+    
+    // If neither is provided, this will fail validation
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+    
     return this.authService.refreshToken(
       refreshTokenDto.userId,
-      refreshTokenDto.refreshToken,
+      refreshToken,
+      res
     );
   }
 
@@ -187,8 +211,12 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiBearerAuth('JWT-auth')
-  async logout(@Req() req: any): Promise<LogoutResponseDto> {
-    return this.authService.logout(req.user.id);
+  @ApiCookieAuth('refresh_token')
+  async logout(
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<LogoutResponseDto> {
+    return this.authService.logout(req.user.id, res);
   }
 
   @Get('me')
@@ -218,5 +246,29 @@ export class AuthController {
   @ApiBearerAuth('JWT-auth')
   getAdminProfile(@Req() req: any): UserDto {
     return req.user;
+  }
+
+  @Get('csrf-token')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get CSRF token',
+    description: 'Returns a new CSRF token for form submission protection',
+  })
+  @ApiOkResponse({
+    description: 'CSRF token retrieved successfully',
+    schema: {
+      properties: {
+        statusCode: { type: 'number', example: 200 },
+        message: { type: 'string', example: 'CSRF token generated successfully' },
+      },
+    },
+  })
+  async getCsrfToken(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    // The token is already set in a cookie by the CSRF middleware
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'CSRF token generated successfully',
+    };
   }
 }

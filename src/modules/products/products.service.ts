@@ -40,6 +40,8 @@ export class ProductsService {
         limit = 10,
         search,
         categoryId,
+        categorySlug,
+        recursive,
         subCategoryId,
         brandId,
         tagIds,
@@ -69,13 +71,45 @@ export class ProductsService {
         ];
       }
 
-      // Filter by category
-      if (categoryId) {
-        where.categoryId = categoryId;
+      // Handle category filtering
+      if (categorySlug) {
+        // Find the category by slug
+        const category = await this.prismaService.category.findUnique({
+          where: { slug: categorySlug },
+        });
+        
+        if (!category) {
+          throw new NotFoundException(`Category with slug "${categorySlug}" not found`);
+        }
+        
+        if (recursive) {
+          // Get all category IDs in the hierarchy
+          const categoryIds = await this.getCategoryAndDescendantsIds(category.id);
+          where.OR = [
+            { categoryId: { in: categoryIds } },
+            { subCategoryId: { in: categoryIds } }
+          ];
+        } else {
+          // Just use the single category ID
+          where.categoryId = category.id;
+        }
+      } else if (categoryId) {
+        // Direct categoryId filter
+        if (recursive) {
+          // Get all category IDs in the hierarchy
+          const categoryIds = await this.getCategoryAndDescendantsIds(categoryId);
+          where.OR = [
+            { categoryId: { in: categoryIds } },
+            { subCategoryId: { in: categoryIds } }
+          ];
+        } else {
+          // Just use the single category ID
+          where.categoryId = categoryId;
+        }
       }
 
       // Filter by subcategory
-      if (subCategoryId) {
+      if (subCategoryId && !recursive) {
         where.subCategoryId = subCategoryId;
       }
 
@@ -123,7 +157,15 @@ export class ProductsService {
 
       // Build order by
       const orderBy: Prisma.ProductOrderByWithRelationInput = {};
-      orderBy[sortBy] = sortOrder;
+      
+      // Handle special sort fields that need mapping
+      if (sortBy === 'popularity') {
+        // Map 'popularity' to 'averageRating' as the most appropriate field
+        orderBy['averageRating'] = sortOrder;
+      } else {
+        // Use the provided sort field
+        orderBy[sortBy] = sortOrder;
+      }
 
       // Execute query with count
       const [products, total] = await Promise.all([
@@ -173,6 +215,9 @@ export class ProductsService {
         hasPreviousPage,
       };
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       this.logger.error(
         `Error retrieving products: ${error.message}`,
         error.stack,
@@ -1179,5 +1224,51 @@ export class ProductsService {
       .padEnd(5, 'X');
 
     return `${baseSku}-${variantSuffix}`;
+  }
+
+  // Helper method to get a category and all its descendants
+  private async getCategoryAndDescendantsIds(categoryId: string): Promise<string[]> {
+    try {
+      const category = await this.prismaService.category.findUnique({
+        where: { id: categoryId },
+        include: {
+          children: true,
+        },
+      });
+
+      if (!category) {
+        return [];
+      }
+
+      // Start with the current category ID
+      const categoryIds = [category.id];
+
+      // Recursively get all descendant IDs
+      const getChildIds = async (parentId: string): Promise<string[]> => {
+        const children = await this.prismaService.category.findMany({
+          where: { parentId },
+          select: { id: true },
+        });
+
+        const childIds = children.map(child => child.id);
+        
+        // Recursively get descendants for each child
+        const descendantPromises = children.map(child => getChildIds(child.id));
+        const descendantIds = await Promise.all(descendantPromises);
+        
+        // Flatten and return all IDs
+        return [...childIds, ...descendantIds.flat()];
+      };
+
+      // Get all descendant category IDs
+      const descendantIds = await getChildIds(category.id);
+      return [...categoryIds, ...descendantIds];
+    } catch (error) {
+      this.logger.error(
+        `Error getting category hierarchy: ${error.message}`,
+        error.stack,
+      );
+      return [categoryId]; // Fallback to just the original ID
+    }
   }
 }

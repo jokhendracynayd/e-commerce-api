@@ -175,3 +175,39 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 This project is licensed under the MIT License.
+
+## Cart Merge Functionality Improvements
+
+We've made several improvements to the cart functionality, particularly focusing on the anonymous cart merging feature:
+
+### Backend Improvements
+
+1. **Transaction-based Merging**: The `mergeAnonymousCart` method now uses a Prisma transaction for atomic operations, ensuring that all cart items are processed together or none at all.
+
+2. **Pre-validation of All Items**: Before making any changes to the database, all items are validated to ensure they exist, are active, and have sufficient stock.
+
+3. **Better Error Handling**: More detailed error messages are now provided when merging fails, with specific reasons for each item that couldn't be merged.
+
+4. **Optimized Database Queries**: Reduced redundant database queries by validating all items first, then processing the valid ones.
+
+5. **Improved Logging**: Enhanced logging for both successful operations and failures to help with debugging.
+
+6. **Proper additionalInfo Handling**: We now correctly handle additionalInfo metadata for cart items.
+
+### Frontend Improvements
+
+1. **Standardized Field Names**: Consistently use `variantId` instead of mixing `variantId` and `productVariantId`.
+
+2. **Enhanced Error Handling**: Better error extraction from API responses with specific error messages shown to users.
+
+3. **Debounce Protection**: Added debouncing to prevent multiple rapid merge operations when users log in.
+
+4. **Proper Type Safety**: Improved TypeScript types to match actual API response structures.
+
+5. **Optimized API Calls**: Removed redundant backend calls and improved the cart sync logic flow.
+
+6. **Extended Timeout for Merge Operations**: Doubled the timeout for merge operations since they might take longer than standard requests.
+
+7. **Improved localStorage Management**: Better handling of localStorage to prevent unnecessary storage operations.
+
+The cart system now provides a more reliable, consistent, and user-friendly experience when merging anonymous carts after user login.

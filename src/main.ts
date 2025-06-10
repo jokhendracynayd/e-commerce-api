@@ -3,11 +3,15 @@ import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
+import * as cookieParser from 'cookie-parser';
+import * as csurf from 'csurf';
 import { ConfigExceptionFilter } from './filters/config-exception.filter';
 import { ErrorCode } from './common/constants/error-codes.enum';
 import { BadRequestException } from './common/exceptions/http-exceptions';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AllExceptionsFilter } from './filters/http-exception.filter';
+import { AppLogger } from './common/services/logger.service';
 import { CategoryResponseDto } from './modules/categories/dto/category-response.dto';
 import { BrandResponseDto } from './modules/brands/dto/brand-response.dto';
 import { AddressDto } from './modules/users/dto/address.dto';
@@ -42,6 +46,14 @@ async function bootstrap() {
     // Apply config exception filter first
     app.useGlobalFilters(new ConfigExceptionFilter());
 
+    // Create a contextId for resolving scoped providers
+    const appLoggerFactory = await app.resolve(AppLogger);
+    const appLogger = appLoggerFactory.setContext('GlobalExceptionFilter');
+    
+    // Also explicitly apply AllExceptionsFilter to ensure it catches all exceptions
+    // This works alongside the provider in AppModule
+    app.useGlobalFilters(new AllExceptionsFilter(appLogger));
+
     // Get config service
     const configService = app.get(ConfigService);
     const port = configService.get<number>('PORT', 3001);
@@ -49,10 +61,106 @@ async function bootstrap() {
 
     // Security settings
     app.use(helmet());
+    
+    // Add cookie parser middleware - must be before csrf
+    app.use(cookieParser());
+    
+    // Configure CORS with credentials support
+    const corsOrigin = nodeEnv === 'production' ? 'https://yourdomain.com' : true;
     app.enableCors({
-      origin: nodeEnv === 'production' ? 'https://yourdomain.com' : true,
+      origin: corsOrigin,
       credentials: true,
     });
+    
+    // Global prefix will be set once at the end of setup
+    
+    // Custom middleware to handle CSRF protection for different paths
+    app.use((req, res, next) => {
+      const fullPath = req.originalUrl || req.url;
+      const method = req.method;
+      
+      // Safe methods don't need CSRF protection
+      if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+        // For safe methods, just add the CSRF token cookie
+        addCsrfTokenCookie(req, res);
+        return next();
+      }
+      
+      // Check for paths that should be exempt from CSRF protection
+      const exemptPaths = [
+        // Auth routes
+        '/auth/login',
+        '/auth/register',
+        '/auth/refresh',
+        '/auth/logout',
+        '/auth/admin/login',
+        '/docs',
+        
+        // Cart operations
+        '/carts/merge-anonymous',
+        '/carts/add-item',
+        '/carts/items/',
+        '/carts/clear',
+        '/carts/my-cart',
+        
+        // User operations
+        '/users/me/addresses',
+        
+        // Product operations
+        '/products/',
+        
+        // Order operations
+        '/orders',
+        '/orders/user-order',
+        '/orders/my-orders',
+        
+        // Wishlist operations
+        '/wishlist/',
+        
+        // Coupon operations
+        '/coupons/'
+      ];
+      
+      // Log the path being checked (for debugging)
+      console.log(`Checking CSRF for ${method} ${fullPath}`);
+      
+      // Check if this path should be exempt from CSRF
+      const shouldExempt = exemptPaths.some(exemptPath => 
+        fullPath.includes(`/api/v1${exemptPath}`) || fullPath.includes(exemptPath)
+      );
+      
+      if (shouldExempt) {
+        console.log(`Exempting path from CSRF: ${fullPath}`);
+        // Skip CSRF for exempt paths but still add token cookie
+        addCsrfTokenCookie(req, res);
+        return next();
+      }
+      
+      // For all other paths, apply CSRF protection
+      console.log(`Applying CSRF protection to: ${fullPath}`);
+      return csurf({
+        cookie: {
+          key: 'XSRF-TOKEN',
+          httpOnly: false,
+          sameSite: nodeEnv === 'production' ? 'strict' : 'lax',
+          secure: nodeEnv === 'production',
+        }
+      })(req, res, next);
+    });
+    
+    // Helper function to add CSRF token cookie
+    function addCsrfTokenCookie(req, res) {
+      // For exempt routes, set a dummy token
+      // For routes with CSRF protection, the token will be set by the middleware
+      if (!req.csrfToken) {
+        res.cookie('XSRF-TOKEN', 'exempt-csrf-route', {
+          httpOnly: false,
+          sameSite: nodeEnv === 'production' ? 'strict' : 'lax',
+          secure: nodeEnv === 'production',
+          path: '/',
+        });
+      }
+    }
 
     // Global response transformations
     // Note: TransformInterceptor and AllExceptionsFilter are provided by APP_* tokens in AppModule

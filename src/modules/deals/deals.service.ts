@@ -536,4 +536,167 @@ export class DealsService {
     
     return { success: true };
   }
+
+  // Get products by deal type with filtering
+  async getProductsByDealType(
+    dealType: DealType,
+    params: {
+      skip?: number;
+      take?: number;
+      status?: 'Active' | 'Upcoming' | 'Ended';
+    }
+  ) {
+    const { skip = 0, take = 10, status } = params;
+    
+    try {
+      // Get current date for status filtering
+      const now = new Date();
+      
+      // Build the where clause for deal status if needed
+      let dealTimeFilter: Prisma.ProductDealWhereInput = {};
+      
+      if (status === 'Active') {
+        dealTimeFilter = {
+          startTime: { lte: now },
+          endTime: { gte: now }
+        };
+      } else if (status === 'Upcoming') {
+        dealTimeFilter = {
+          startTime: { gt: now }
+        };
+      } else if (status === 'Ended') {
+        dealTimeFilter = {
+          endTime: { lt: now }
+        };
+      }
+      
+      // Find all product deals matching the type and status
+      const productDeals = await this.prisma.productDeal.findMany({
+        where: {
+          dealType,
+          ...dealTimeFilter
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+      
+      // Extract unique product IDs (avoiding duplicates)
+      const productIds = [...new Set(productDeals.map(deal => deal.productId))];
+      
+      // Skip placeholder product used for deal templates
+      const realProductIds = await Promise.all(
+        productIds.map(async (id) => {
+          const product = await this.prisma.product.findUnique({
+            where: { id },
+            select: { sku: true }
+          });
+          return product?.sku !== 'DEAL-PLACEHOLDER' ? id : null;
+        })
+      ).then(ids => ids.filter(id => id !== null) as string[]);
+      
+      // Get products with pagination
+      const products = await this.prisma.product.findMany({
+        where: {
+          id: { in: realProductIds },
+          isActive: true,
+          visibility: 'PUBLIC',
+        },
+        skip,
+        take,
+        orderBy: {
+          createdAt: 'desc'
+        },
+        include: {
+          category: true,
+          brand: true,
+          images: {
+            orderBy: {
+              position: 'asc'
+            }
+          },
+          reviews: {
+            take: 3,
+            orderBy: {
+              createdAt: 'desc'
+            }
+          }
+        }
+      });
+      
+      // Get total count for pagination
+      const total = realProductIds.length;
+      
+      // Transform products to ensure consistent format with other endpoints
+      const transformedProducts = products.map(product => {
+        // Handle prices safely
+        const price = typeof product.price === 'string' 
+          ? parseFloat(product.price) 
+          : Number(product.price);
+          
+        const discountPrice = product.discountPrice 
+          ? (typeof product.discountPrice === 'string' 
+            ? parseFloat(product.discountPrice) 
+            : Number(product.discountPrice)) 
+          : null;
+        
+        // Calculate badge from product data
+        let badge: string | undefined = undefined;
+        
+        if (product.isFeatured === true) {
+          badge = 'Featured';
+        } else if (discountPrice && price && (price - discountPrice) / price > 0.05) {
+          badge = 'Sale';
+        }
+        
+        // If we have both a price and a discountPrice, always set the originalPrice
+        let originalPrice: number | undefined = undefined;
+        
+        if (discountPrice && price && discountPrice < price) {
+          originalPrice = price;
+        } else if (product.isFeatured === true && !discountPrice && price) {
+          originalPrice = parseFloat((price * 1.10).toFixed(2));
+        }
+        
+        // Only include rating and review count if they have meaningful values
+        const rating = product.averageRating && product.averageRating > 0 ? product.averageRating : undefined;
+        const reviewCount = product.reviewCount && product.reviewCount > 0 ? product.reviewCount : undefined;
+        
+        return {
+          id: product.id,
+          title: product.title,
+          slug: product.slug,
+          price: discountPrice || price,
+          originalPrice,
+          currency: product.currency || 'INR',
+          images: product.images.map(img => ({
+            id: img.id,
+            imageUrl: img.imageUrl,
+            altText: img.altText
+          })),
+          badge,
+          rating,
+          reviewCount,
+          // Safely check for these properties
+          isAssured: product['isAssured'] === true,
+          hasFreeDel: product['freeShipping'] === true,
+          isFeatured: product.isFeatured === true,
+          dealType: dealType
+        };
+      });
+      
+      return {
+        products: transformedProducts,
+        total,
+        totalPages: Math.ceil(total / take),
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+        dealType
+      };
+      
+    } catch (error) {
+      console.error(`Error fetching products by deal type: ${error.message}`, error.stack);
+      throw new InternalServerErrorException(`Failed to fetch products by deal type: ${error.message}`);
+    }
+  }
 } 

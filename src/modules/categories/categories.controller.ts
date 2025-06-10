@@ -40,12 +40,19 @@ import {
   CategoryWithRelations,
   CategoryTreeNode,
 } from './interfaces/category.interface';
+import { Public } from '../../common/guards/jwt-auth.guard';
+import { ProductsService } from '../products/products.service';
+import { ProductFilterDto, PaginatedProductResponseDto } from '../products/dto';
 
 @ApiTags('categories')
 @Controller('categories')
 export class CategoriesController {
-  constructor(private readonly categoriesService: CategoriesService) {}
+  constructor(
+    private readonly categoriesService: CategoriesService,
+    private readonly productsService: ProductsService,
+  ) {}
 
+  @Public()
   @Get()
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(60 * 15) // Cache for 15 minutes
@@ -59,6 +66,7 @@ export class CategoriesController {
     return this.categoriesService.findAll();
   }
 
+  @Public()
   @Get('tree')
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(60 * 15) // Cache for 15 minutes
@@ -70,6 +78,86 @@ export class CategoriesController {
   })
   async getCategoryTree(): Promise<CategoryTreeNode[]> {
     return this.categoriesService.getCategoryTree();
+  }
+
+  @Public()
+  @Get(':id/products')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(60 * 5) // Cache for 5 minutes
+  @ApiOperation({ summary: 'Get products in a category' })
+  @ApiParam({ name: 'id', type: 'string', description: 'Category ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of products in the category',
+    type: PaginatedProductResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'Category not found' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
+  @ApiQuery({ name: 'sortBy', required: false, description: 'Field to sort by' })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'], description: 'Sort direction' })
+  @ApiQuery({ name: 'minPrice', required: false, type: Number, description: 'Minimum price filter' })
+  @ApiQuery({ name: 'maxPrice', required: false, type: Number, description: 'Maximum price filter' })
+  @ApiQuery({ name: 'search', required: false, description: 'Search term' })
+  async getCategoryProducts(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() filterDto: ProductFilterDto,
+  ): Promise<PaginatedProductResponseDto> {
+    // First verify the category exists
+    await this.categoriesService.findOne(id);
+    
+    // Pass the category ID to the product filter
+    const categoryFilterDto = {
+      ...filterDto,
+      categoryId: id,
+    };
+    
+    // Return paginated products
+    return this.productsService.findAll(categoryFilterDto);
+  }
+
+  @Public()
+  @Get(':id/recursive-products')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(60 * 5) // Cache for 5 minutes
+  @ApiOperation({ summary: 'Get products from a category and all its subcategories recursively' })
+  @ApiParam({ name: 'id', type: 'string', description: 'Category ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Products grouped by category',
+    type: 'object', // Custom response type
+  })
+  @ApiNotFoundResponse({ description: 'Category not found' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of products to return' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number for pagination' })
+  @ApiQuery({ name: 'sortBy', required: false, enum: ['price', 'title', 'rating'], description: 'Field to sort by' })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'], description: 'Sort direction' })
+  @ApiQuery({ name: 'minPrice', required: false, type: Number, description: 'Minimum price filter' })
+  @ApiQuery({ name: 'maxPrice', required: false, type: Number, description: 'Maximum price filter' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search term for product title' })
+  @ApiQuery({ name: 'featured', required: false, type: Boolean, description: 'Filter by featured status' })
+  async getCategoryProductsRecursive(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('limit') limit?: number,
+    @Query('page') page?: number,
+    @Query('sortBy') sortBy?: 'price' | 'title' | 'rating',
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+    @Query('minPrice') minPrice?: number,
+    @Query('maxPrice') maxPrice?: number,
+    @Query('search') search?: string,
+    @Query('featured') featured?: boolean,
+  ): Promise<any> {
+    // Get the category with its products and child categories recursively
+    return this.categoriesService.getCategoryProductsRecursive(id, { 
+      limit, 
+      page,
+      sortBy,
+      sortOrder,
+      minPrice,
+      maxPrice,
+      search,
+      featured
+    });
   }
 
   @Get('slug/:slug')
@@ -106,6 +194,7 @@ export class CategoriesController {
     return this.categoriesService.findOne(id);
   }
 
+  @Public()
   @Get(':id/breadcrumb')
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(60 * 15) // Cache for 15 minutes

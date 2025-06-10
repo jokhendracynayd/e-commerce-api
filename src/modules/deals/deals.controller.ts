@@ -31,6 +31,7 @@ import {
 import { JwtAuthGuard, Public } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { DealType } from '@prisma/client';
 
 @ApiTags('Deals')
 @Controller('deals')
@@ -197,5 +198,33 @@ export class DealsController {
     @Param('productId', ParseUUIDPipe) productId: string,
   ) {
     return this.dealsService.removeProduct(id, productId);
+  }
+
+  @Public()
+  @Get('types/:dealType/products')
+  @ApiOperation({ summary: 'Get products by deal type' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Returns products associated with the specified deal type'
+  })
+  @ApiResponse({ status: 400, description: 'Invalid deal type' })
+  @ApiParam({ name: 'dealType', enum: DealType, description: 'Deal type (TRENDING, FLASH, DEAL_OF_DAY)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (starts at 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
+  @ApiQuery({ name: 'status', required: false, enum: ['Active', 'Upcoming', 'Ended'], description: 'Deal status filter' })
+  async getProductsByDealType(
+    @Param('dealType') dealType: DealType,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('status') status?: 'Active' | 'Upcoming' | 'Ended',
+  ) {
+    const pageNum = page !== undefined ? Number(page) : 1;
+    const limitNum = limit !== undefined ? Number(limit) : 10;
+    
+    return this.dealsService.getProductsByDealType(dealType, {
+      skip: pageNum > 0 ? (pageNum - 1) * limitNum : 0,
+      take: limitNum > 0 ? limitNum : 10,
+      status
+    });
   }
 } 

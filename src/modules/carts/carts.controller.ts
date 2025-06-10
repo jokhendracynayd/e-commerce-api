@@ -12,7 +12,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { CartsService } from './carts.service';
-import { AddToCartDto, UpdateCartItemDto, CartResponseDto } from './dto';
+import { AddToCartDto, UpdateCartItemDto, CartResponseDto, MergeAnonymousCartDto } from './dto';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiTags,
@@ -135,5 +135,26 @@ export class CartsController {
   clearCart(@Req() req: RequestWithUser): Promise<CartResponseDto> {
     const userId = req.user.id;
     return this.cartsService.clearCart(userId);
+  }
+
+  @Post('merge-anonymous')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Merge anonymous cart with user cart' })
+  @ApiBody({ type: MergeAnonymousCartDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Returns the merged cart',
+    type: CartResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid input data or products not available',
+  })
+  @ApiBearerAuth('JWT-auth')
+  mergeAnonymousCart(
+    @Req() req: RequestWithUser,
+    @Body() mergeAnonymousCartDto: MergeAnonymousCartDto,
+  ): Promise<CartResponseDto> {
+    const userId = req.user.id;
+    return this.cartsService.mergeAnonymousCart(userId, mergeAnonymousCartDto.items);
   }
 }

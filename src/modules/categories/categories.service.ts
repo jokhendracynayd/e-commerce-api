@@ -418,4 +418,383 @@ export class CategoriesService {
       currentParent = parent.parentId;
     }
   }
+
+  async getCategoryProductsRecursive(
+    categoryId: string, 
+    options?: { 
+      limit?: number; 
+      page?: number;
+      sortBy?: 'price' | 'title' | 'rating';
+      sortOrder?: 'asc' | 'desc';
+      minPrice?: number;
+      maxPrice?: number;
+      search?: string;
+      featured?: boolean;
+    }
+  ): Promise<any> {
+    try {
+      // First verify the category exists
+      const rootCategory = await this.findOne(categoryId);
+      
+      // Set default pagination values
+      const limit = options?.limit || 20;
+      const page = options?.page || 1;
+      const sortBy = options?.sortBy || 'title';
+      const sortOrder = options?.sortOrder || 'asc';
+      
+      // Get all products for root category to build hierarchy
+      const result = await this.collectAllCategoryProducts(categoryId);
+      // Fetch direct child categories for interleaving
+      const childCategories = await this.prismaService.category.findMany({ where: { parentId: categoryId } });
+      
+      // Collect, filter, and sort products per child category
+      const groupProductsArray = await Promise.all(
+        childCategories.map(async child => {
+          const { allProducts: groupAll } = await this.collectAllCategoryProducts(child.id);
+          let group = [...groupAll];
+          // Price filter
+          if (options?.minPrice !== undefined || options?.maxPrice !== undefined) {
+            const minPrice = options?.minPrice ?? -Infinity;
+            const maxPrice = options?.maxPrice ?? Infinity;
+            group = group.filter(p => {
+              const pr = parseFloat(p.price);
+              return pr >= minPrice && pr <= maxPrice;
+            });
+          }
+          // Search filter
+          if (options?.search) {
+            const term = options.search.toLowerCase();
+            group = group.filter(p => p.title.toLowerCase().includes(term));
+          }
+          // Featured filter
+          if (options?.featured !== undefined) {
+            group = group.filter(p => p.isFeatured === options.featured);
+          }
+          // Sort group
+          if (sortBy === 'price') {
+            group.sort((a, b) => sortOrder === 'asc'
+              ? parseFloat(a.price) - parseFloat(b.price)
+              : parseFloat(b.price) - parseFloat(a.price)
+            );
+          } else if (sortBy === 'title') {
+            group.sort((a, b) => sortOrder === 'asc'
+              ? a.title.localeCompare(b.title)
+              : b.title.localeCompare(a.title)
+            );
+          } else if (sortBy === 'rating') {
+            group.sort((a, b) => sortOrder === 'asc'
+              ? (a.rating || 0) - (b.rating || 0)
+              : (b.rating || 0) - (a.rating || 0)
+            );
+          }
+          return group;
+        })
+      );
+      // Round-robin interleaving across child groups
+      const interleaved: any[] = [];
+      const seenIds = new Set<string>();
+      let idx = 0;
+      while (interleaved.length < limit) {
+        let addedInRound = false;
+        for (const group of groupProductsArray) {
+          const prod = group[idx];
+          if (prod && !seenIds.has(prod.id)) {
+            interleaved.push(prod);
+            seenIds.add(prod.id);
+            addedInRound = true;
+            if (interleaved.length === limit) break;
+          }
+        }
+        if (!addedInRound) break;
+        idx++;
+      }
+      // Fallback: if interleaved not enough, append from all root products
+      if (interleaved.length < limit) {
+        for (const prod of result.allProducts) {
+          if (interleaved.length >= limit) break;
+          if (!seenIds.has(prod.id)) {
+            interleaved.push(prod);
+            seenIds.add(prod.id);
+          }
+        }
+      }
+      // Pagination metadata
+      const totalProducts = result.allProducts.length;
+      const totalPages = Math.ceil(totalProducts / limit);
+      // Return interleaved products
+      return {
+        success: true,
+        data: {
+          id: rootCategory.id,
+          name: rootCategory.name,
+          slug: rootCategory.slug,
+          description: rootCategory.description,
+          icon: rootCategory.icon,
+          products: interleaved,
+          categories: result.categoryHierarchy,
+          pagination: {
+            total: totalProducts,
+            page,
+            limit,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPreviousPage: page > 1,
+            sortBy,
+            sortOrder
+          },
+          filters: {
+            minPrice: options?.minPrice,
+            maxPrice: options?.maxPrice,
+            search: options?.search,
+            featured: options?.featured
+          }
+        }
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(
+        `Error getting recursive products for category ${categoryId}: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        `Failed to retrieve recursive products for category with ID ${categoryId}`,
+      );
+    }
+  }
+
+  private async collectAllCategoryProducts(categoryId: string): Promise<{ 
+    allProducts: any[]; 
+    categoryHierarchy: any;
+  }> {
+    // Keep track of all products to avoid duplicates
+    const productMap = new Map();
+    
+    // Get the category with its direct products
+    const category = await this.prismaService.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        products: {
+          where: {
+            // Only include active products with PUBLIC visibility
+            isActive: true,
+            visibility: 'PUBLIC'
+          },
+          include: {
+            brand: true,
+            images: {
+              orderBy: {
+                position: 'asc',
+              },
+            },
+            variants: true,
+            tags: {
+              include: {
+                tag: true,
+              },
+            },
+            deals: true,
+          },
+        },
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${categoryId} not found`);
+    }
+
+    // Get direct child categories
+    const childCategories = await this.prismaService.category.findMany({
+      where: { parentId: categoryId },
+    });
+
+    // Transform products to a standard format and add to map
+    const transformedProducts = category.products.map(product => 
+      this.transformProduct(product)
+    );
+    
+    // Add products to the map to avoid duplicates
+    transformedProducts.forEach(product => {
+      productMap.set(product.id, product);
+    });
+
+    // Create category hierarchy for reference
+    const categoryHierarchy: any = {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      icon: category.icon,
+      children: [],
+    };
+
+    // Process children recursively
+    if (childCategories.length > 0) {
+      for (const child of childCategories) {
+        const childResult = await this.collectAllCategoryProducts(child.id);
+        
+        // Add child category to hierarchy
+        categoryHierarchy.children.push(childResult.categoryHierarchy);
+        
+        // Add child products to the map (Map automatically handles duplicates)
+        childResult.allProducts.forEach(product => {
+          productMap.set(product.id, product);
+        });
+      }
+    }
+
+    // Convert map to array
+    const allProducts = Array.from(productMap.values());
+    
+    return {
+      allProducts,
+      categoryHierarchy,
+    };
+  }
+
+  private transformProduct(product: any): any {
+    // Handle prices safely
+    const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
+    const discountPrice = product.discountPrice ? 
+      (typeof product.discountPrice === 'string' ? parseFloat(product.discountPrice) : product.discountPrice) : 
+      null;
+    
+    // Calculate badge from product data
+    let badge: string | undefined = undefined;
+    
+    // First check for featured status
+    if (product.isFeatured === true) {
+      badge = 'Featured';
+    } 
+    // Then check for sale status if it has a discount
+    else if (discountPrice && price && (price - discountPrice) / price > 0.05) {
+      badge = 'Sale';
+    }
+    // Finally check for new items 
+    else if (product.visibility === 'NEW') {
+      badge = 'New';
+    }
+    
+    // Only include rating and review count if they have meaningful values
+    const rating = product.averageRating && product.averageRating > 0 ? product.averageRating : undefined;
+    const reviewCount = product.reviewCount && product.reviewCount > 0 ? product.reviewCount : undefined;
+
+    // Determine originalPrice based on available data
+    let originalPrice: number | undefined = undefined;
+    
+    // Case 1: Product has a discountPrice that's less than the regular price
+    if (discountPrice && price && discountPrice < price) {
+      originalPrice = price;
+    } 
+    // Case 2: Product is featured - set artificial original price
+    else if (product.isFeatured === true && price) {
+      originalPrice = parseFloat((price * 1.10).toFixed(2)); // 10% higher
+    }
+    // Case 3: Check if we should set Sale badge and add original price
+    else if (price) {
+      // Special handling for Apple products - always show at 10% off
+      if (product.title.toLowerCase().includes('iphone') && !originalPrice) {
+        badge = 'Sale';
+        originalPrice = parseFloat((price * 1.10).toFixed(2)); // 10% higher
+      }
+      // If we've calculated a Sale badge but no originalPrice, create one
+      else if (badge === 'Sale' && !originalPrice) {
+        originalPrice = parseFloat((price * 1.15).toFixed(2)); // 15% higher
+      }
+    }
+    
+    return {
+      id: product.id,
+      title: product.title,
+      slug: product.slug,
+      price: discountPrice || price,
+      originalPrice: originalPrice,
+      currency: product.currency || 'INR',
+      images: product.images.map(img => ({
+        id: img.id,
+        imageUrl: img.imageUrl,
+        altText: img.altText
+      })),
+      badge: badge,
+      rating: rating,
+      reviewCount: reviewCount,
+      isAssured: product.isAssured === true,
+      hasFreeDel: product.freeShipping === true,
+      isFeatured: product.isFeatured === true,
+    };
+  }
+
+  private async buildCategoryTreeWithProducts(categoryId: string): Promise<any> {
+    // Get the category
+    const category = await this.prismaService.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        products: {
+          where: {
+            // Only include active products with PUBLIC visibility
+            isActive: true,
+            visibility: 'PUBLIC'
+          },
+          include: {
+            brand: true,
+            images: {
+              orderBy: {
+                position: 'asc',
+              },
+            },
+            variants: true,
+            tags: {
+              include: {
+                tag: true,
+              },
+            },
+            deals: true,
+          },
+          // Limit to reasonable number to prevent huge responses
+          take: 20,
+        },
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${categoryId} not found`);
+    }
+
+    // Get direct child categories
+    const childCategories = await this.prismaService.category.findMany({
+      where: { parentId: categoryId },
+    });
+
+    // Transform products to a standard format
+    const transformedProducts = category.products.map(product => this.transformProduct(product));
+
+    // Create result structure
+    const result: any = {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      icon: category.icon,
+      products: transformedProducts,
+      children: [],
+    };
+
+    // Process children recursively
+    if (childCategories.length > 0) {
+      for (const child of childCategories) {
+        const childNode = await this.buildCategoryTreeWithProducts(child.id);
+        
+        // If child has no products of its own, inherit parent's products (without duplication)
+        if (childNode.products.length === 0 && transformedProducts.length > 0) {
+          childNode.products = [...transformedProducts];
+          childNode.inheritedFromParent = true;
+        }
+        
+        result.children.push(childNode);
+      }
+    }
+
+    return result;
+  }
 }

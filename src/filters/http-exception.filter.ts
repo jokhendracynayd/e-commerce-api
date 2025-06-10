@@ -90,6 +90,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
     });
 
+    // Set content type to ensure JSON response
+    response.setHeader('Content-Type', 'application/json');
+
     // Return standardized error response
     response.status(status).json({
       statusCode: status,

@@ -48,8 +48,9 @@ export class AuthResponseDto {
   @ApiProperty({
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
     description: 'JWT refresh token',
+    required: false
   })
-  refreshToken: string;
+  refreshToken?: string;
 
   @ApiProperty({ type: UserDto })
   user: UserDto;

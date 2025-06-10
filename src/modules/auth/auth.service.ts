@@ -13,12 +13,14 @@ import {
   UserDto,
   AuthResponseDto,
   TokenResponseDto,
+  LogoutResponseDto,
 } from './dto/auth-response.dto';
 import { AdminRegisterDto } from './dto/admin-register.dto';
 import * as bcrypt from 'bcrypt';
 import { AppLogger } from '../../common/services/logger.service';
 import { ErrorCode } from '../../common/constants/error-codes.enum';
 import { Role } from '@prisma/client';
+import { Response } from 'express';
 
 // Define the UserStatus enum locally to match Prisma schema
 enum UserStatus {
@@ -26,6 +28,16 @@ enum UserStatus {
   BLOCKED = 'BLOCKED',
   PENDING_VERIFICATION = 'PENDING_VERIFICATION',
 }
+
+// Cookie configuration
+const REFRESH_TOKEN_COOKIE_NAME = 'refresh_token';
+const REFRESH_TOKEN_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' as const : 'lax' as const,
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+  path: '/api/v1/auth/refresh', // Use the correct API path with v1 prefix
+};
 
 @Injectable()
 export class AuthService {
@@ -164,7 +176,7 @@ export class AuthService {
     }
   }
 
-  async login(user: UserDto): Promise<AuthResponseDto> {
+  async login(user: UserDto, res?: Response): Promise<AuthResponseDto> {
     const payload = { email: user.email, sub: user.id, role: user.role };
 
     const accessToken = this.jwtService.sign(payload, {
@@ -187,9 +199,19 @@ export class AuthService {
 
     this.logger.log(`User logged in: ${user.email}`);
 
+    // Set refresh token as HTTP-only cookie if response object is provided
+    if (res && typeof res.cookie === 'function') {
+      res.cookie(
+        REFRESH_TOKEN_COOKIE_NAME,
+        refreshToken,
+        REFRESH_TOKEN_COOKIE_OPTIONS
+      );
+    }
+
     return {
       accessToken,
-      refreshToken,
+      // Only include refresh token in response if not using HTTP-only cookies
+      ...(res && typeof res.cookie === 'function' ? {} : { refreshToken }),
       user: {
         id: user.id,
         email: user.email,
@@ -207,6 +229,7 @@ export class AuthService {
   async refreshToken(
     userId: string,
     refreshToken: string,
+    res?: Response
   ): Promise<TokenResponseDto> {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
@@ -227,32 +250,78 @@ export class AuthService {
       );
     }
 
-    const isRefreshTokenValid = await bcrypt.compare(
+    // Verify if the stored refresh token matches the one provided
+    const refreshTokenMatches = await bcrypt.compare(
       refreshToken,
       user.refreshToken,
     );
 
-    if (!isRefreshTokenValid) {
-      this.logger.warn(`Invalid refresh token for user: ${user.email}`);
+    if (!refreshTokenMatches) {
+      this.logger.warn(
+        `Invalid refresh token provided for user: ${user.email}`,
+      );
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    // Check if refresh token is expired by manually validating it
+    try {
+      this.jwtService.verify(refreshToken, {
+        secret: this.configService.get('JWT_REFRESH_SECRET'),
+      });
+    } catch (error) {
+      this.logger.warn(`Expired refresh token for user: ${user.email}`);
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    // Generate new tokens
     const payload = { email: user.email, sub: user.id, role: user.role };
+    
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN', '15m'),
+    });
+    
+    // Also generate a new refresh token (rotating refresh tokens)
+    const newRefreshToken = this.jwtService.sign(payload, {
+      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN', '7d'),
+    });
+
+    // Update the refresh token in the database
+    await this.prismaService.user.update({
+      where: { id: user.id },
+      data: {
+        refreshToken: await bcrypt.hash(newRefreshToken, 10),
+        updatedAt: new Date(),
+      },
+    });
 
     this.logger.log(`Token refreshed for user: ${user.email}`);
+    
+    // Set the new refresh token as HTTP-only cookie if response object is provided
+    if (res && typeof res.cookie === 'function') {
+      res.cookie(
+        REFRESH_TOKEN_COOKIE_NAME,
+        newRefreshToken,
+        REFRESH_TOKEN_COOKIE_OPTIONS
+      );
+    }
 
     return {
-      accessToken: this.jwtService.sign(payload, {
-        expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN', '15m'),
-      }),
+      accessToken,
     };
   }
 
-  async logout(userId: string) {
+  async logout(userId: string, res?: Response): Promise<LogoutResponseDto> {
     await this.prismaService.user.update({
       where: { id: userId },
       data: { refreshToken: null },
     });
+    
+    // Clear the refresh token cookie if response object is provided
+    if (res && typeof res.cookie === 'function') {
+      res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
+        path: '/api/v1/auth/refresh',
+      });
+    }
 
     this.logger.log(`User logged out: ${userId}`);
     return { success: true };
@@ -357,7 +426,7 @@ export class AuthService {
     }
   }
 
-  async adminLogin(email: string, password: string): Promise<AuthResponseDto> {
+  async adminLogin(email: string, password: string, res?: Response): Promise<AuthResponseDto> {
     // Add additional admin login attempt logging
     this.logger.log(`Admin login attempt for email: ${email}`);
 
@@ -366,8 +435,8 @@ export class AuthService {
     // Log successful admin login
     this.logger.log(`Admin login successful: ${email} (ID: ${user.id})`);
 
-    // Create admin session with special privileges
-    return this.login(user);
+    // Pass response object to the login method
+    return this.login(user, res);
   }
 
   async validateAdminUser(email: string, password: string): Promise<UserDto> {
