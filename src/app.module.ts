@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from './config/config.module';
 import { MemoryCacheModule } from './config/memory-cache.module';
+import { RateLimitModule } from './config/rate-limit.module';
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProductsModule } from './modules/products/products.module';
@@ -17,6 +18,7 @@ import { UsersModule } from './modules/users/users.module';
 import { DealsModule } from './modules/deals/deals.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { SpecificationsModule } from './modules/specifications/specifications.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { AllExceptionsFilter } from './filters/http-exception.filter';
@@ -27,6 +29,7 @@ import { AppLogger } from './common/services/logger.service';
   imports: [
     ConfigModule,
     MemoryCacheModule,
+    RateLimitModule,
     CommonModule,
     AuthModule,
     ProductsModule,
@@ -41,6 +44,7 @@ import { AppLogger } from './common/services/logger.service';
     DealsModule,
     CouponsModule,
     SpecificationsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [

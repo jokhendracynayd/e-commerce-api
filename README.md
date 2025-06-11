@@ -37,6 +37,8 @@ A scalable, maintainable, and secure backend API for an e-commerce platform buil
 - Review system
 - Redis caching for improved performance
 - PostgreSQL database with Prisma ORM
+- Rate limiting for API protection
+- Secure payment processing with multiple providers
 
 ## Tech Stack
 
@@ -136,6 +138,20 @@ The API will be available at `http://localhost:3001/api`
 - PATCH `/api/categories/:id` - Update a category (Admin only)
 - DELETE `/api/categories/:id` - Delete a category (Admin only)
 
+## Rate Limiting
+
+The API implements rate limiting to protect against abuse and ensure fair usage:
+
+- Global rate limit: 10 requests per minute for all endpoints
+- Payment-specific rate limit: 5 requests per minute for payment operations
+
+Rate limits are indicated by the following response headers:
+- `X-RateLimit-Limit`: Maximum requests allowed in the current time window
+- `X-RateLimit-Remaining`: Remaining requests in the current time window
+- `Retry-After`: Seconds to wait before retrying (when limit is exceeded)
+
+For more details, see the [Rate Limiting Documentation](./docs/RATE_LIMITING.md).
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
@@ -211,3 +227,37 @@ We've made several improvements to the cart functionality, particularly focusing
 7. **Improved localStorage Management**: Better handling of localStorage to prevent unnecessary storage operations.
 
 The cart system now provides a more reliable, consistent, and user-friendly experience when merging anonymous carts after user login.
+
+## Production Security Requirements
+
+### Payment Encryption Key
+
+The application uses AES-256-GCM encryption for securing sensitive payment data. To ensure proper security in production, you must set the `PAYMENT_ENCRYPTION_KEY` environment variable:
+
+```
+# Production .env file
+PAYMENT_ENCRYPTION_KEY="your-32-byte-hex-string" # Must be a valid hex string representing 32 bytes (256 bits)
+```
+
+**IMPORTANT**: 
+- The application will fail to start in production if this key is not set
+- The key must be a valid hexadecimal string representing 32 bytes (64 hex chars)
+- Do not use the same encryption key for development and production
+- Keep this key secure and do not share it in public repositories
+
+You can generate a secure encryption key using:
+
+```bash
+# Generate a secure random 32-byte hex string
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### Other Security Considerations
+
+- Always use HTTPS in production
+- Set strong, unique values for all security-related environment variables
+- Regularly rotate security keys and credentials
+- Implement proper secret management using a secure vault solution for production deployments
+- Ensure secure database connections with TLS and proper authentication
+
+For additional security guidance, see the [Security Best Practices](./docs/SECURITY.md) documentation.
