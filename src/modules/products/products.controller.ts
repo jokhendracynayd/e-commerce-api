@@ -24,6 +24,7 @@ import {
   CreateProductDealDto,
   UpdateProductTagsDto,
 } from './dto';
+import { Product } from '@prisma/client';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -81,6 +82,32 @@ export class ProductsController {
     @Query() filterDto: ProductFilterDto,
   ): Promise<PaginatedProductResponseDto> {
     return this.productsService.findAll(filterDto);
+  }
+
+  @Public()
+  @Get('search')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(300) // Cache for 5 minutes
+  @ApiOperation({ summary: 'Search products by keyword' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns products matching the search query',
+    type: [ProductResponseDto],
+  })
+  @ApiQuery({ name: 'q', required: true, type: String, description: 'Search query' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of results to return' })
+  async searchProducts(
+    @Query('q') query: string,
+    @Query('limit') limit?: number,
+  ): Promise<ProductResponseDto[]> {
+    const filterDto: ProductFilterDto = {
+      search: query,
+      limit: limit ? +limit : 10, // Convert to number and default to 10
+      page: 1,
+    };
+    
+    const result = await this.productsService.findAll(filterDto);
+    return result.data;
   }
 
   @Public()

@@ -50,12 +50,14 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Get()
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Get all orders with pagination and filtering' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Returns a paginated list of orders',
     type: PaginatedOrderResponseDto,
   })
+  @ApiBearerAuth('JWT-auth')
   async findAll(
     @Query() filterDto: OrderFilterDto,
   ): Promise<PaginatedOrderResponseDto> {
@@ -84,20 +86,8 @@ export class OrdersController {
     return this.ordersService.findAll(userFilterDto);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get an order by ID' })
-  @ApiParam({ name: 'id', description: 'Order ID', type: String })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Returns the order',
-    type: OrderResponseDto,
-  })
-  @ApiNotFoundResponse({ description: 'Order not found' })
-  async findOne(@Param('id') id: string): Promise<OrderResponseDto> {
-    return this.ordersService.findOne(id);
-  }
-
   @Get('number/:orderNumber')
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Get an order by order number' })
   @ApiParam({ name: 'orderNumber', description: 'Order number', type: String })
   @ApiResponse({
@@ -105,6 +95,7 @@ export class OrdersController {
     description: 'Returns the order',
     type: OrderResponseDto,
   })
+  @ApiBearerAuth('JWT-auth')
   @ApiNotFoundResponse({ description: 'Order not found' })
   async findByOrderNumber(
     @Param('orderNumber') orderNumber: string,
@@ -112,7 +103,23 @@ export class OrdersController {
     return this.ordersService.findByOrderNumber(orderNumber);
   }
 
+  @Get(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Get an order by ID' })
+  @ApiParam({ name: 'id', description: 'Order ID', type: String })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Returns the order',
+    type: OrderResponseDto,
+  })
+  @ApiBearerAuth('JWT-auth')
+  @ApiNotFoundResponse({ description: 'Order not found' })
+  async findOne(@Param('id') id: string): Promise<OrderResponseDto> {
+    return this.ordersService.findOne(id);
+  }
+
   @Post()
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Create a new order' })
   @ApiBody({ type: CreateOrderDto })
   @ApiResponse({
@@ -120,6 +127,7 @@ export class OrdersController {
     description: 'Returns the created order',
     type: OrderResponseDto,
   })
+  @ApiBearerAuth('JWT-auth')
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   async create(
     @Body() createOrderDto: CreateOrderDto,
@@ -136,8 +144,8 @@ export class OrdersController {
     description: 'Returns the created order',
     type: OrderResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiBearerAuth('JWT-auth')
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
   async createUserOrder(
     @Req() req: RequestWithUser,
     @Body() createOrderDto: CreateOrderDto,
@@ -149,6 +157,37 @@ export class OrdersController {
     createOrderDto.userId = userId;
 
     return this.ordersService.create(createOrderDto);
+  }
+
+  @Post('my-orders/:id/cancel')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: "Cancel user's own order" })
+  @ApiParam({ name: 'id', description: 'Order ID', type: String })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Returns the cancelled order',
+    type: OrderResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'Order not found' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  @ApiBearerAuth('JWT-auth')
+  async cancelMyOrder(
+    @Param('id') id: string,
+    @Req() req: RequestWithUser,
+  ): Promise<OrderResponseDto> {
+    // Get user ID from request (provided by AuthGuard)
+    const userId = req.user.id;
+
+    // Verify the order belongs to the user (this check should be in the service)
+    const order = await this.ordersService.findOne(id);
+
+    if (order.user?.id !== userId) {
+      throw new UnauthorizedException(
+        'This order does not belong to the current user',
+      );
+    }
+
+    return this.ordersService.cancel(id);
   }
 
   @Patch(':id')
@@ -186,37 +225,6 @@ export class OrdersController {
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiBearerAuth('JWT-auth')
   async cancel(@Param('id') id: string): Promise<OrderResponseDto> {
-    return this.ordersService.cancel(id);
-  }
-
-  @Post('my-orders/:id/cancel')
-  @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: "Cancel user's own order" })
-  @ApiParam({ name: 'id', description: 'Order ID', type: String })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Returns the cancelled order',
-    type: OrderResponseDto,
-  })
-  @ApiNotFoundResponse({ description: 'Order not found' })
-  @ApiBadRequestResponse({ description: 'Invalid input data' })
-  @ApiBearerAuth('JWT-auth')
-  async cancelMyOrder(
-    @Param('id') id: string,
-    @Req() req: RequestWithUser,
-  ): Promise<OrderResponseDto> {
-    // Get user ID from request (provided by AuthGuard)
-    const userId = req.user.id;
-
-    // Verify the order belongs to the user (this check should be in the service)
-    const order = await this.ordersService.findOne(id);
-
-    if (order.user?.id !== userId) {
-      throw new UnauthorizedException(
-        'This order does not belong to the current user',
-      );
-    }
-
     return this.ordersService.cancel(id);
   }
 }

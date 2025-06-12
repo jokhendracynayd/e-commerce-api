@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Our Store!</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 20px;
+    }
+    .logo {
+      max-width: 150px;
+      margin-bottom: 10px;
+    }
+    h1 {
+      color: #4a154b;
+      margin-top: 0;
+    }
+    .content {
+      margin-bottom: 30px;
+    }
+    .button {
+      display: inline-block;
+      background-color: #4a154b;
+      color: white !important;
+      padding: 12px 30px;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .footer {
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 1px solid #f0f0f0;
+    }
+    a {
+      color: #4a154b;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="https://example.com/logo.png" alt="Company Logo" class="logo">
+    <h1>Welcome to Our E-Commerce Store!</h1>
+  </div>
+
+  <div class="content">
+    <p>Hello {{name}},</p>
+    <p>Thank you for joining our e-commerce platform. We're excited to have you as a new member of our community!</p>
+    <p>With your new account, you can:</p>
+    <ul>
+      <li>Shop our exclusive collections</li>
+      <li>Track your orders easily</li>
+      <li>Save your favorite items</li>
+      <li>Get personalized recommendations</li>
+      <li>Access special promotions for members</li>
+    </ul>
+    <p>Ready to start shopping? Click the button below to browse our latest products:</p>
+    <p style="text-align: center; margin: 30px 0;">
+      <a href="{{loginUrl}}" class="button">Start Shopping</a>
+    </p>
+    <p>If you have any questions or need assistance, don't hesitate to contact our friendly customer support team at <a href="mailto:support@example.com">support@example.com</a>.</p>
+  </div>
+
+  <div class="footer">
+    <p>&copy; {{year}} Your E-Commerce Store. All rights reserved.</p>
+    <p>123 E-Commerce Street, Shopping City, SC 12345</p>
+    <p>
+      <a href="https://example.com/privacy">Privacy Policy</a> | 
+      <a href="https://example.com/terms">Terms of Service</a> | 
+      <a href="https://example.com/unsubscribe">Unsubscribe</a>
+    </p>
+  </div>
+</body>
+</html> 

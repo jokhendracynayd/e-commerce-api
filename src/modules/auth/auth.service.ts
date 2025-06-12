@@ -176,7 +176,7 @@ export class AuthService {
     }
   }
 
-  async login(user: UserDto, res?: Response): Promise<AuthResponseDto> {
+  async login(user: UserDto, res?: Response, rememberMe?: boolean): Promise<AuthResponseDto> {
     const payload = { email: user.email, sub: user.id, role: user.role };
 
     const accessToken = this.jwtService.sign(payload, {
@@ -201,10 +201,17 @@ export class AuthService {
 
     // Set refresh token as HTTP-only cookie if response object is provided
     if (res && typeof res.cookie === 'function') {
+      const cookieOptions = {
+        ...REFRESH_TOKEN_COOKIE_OPTIONS,
+        maxAge: rememberMe
+          ? 7 * 24 * 60 * 60 * 1000 // 7 days if rememberMe is true
+          : 24 * 60 * 60 * 1000,    // 24 hours if rememberMe is false/undefined
+      };
+      
       res.cookie(
         REFRESH_TOKEN_COOKIE_NAME,
         refreshToken,
-        REFRESH_TOKEN_COOKIE_OPTIONS
+        cookieOptions
       );
     }
 
@@ -435,8 +442,8 @@ export class AuthService {
     // Log successful admin login
     this.logger.log(`Admin login successful: ${email} (ID: ${user.id})`);
 
-    // Pass response object to the login method
-    return this.login(user, res);
+    // Pass response object to the login method - admins should have longer sessions by default
+    return this.login(user, res, true);
   }
 
   async validateAdminUser(email: string, password: string): Promise<UserDto> {

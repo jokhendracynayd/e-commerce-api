@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Confirmation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 20px;
+    }
+    .logo {
+      max-width: 150px;
+      margin-bottom: 10px;
+    }
+    h1, h2 {
+      color: #4a154b;
+    }
+    .order-info {
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 25px;
+    }
+    .order-details {
+      margin-bottom: 25px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    .totals {
+      text-align: right;
+    }
+    .button {
+      display: inline-block;
+      background-color: #4a154b;
+      color: white !important;
+      padding: 12px 30px;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .footer {
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #f0f0f0;
+    }
+    a {
+      color: #4a154b;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="https://example.com/logo.png" alt="Company Logo" class="logo">
+    <h1>Order Confirmation</h1>
+  </div>
+
+  <div class="content">
+    <p>Hello {{name}},</p>
+    <p>Thank you for your order! We're processing it now and will let you know once it ships.</p>
+    
+    <div class="order-info">
+      <p><strong>Order Number:</strong> {{orderNumber}}</p>
+      <p><strong>Order Date:</strong> {{orderDate}}</p>
+    </div>
+    
+    <h2>Order Summary</h2>
+    <div class="order-details">
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each items}}
+          <tr>
+            <td>{{name}}</td>
+            <td>{{quantity}}</td>
+            <td>{{price}}</td>
+            <td>{{total}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      
+      <div class="totals">
+        <p><strong>Subtotal:</strong> {{subtotal}}</p>
+        <p><strong>Shipping:</strong> {{shipping}}</p>
+        <p><strong>Tax:</strong> {{tax}}</p>
+        <p style="font-size: 18px;"><strong>Total:</strong> {{total}}</p>
+      </div>
+    </div>
+    
+    <h2>Shipping Information</h2>
+    <p>{{shippingAddress}}</p>
+    
+    <p style="text-align: center; margin: 30px 0;">
+      <a href="{{orderUrl}}" class="button">View Order Details</a>
+    </p>
+    
+    <p>If you have any questions or need assistance with your order, don't hesitate to contact our customer support team at <a href="mailto:support@example.com">support@example.com</a>.</p>
+  </div>
+
+  <div class="footer">
+    <p>&copy; {{year}} Your E-Commerce Store. All rights reserved.</p>
+    <p>123 E-Commerce Street, Shopping City, SC 12345</p>
+    <p>
+      <a href="https://example.com/privacy">Privacy Policy</a> | 
+      <a href="https://example.com/terms">Terms of Service</a> | 
+      <a href="https://example.com/unsubscribe">Unsubscribe</a>
+    </p>
+  </div>
+</body>
+</html> 

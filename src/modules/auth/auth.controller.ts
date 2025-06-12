@@ -84,7 +84,7 @@ export class AuthController {
       loginDto.email,
       loginDto.password,
     );
-    return this.authService.login(user, res);
+    return this.authService.login(user, res, loginDto.rememberMe);
   }
 
   @Public()

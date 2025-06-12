@@ -19,6 +19,8 @@ import { DealsModule } from './modules/deals/deals.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { SpecificationsModule } from './modules/specifications/specifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { AllExceptionsFilter } from './filters/http-exception.filter';
@@ -45,6 +47,8 @@ import { AppLogger } from './common/services/logger.service';
     CouponsModule,
     SpecificationsModule,
     PaymentsModule,
+    NotificationsModule,
+    WishlistModule,
   ],
   controllers: [AppController],
   providers: [
