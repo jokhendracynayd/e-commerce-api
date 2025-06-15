@@ -5,3 +5,4 @@ export * from './product-filter.dto';
 export * from './paginated-product-response.dto';
 export * from './create-product-deal.dto';
 export * from './update-product-tags.dto';
+export * from './filter-options.dto';

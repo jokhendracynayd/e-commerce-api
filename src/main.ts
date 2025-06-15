@@ -94,6 +94,7 @@ async function bootstrap() {
         '/auth/refresh',
         '/auth/logout',
         '/auth/admin/login',
+        '/auth/csrf-token',
         '/docs',
         
         // Cart operations
@@ -107,6 +108,7 @@ async function bootstrap() {
         '/users/me/addresses',
         
         // Product operations
+        '/products',
         '/products/',
         
         // Order operations
@@ -118,7 +120,13 @@ async function bootstrap() {
         '/wishlist/',
         
         // Coupon operations
-        '/coupons/'
+        '/coupons/',
+        
+        // Inventory operations
+        '/inventory/availability/batch',
+        '/inventory/availability/product',
+        '/inventory/availability/variant',
+        '/inventory/add',
       ];
       
       // Log the path being checked (for debugging)

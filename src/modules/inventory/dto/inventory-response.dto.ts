@@ -8,6 +8,18 @@ export class InventoryResponseDto {
   id: string;
 
   @ApiProperty({
+    description: 'Product title',
+    example: 'Product 1',
+  })
+  title: string;
+
+  @ApiProperty({
+    description: 'Product SKU',
+    example: '1234567890',
+  })
+  sku: string;
+
+  @ApiProperty({
     description: 'Product ID',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })

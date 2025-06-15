@@ -14,6 +14,10 @@ import {
   ProductFilterDto,
   PaginatedProductResponseDto,
   CreateProductDealDto,
+  FilterOptionsResponseDto,
+  FilterOptionsQueryDto,
+  FilterValueDto,
+  AttributeFilterDto,
 } from './dto';
 import {
   ProductImageDto,
@@ -336,48 +340,39 @@ export class ProductsService {
     createProductDto: CreateProductDto,
   ): Promise<ProductResponseDto> {
     try {
-      // Generate slug from title
-      const slug = slugify(createProductDto.title);
+      // Generate slug from title for SEO-friendly URLs
+      const title = createProductDto.title.trim();
+      const slug = slugify(title);
 
-      // Check if slug already exists
+      // Check if product with this slug already exists
       const existingProduct = await this.prismaService.product.findUnique({
         where: { slug },
       });
 
       if (existingProduct) {
-        throw new ConflictException(
-          `Product with slug '${slug}' already exists`,
-        );
+        throw new ConflictException(`Product with slug '${slug}' already exists`);
       }
 
       // Generate SKU if not provided
-      const sku =
-        createProductDto.sku || this.generateSku(createProductDto.title);
+      const sku = createProductDto.sku || this.generateSku(title);
 
-      // Prepare base product data
+      // Create base product data
       const productData: Prisma.ProductCreateInput = {
-        title: createProductDto.title,
+        title,
         slug,
+        sku,
         description: createProductDto.description,
-        shortDescription:
-          createProductDto.shortDescription ||
-          (createProductDto.description
-            ? createProductDto.description.substring(0, 150) + '...'
-            : null),
+        shortDescription: createProductDto.shortDescription,
         price: createProductDto.price,
         discountPrice: createProductDto.discountPrice,
-        currency: createProductDto.currency || 'USD',
         stockQuantity: createProductDto.stockQuantity || 0,
-        sku,
         barcode: createProductDto.barcode,
         weight: createProductDto.weight,
         dimensions: createProductDto.dimensions as any,
-        isActive:
-          createProductDto.isActive !== undefined
-            ? createProductDto.isActive
-            : true,
+        currency: createProductDto.currency || 'INR',
+        isActive: createProductDto.isActive !== undefined ? createProductDto.isActive : true,
         isFeatured: createProductDto.isFeatured || false,
-        visibility: createProductDto.visibility || ProductVisibility.PUBLIC,
+        visibility: createProductDto.visibility || 'PUBLIC',
         metaTitle: createProductDto.metaTitle,
         metaDescription: createProductDto.metaDescription,
         metaKeywords: createProductDto.metaKeywords,
@@ -462,6 +457,68 @@ export class ProductsService {
             ),
           );
         }
+        
+        // Create inventory record for main product if stock quantity is provided
+        if (createProductDto.stockQuantity && createProductDto.stockQuantity > 0) {
+          // Create inventory record
+          await prisma.inventory.create({
+            data: {
+              productId: newProduct.id,
+              stockQuantity: createProductDto.stockQuantity,
+              reservedQuantity: 0,
+              threshold: 5, // Default threshold
+              lastRestockedAt: new Date(),
+            },
+          });
+          
+          // Create inventory log entry
+          await prisma.inventoryLog.create({
+            data: {
+              productId: newProduct.id,
+              changeType: 'RESTOCK',
+              quantityChanged: createProductDto.stockQuantity,
+              note: 'Initial inventory setup during product creation',
+            },
+          });
+        }
+        
+        // Create inventory records for variants with stock
+        if (createProductDto.variants && createProductDto.variants.length > 0) {
+          // Get all created variants to get their IDs
+          const createdVariants = await prisma.productVariant.findMany({
+            where: { productId: newProduct.id },
+          });
+          
+          // Create inventory records for variants with stock
+          for (const variant of createdVariants) {
+            const variantDto = createProductDto.variants.find(v => v.sku === variant.sku);
+            
+            if (variantDto && variantDto.stockQuantity > 0) {
+              // Create inventory record for variant
+              await prisma.inventory.create({
+                data: {
+                  productId: newProduct.id,
+                  variantId: variant.id,
+                  stockQuantity: variantDto.stockQuantity,
+                  reservedQuantity: 0,
+                  threshold: variantDto.threshold || 5, // Use variant threshold if provided
+                  lastRestockedAt: new Date(),
+                },
+              });
+              
+              // Create inventory log entry for variant
+              await prisma.inventoryLog.create({
+                data: {
+                  productId: newProduct.id,
+                  variantId: variant.id,
+                  changeType: 'RESTOCK',
+                  quantityChanged: variantDto.stockQuantity,
+                  note: `Initial variant inventory setup for ${variant.variantName}`,
+                },
+              });
+            }
+          }
+        }
 
         return newProduct;
       });
@@ -487,8 +544,15 @@ export class ProductsService {
     updateProductDto: UpdateProductDto,
   ): Promise<ProductResponseDto> {
     try {
-      // Verify product exists
-      await this.findOne(id);
+      // Verify product exists and get current state
+      const existingProduct = await this.findOne(id);
+      
+      // Track stock quantity change for inventory sync
+      const oldStockQuantity = existingProduct.stockQuantity || 0;
+      const newStockQuantity = updateProductDto.stockQuantity;
+      const stockQuantityChanged = 
+        updateProductDto.stockQuantity !== undefined && 
+        updateProductDto.stockQuantity !== oldStockQuantity;
 
       const updateData: Prisma.ProductUpdateInput = {};
 
@@ -574,6 +638,37 @@ export class ProductsService {
           updateData.subCategory = {
             connect: { id: updateProductDto.subCategoryId },
           };
+        }
+      }
+
+      // Track variant stock changes for inventory sync
+      interface VariantStockChange {
+        variantId: string;
+        oldStock: number;
+        newStock: number;
+        change: number;
+      }
+      
+      const variantStockChanges: VariantStockChange[] = [];
+      if (updateProductDto.variants !== undefined) {
+        // If variants are provided, check for stock changes
+        const existingVariants = existingProduct.variants || [];
+        
+        if (updateProductDto.variants && updateProductDto.variants.length > 0) {
+          for (const newVariant of updateProductDto.variants) {
+            // Find matching existing variant by SKU
+            const existingVariant = existingVariants.find(v => v.sku === newVariant.sku);
+            
+            if (existingVariant && existingVariant.stockQuantity !== newVariant.stockQuantity) {
+              // Track stock change for this variant
+              variantStockChanges.push({
+                variantId: existingVariant.id,
+                oldStock: existingVariant.stockQuantity,
+                newStock: newVariant.stockQuantity,
+                change: newVariant.stockQuantity - existingVariant.stockQuantity
+              });
+            }
+          }
         }
       }
 
@@ -664,6 +759,103 @@ export class ProductsService {
               ),
             );
           }
+        }
+        
+        // Sync with inventory system if stock quantity changed
+        if (stockQuantityChanged) {
+          // Calculate the stock change
+          const stockChange = newStockQuantity! - oldStockQuantity;
+          
+          // Check if inventory record exists
+          const inventory = await prisma.inventory.findUnique({
+            where: { productId: id }
+          });
+          
+          if (inventory) {
+            // Update existing inventory
+            await prisma.inventory.update({
+              where: { productId: id },
+              data: {
+                stockQuantity: newStockQuantity,
+                // Update lastRestockedAt if stock increased
+                ...(stockChange > 0 ? { lastRestockedAt: new Date() } : {})
+              }
+            });
+            
+            // Create inventory log entry
+            await prisma.inventoryLog.create({
+              data: {
+                productId: id,
+                changeType: stockChange > 0 ? 'RESTOCK' : 'MANUAL',
+                quantityChanged: stockChange,
+                note: `Stock updated during product edit (${stockChange > 0 ? '+' : ''}${stockChange} units)`
+              }
+            });
+          } else {
+            // Create new inventory record if it doesn't exist
+            await prisma.inventory.create({
+              data: {
+                productId: id,
+                stockQuantity: newStockQuantity!,
+                reservedQuantity: 0,
+                threshold: 5, // Default threshold
+                lastRestockedAt: new Date()
+              }
+            });
+            
+            // Create initial inventory log
+            await prisma.inventoryLog.create({
+              data: {
+                productId: id,
+                changeType: 'RESTOCK',
+                quantityChanged: newStockQuantity!,
+                note: 'Initial inventory setup during product edit'
+              }
+            });
+          }
+        }
+        
+        // Sync variant inventory changes
+        for (const variantChange of variantStockChanges) {
+          // Check if inventory record exists for this variant
+          const variantInventory = await prisma.inventory.findUnique({
+            where: { variantId: variantChange.variantId }
+          });
+          
+          if (variantInventory) {
+            // Update existing variant inventory
+            await prisma.inventory.update({
+              where: { variantId: variantChange.variantId },
+              data: {
+                stockQuantity: variantChange.newStock,
+                // Update lastRestockedAt if stock increased
+                ...(variantChange.change > 0 ? { lastRestockedAt: new Date() } : {})
+              }
+            });
+          } else {
+            // Create new inventory record for variant
+            await prisma.inventory.create({
+              data: {
+                productId: id,
+                variantId: variantChange.variantId,
+                stockQuantity: variantChange.newStock,
+                reservedQuantity: 0,
+                threshold: 5, // Default threshold
+                lastRestockedAt: new Date()
+              }
+            });
+          }
+          
+          // Create inventory log for variant
+          await prisma.inventoryLog.create({
+            data: {
+              productId: id,
+              variantId: variantChange.variantId,
+              changeType: variantChange.change > 0 ? 'RESTOCK' : 'MANUAL',
+              quantityChanged: variantChange.change,
+              note: `Variant stock updated during product edit (${variantChange.change > 0 ? '+' : ''}${variantChange.change} units)`
+            }
+          });
         }
       });
 
@@ -1181,6 +1373,353 @@ export class ProductsService {
         `Failed to update tags for product with ID ${id}`,
       );
     }
+  }
+
+  // Filter generation methods
+  async getAvailableFilters(filterOptionsDto: FilterOptionsQueryDto): Promise<FilterOptionsResponseDto> {
+    try {
+      // Build base where clause from query parameters
+      const baseFilter: Prisma.ProductWhereInput = { isActive: true };
+
+      // Apply category filter
+      if (filterOptionsDto.categoryId || filterOptionsDto.categorySlug) {
+        let categoryIds: string[] = [];
+        
+        if (filterOptionsDto.categoryId) {
+          categoryIds.push(filterOptionsDto.categoryId);
+        } else if (filterOptionsDto.categorySlug) {
+          // Find category by slug
+          const category = await this.prismaService.category.findUnique({
+            where: { slug: filterOptionsDto.categorySlug },
+          });
+          
+          if (category) {
+            categoryIds.push(category.id);
+          } else {
+            throw new NotFoundException(`Category with slug ${filterOptionsDto.categorySlug} not found`);
+          }
+        }
+
+        // If recursive, include all child categories
+        if (filterOptionsDto.recursive && categoryIds.length > 0) {
+          const allCategoryIds = await this.getCategoryAndDescendantsIds(categoryIds[0]);
+          categoryIds = allCategoryIds;
+        }
+
+        if (categoryIds.length > 0) {
+          baseFilter.OR = [
+            { categoryId: { in: categoryIds } },
+            { subCategoryId: { in: categoryIds } }
+          ];
+        }
+      }
+
+      // Apply brand filter
+      if (filterOptionsDto.brandId) {
+        baseFilter.brandId = filterOptionsDto.brandId;
+      }
+
+      // Apply search filter
+      if (filterOptionsDto.search) {
+        baseFilter.OR = [
+          { title: { contains: filterOptionsDto.search, mode: 'insensitive' } },
+          { description: { contains: filterOptionsDto.search, mode: 'insensitive' } },
+          { shortDescription: { contains: filterOptionsDto.search, mode: 'insensitive' } },
+          { sku: { contains: filterOptionsDto.search, mode: 'insensitive' } }
+        ];
+      }
+
+      // Apply price range if provided
+      if (filterOptionsDto.minPrice !== undefined || filterOptionsDto.maxPrice !== undefined) {
+        baseFilter.price = {};
+        
+        if (filterOptionsDto.minPrice !== undefined) {
+          baseFilter.price.gte = filterOptionsDto.minPrice;
+        }
+        
+        if (filterOptionsDto.maxPrice !== undefined) {
+          baseFilter.price.lte = filterOptionsDto.maxPrice;
+        }
+      }
+
+      // Fetch products with relevant relations for filter generation
+      const products = await this.prismaService.product.findMany({
+        where: baseFilter,
+        select: {
+          id: true,
+          price: true,
+          averageRating: true,
+          brandId: true,
+          brand: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          tags: {
+            select: {
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          specifications: {
+            select: {
+              id: true,
+              specKey: true,
+              specValue: true,
+              specGroup: true,
+              isFilterable: true,
+            },
+          },
+          variants: {
+            select: {
+              id: true,
+              variantName: true,
+              price: true,
+              stockQuantity: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(`Found ${products.length} products for filter generation`);
+
+      // Generate price range
+      const priceRange = this.generatePriceRange(products);
+      
+      // Generate brand filters
+      const brands = this.generateBrandFilters(products);
+      
+      // Generate tag filters
+      const tags = this.generateTagFilters(products);
+      
+      // Generate rating filters
+      const ratings = this.generateRatingFilters(products);
+      
+      // Generate dynamic attribute filters based on product specifications
+      const attributes = this.generateAttributeFilters(products);
+
+      return {
+        priceRange,
+        brands,
+        tags,
+        ratings,
+        attributes,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(`Error getting available filters: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Failed to get available filters');
+    }
+  }
+
+  // Helper methods for filter generation
+  private generatePriceRange(products: any[]): { min: number; max: number; step: number } {
+    if (products.length === 0) {
+      return { min: 0, max: 1000, step: 50 };
+    }
+
+    // Consider both product base prices and variant prices
+    const allPrices: number[] = [];
+    
+    // Add base product prices
+    products.forEach(product => {
+      allPrices.push(Number(product.price));
+      
+      // Add variant prices
+      if (product.variants && product.variants.length > 0) {
+        product.variants.forEach(variant => {
+          allPrices.push(Number(variant.price));
+        });
+      }
+    });
+
+    const min = Math.floor(Math.min(...allPrices));
+    const max = Math.ceil(Math.max(...allPrices));
+    
+    // Calculate an appropriate step size based on the price range
+    let step: number;
+    const range = max - min;
+    
+    if (range <= 100) step = 5;
+    else if (range <= 500) step = 25;
+    else if (range <= 1000) step = 50;
+    else if (range <= 5000) step = 250;
+    else if (range <= 10000) step = 500;
+    else step = 1000;
+
+    return { min, max, step };
+  }
+
+  private generateBrandFilters(products: any[]): FilterValueDto[] {
+    const brandMap = new Map<string, { id: string; name: string; count: number }>();
+    
+    products.forEach(product => {
+      if (product.brand) {
+        const brandId = product.brand.id;
+        
+        if (brandMap.has(brandId)) {
+          const brandData = brandMap.get(brandId);
+          if (brandData) {
+            brandData.count++;
+          }
+        } else {
+          brandMap.set(brandId, {
+            id: brandId,
+            name: product.brand.name,
+            count: 1,
+          });
+        }
+      }
+    });
+    
+    // Convert map to array and sort by count (descending)
+    return Array.from(brandMap.values())
+      .sort((a, b) => b.count - a.count);
+  }
+
+  private generateTagFilters(products: any[]): FilterValueDto[] {
+    const tagMap = new Map<string, { id: string; name: string; count: number }>();
+    
+    products.forEach(product => {
+      if (product.tags && product.tags.length > 0) {
+        product.tags.forEach(tagRelation => {
+          const tag = tagRelation.tag;
+          const tagId = tag.id;
+          
+          if (tagMap.has(tagId)) {
+            const tagData = tagMap.get(tagId);
+            if (tagData) {
+              tagData.count++;
+            }
+          } else {
+            tagMap.set(tagId, {
+              id: tagId,
+              name: tag.name,
+              count: 1,
+            });
+          }
+        });
+      }
+    });
+    
+    // Convert map to array and sort by count (descending)
+    return Array.from(tagMap.values())
+      .sort((a, b) => b.count - a.count);
+  }
+
+  private generateRatingFilters(products: any[]): FilterValueDto[] {
+    const ratingMap = new Map<number, { id: string; name: string; count: number }>();
+    
+    // Initialize ratings from 1-5
+    for (let i = 1; i <= 5; i++) {
+      ratingMap.set(i, {
+        id: i.toString(),
+        name: `${i} Stars & Above`,
+        count: 0,
+      });
+    }
+    
+    // Count products for each rating level
+    products.forEach(product => {
+      if (product.averageRating > 0) {
+        // Round to nearest 0.5
+        const rating = Math.floor(product.averageRating);
+        
+        // Increment count for this rating and all ratings below it
+        for (let i = 1; i <= rating; i++) {
+          if (ratingMap.has(i)) {
+            const ratingData = ratingMap.get(i);
+            if (ratingData) {
+              ratingData.count++;
+            }
+          }
+        }
+      }
+    });
+    
+    // Convert map to array and sort by rating (descending)
+    return Array.from(ratingMap.values())
+      .sort((a, b) => parseInt(b.id) - parseInt(a.id));
+  }
+
+  private generateAttributeFilters(products: any[]): AttributeFilterDto[] {
+    // Create a map of filterable specification attributes
+    // Key format: "{specGroup}:{specKey}"
+    const specMap = new Map<string, Map<string, number>>();
+    const specGroupNames = new Map<string, string>();
+    
+    // Process all product specifications
+    products.forEach(product => {
+      if (product.specifications && product.specifications.length > 0) {
+        product.specifications.forEach(spec => {
+          // Only consider filterable specifications
+          if (spec.isFilterable) {
+            const mapKey = `${spec.specGroup}:${spec.specKey}`;
+            const valueKey = spec.specValue;
+            
+            // Store the spec group display name
+            specGroupNames.set(spec.specGroup, spec.specGroup);
+            
+            // Initialize the map for this specification if needed
+            if (!specMap.has(mapKey)) {
+              specMap.set(mapKey, new Map<string, number>());
+            }
+            
+            // Increment the count for this specification value
+            const valueMap = specMap.get(mapKey);
+            if (valueMap) {
+              valueMap.set(valueKey, (valueMap.get(valueKey) || 0) + 1);
+            }
+          }
+        });
+      }
+    });
+    
+    // Transform the map into AttributeFilterDto objects
+    const attributes: AttributeFilterDto[] = [];
+    let priority = 10; // Start with priority 10 and increment
+    
+    for (const [mapKey, valueMap] of specMap.entries()) {
+      // Skip if the specification only has 1 value (not useful for filtering)
+      if (valueMap.size <= 1) continue;
+      
+      const [specGroup, specKey] = mapKey.split(':');
+      
+      // Create an array of filter values from the value map
+      const values: FilterValueDto[] = Array.from(valueMap.entries())
+        .map(([value, count]) => ({
+          id: value,
+          name: value,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count);
+      
+      // Add the attribute filter
+      attributes.push({
+        name: this.formatSpecKey(specKey),
+        key: specKey,
+        type: 'checkbox', // Default to checkbox type
+        priority: priority++,
+        values,
+      });
+    }
+    
+    return attributes.sort((a, b) => a.priority - b.priority);
+  }
+
+  private formatSpecKey(key: string): string {
+    // Convert camelCase or snake_case to readable format
+    return key
+      .replace(/([A-Z])/g, ' $1') // Insert space before capital letters
+      .replace(/_/g, ' ') // Replace underscores with spaces
+      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
   }
 
   // Helper method to transform a product to DTO format

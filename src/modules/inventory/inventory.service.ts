@@ -11,8 +11,25 @@ import {
   UpdateInventoryDto,
   CreateInventoryLogDto,
   InventoryLogResponseDto,
+  AddStockDto,
 } from './dto';
 import { AppLogger } from '../../common/services/logger.service';
+
+// Define interfaces for inventory availability responses
+export interface ProductAvailability {
+  productId: string;
+  availableQuantity: number;
+  stockStatus: string;
+  updatedAt: Date;
+}
+
+export interface VariantAvailability {
+  productId: string;
+  variantId: string;
+  availableQuantity: number;
+  stockStatus: string;
+  updatedAt: Date;
+}
 
 @Injectable()
 export class InventoryService {
@@ -596,6 +613,8 @@ export class InventoryService {
 
     return {
       id: inventory.id,
+      title: inventory.product.title,
+      sku: inventory.product.sku,
       productId: inventory.productId,
       variantId: inventory.variantId,
       stockQuantity: inventory.stockQuantity,
@@ -620,5 +639,490 @@ export class InventoryService {
       note: log.note,
       createdAt: log.createdAt,
     };
+  }
+
+  async getProductInventory(productId: string) {
+    try {
+      const inventory = await this.prismaService.inventory.findUnique({
+        where: { productId },
+      });
+
+      if (!inventory) {
+        const product = await this.prismaService.product.findUnique({
+          where: { id: productId },
+          select: { id: true, stockQuantity: true },
+        });
+
+        if (!product) {
+          throw new NotFoundException(`Product with ID ${productId} not found`);
+        }
+
+        // Return product stock if no inventory record exists
+        return {
+          productId,
+          stockQuantity: product.stockQuantity,
+          reservedQuantity: 0,
+          availableQuantity: product.stockQuantity,
+        };
+      }
+
+      return {
+        ...inventory,
+        availableQuantity: inventory.stockQuantity - inventory.reservedQuantity,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error retrieving inventory for product ${productId}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  async getVariantInventory(variantId: string) {
+    try {
+      const inventory = await this.prismaService.inventory.findUnique({
+        where: { variantId },
+      });
+
+      if (!inventory) {
+        const variant = await this.prismaService.productVariant.findUnique({
+          where: { id: variantId },
+          select: { id: true, productId: true, stockQuantity: true },
+        });
+
+        if (!variant) {
+          throw new NotFoundException(`Variant with ID ${variantId} not found`);
+        }
+
+        // Return variant stock if no inventory record exists
+        return {
+          productId: variant.productId,
+          variantId,
+          stockQuantity: variant.stockQuantity,
+          reservedQuantity: 0,
+          availableQuantity: variant.stockQuantity,
+        };
+      }
+
+      return {
+        ...inventory,
+        availableQuantity: inventory.stockQuantity - inventory.reservedQuantity,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error retrieving inventory for variant ${variantId}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  async getProductAvailability(productId: string) {
+    try {
+      const inventory = await this.getProductInventory(productId);
+
+      // Calculate stock status
+      let stockStatus = 'IN_STOCK';
+      if (inventory.availableQuantity <= 0) {
+        stockStatus = 'OUT_OF_STOCK';
+      } else if (inventory.availableQuantity < 5) {
+        stockStatus = 'LOW_STOCK';
+      }
+
+      return {
+        productId,
+        availableQuantity: inventory.availableQuantity,
+        stockStatus,
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error retrieving availability for product ${productId}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  async getVariantAvailability(variantId: string) {
+    try {
+      const inventory = await this.getVariantInventory(variantId);
+
+      // Calculate stock status
+      let stockStatus = 'IN_STOCK';
+      if (inventory.availableQuantity <= 0) {
+        stockStatus = 'OUT_OF_STOCK';
+      } else if (inventory.availableQuantity < 5) {
+        stockStatus = 'LOW_STOCK';
+      }
+
+      return {
+        productId: inventory.productId,
+        variantId,
+        availableQuantity: inventory.availableQuantity,
+        stockStatus,
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error retrieving availability for variant ${variantId}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  // Define types outside the method for proper visibility
+  async getBatchAvailability(productIds: string[], variantIds: string[]) {
+    try {
+      
+      const results: {
+        products: ProductAvailability[];
+        variants: VariantAvailability[];
+      } = {
+        products: [],
+        variants: [],
+      };
+
+      // Get product availability
+      if (productIds.length > 0) {
+        const productAvailability = await Promise.all(
+          productIds.map(id => this.getProductAvailability(id).catch(() => null))
+        );
+        results.products = productAvailability.filter((item): item is ProductAvailability => item !== null);
+      }
+
+      // Get variant availability
+      if (variantIds.length > 0) {
+        const variantAvailability = await Promise.all(
+          variantIds.map(id => this.getVariantAvailability(id).catch(() => null))
+        );
+        results.variants = variantAvailability.filter((item): item is VariantAvailability => item !== null);
+      }
+
+      return results;
+    } catch (error) {
+      this.logger.error(
+        `Error retrieving batch availability: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  async updateInventory(updateInventoryDto: any) {
+    try {
+      const { productId, variantId, quantity, changeType, note } = updateInventoryDto;
+      
+      if (!productId) {
+        throw new BadRequestException('Product ID is required');
+      }
+
+      if (!quantity || isNaN(quantity)) {
+        throw new BadRequestException('Valid quantity is required');
+      }
+
+      // Start a transaction
+      return await this.prismaService.$transaction(async (prisma) => {
+        // Determine whether we're updating a product or variant inventory
+        if (variantId) {
+          // Update variant inventory
+          const inventory = await prisma.inventory.findUnique({
+            where: { variantId },
+          });
+
+          if (!inventory) {
+            // Create inventory record if it doesn't exist
+            const variant = await prisma.productVariant.findUnique({
+              where: { id: variantId },
+              select: { stockQuantity: true },
+            });
+
+            if (!variant) {
+              throw new NotFoundException(`Variant with ID ${variantId} not found`);
+            }
+
+            await prisma.inventory.create({
+              data: {
+                productId,
+                variantId,
+                stockQuantity: variant.stockQuantity + quantity,
+                reservedQuantity: 0,
+              },
+            });
+
+            // Also update the variant's stockQuantity for consistency
+            await prisma.productVariant.update({
+              where: { id: variantId },
+              data: {
+                stockQuantity: {
+                  increment: quantity,
+                },
+              },
+            });
+          } else {
+            // Update existing inventory
+            await prisma.inventory.update({
+              where: { variantId },
+              data: {
+                stockQuantity: {
+                  increment: quantity,
+                },
+              },
+            });
+
+            // Also update the variant's stockQuantity for consistency
+            await prisma.productVariant.update({
+              where: { id: variantId },
+              data: {
+                stockQuantity: {
+                  increment: quantity,
+                },
+              },
+            });
+          }
+        } else {
+          // Update product inventory
+          const inventory = await prisma.inventory.findUnique({
+            where: { productId },
+          });
+
+          if (!inventory) {
+            // Create inventory record if it doesn't exist
+            const product = await prisma.product.findUnique({
+              where: { id: productId },
+              select: { stockQuantity: true },
+            });
+
+            if (!product) {
+              throw new NotFoundException(`Product with ID ${productId} not found`);
+            }
+
+            await prisma.inventory.create({
+              data: {
+                productId,
+                stockQuantity: product.stockQuantity + quantity,
+                reservedQuantity: 0,
+              },
+            });
+
+            // Also update the product's stockQuantity for consistency
+            await prisma.product.update({
+              where: { id: productId },
+              data: {
+                stockQuantity: {
+                  increment: quantity,
+                },
+              },
+            });
+          } else {
+            // Update existing inventory
+            await prisma.inventory.update({
+              where: { productId },
+              data: {
+                stockQuantity: {
+                  increment: quantity,
+                },
+              },
+            });
+
+            // Also update the product's stockQuantity for consistency
+            await prisma.product.update({
+              where: { id: productId },
+              data: {
+                stockQuantity: {
+                  increment: quantity,
+                },
+              },
+            });
+          }
+        }
+
+        // Create inventory log entry
+        await prisma.inventoryLog.create({
+          data: {
+            productId,
+            variantId,
+            changeType: changeType || InventoryChangeType.MANUAL,
+            quantityChanged: quantity,
+            note: note || 'Manual inventory update',
+          },
+        });
+
+        // Return updated inventory
+        if (variantId) {
+          return this.getVariantInventory(variantId);
+        } else {
+          return this.getProductInventory(productId);
+        }
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error updating inventory: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Add initial stock for a product or variant
+   * Creates inventory record if needed or updates existing inventory
+   */
+  async addStock(addStockDto: AddStockDto): Promise<InventoryResponseDto> {
+    const { productId, variantId, quantity, threshold = 5, note = 'Initial stock setup' } = addStockDto;
+    
+    try {
+      // Check if product exists
+      const product = await this.prismaService.product.findUnique({
+        where: { id: productId },
+        include: { 
+          variants: variantId ? { where: { id: variantId } } : undefined 
+        }
+      });
+
+      if (!product) {
+        throw new NotFoundException(`Product with ID ${productId} not found`);
+      }
+
+      // If variantId is provided, check if it exists
+      if (variantId) {
+        const variant = product.variants?.find(v => v.id === variantId);
+        if (!variant) {
+          throw new NotFoundException(`Variant with ID ${variantId} not found for product ${productId}`);
+        }
+      }
+
+      // Transaction to ensure inventory and log are created/updated atomically
+      return await this.prismaService.$transaction(async (prisma) => {
+        // Find or create inventory
+        let inventory;
+
+        if (variantId) {
+          // Handle variant inventory
+          inventory = await prisma.inventory.findUnique({
+            where: { variantId: variantId }
+          });
+
+          if (inventory) {
+            // Update existing variant inventory
+            inventory = await prisma.inventory.update({
+              where: { variantId: variantId },
+              data: {
+                stockQuantity: { increment: quantity },
+                threshold: threshold,
+              },
+              include: {
+                variant: {
+                  select: {
+                    variantName: true,
+                    sku: true,
+                    product: {
+                      select: {
+                        title: true,
+                      },
+                    },
+                  },
+                },
+              }
+            });
+          } else {
+            // Create new variant inventory
+            inventory = await prisma.inventory.create({
+              data: {
+                productId: productId, 
+                variantId: variantId,
+                stockQuantity: quantity,
+                reservedQuantity: 0,
+                threshold: threshold,
+                lastRestockedAt: new Date(),
+              },
+              include: {
+                variant: {
+                  select: {
+                    variantName: true,
+                    sku: true,
+                    product: {
+                      select: {
+                        title: true,
+                      },
+                    },
+                  },
+                },
+              }
+            });
+          }
+        } else {
+          // Handle product inventory (no variant)
+          inventory = await prisma.inventory.findUnique({
+            where: { productId: productId }
+          });
+
+          if (inventory) {
+            // Update existing product inventory
+            inventory = await prisma.inventory.update({
+              where: { productId: productId },
+              data: {
+                stockQuantity: { increment: quantity },
+                threshold: threshold,
+              },
+              include: {
+                product: {
+                  select: {
+                    title: true,
+                    sku: true,
+                  },
+                },
+              }
+            });
+          } else {
+            // Create new product inventory
+            inventory = await prisma.inventory.create({
+              data: {
+                productId: productId,
+                stockQuantity: quantity,
+                reservedQuantity: 0,
+                threshold: threshold,
+                lastRestockedAt: new Date(),
+              },
+              include: {
+                product: {
+                  select: {
+                    title: true,
+                    sku: true,
+                  },
+                },
+              }
+            });
+          }
+        }
+
+        // Create inventory log entry
+        await prisma.inventoryLog.create({
+          data: {
+            productId: productId,
+            variantId: variantId,
+            changeType: InventoryChangeType.RESTOCK,
+            quantityChanged: quantity,
+            note: note,
+          }
+        });
+
+        // Return transformed inventory
+        return this.transformToDto(inventory);
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(
+        `Error adding stock for product ${productId}${variantId ? `, variant ${variantId}` : ''}: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        `Failed to add stock for product ${productId}${variantId ? `, variant ${variantId}` : ''}`,
+      );
+    }
   }
 }

@@ -115,6 +115,16 @@ export class CreateProductVariantDto {
   @IsNumber()
   @Min(0)
   stockQuantity: number;
+
+  @ApiPropertyOptional({
+    description: 'Low stock threshold - when stock falls below this value, it will be marked as low stock',
+    example: 5,
+    default: 5,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  threshold?: number;
 }
 
 export class CreateProductDto {

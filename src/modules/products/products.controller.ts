@@ -23,6 +23,8 @@ import {
   PaginatedProductResponseDto,
   CreateProductDealDto,
   UpdateProductTagsDto,
+  FilterOptionsQueryDto,
+  FilterOptionsResponseDto,
 } from './dto';
 import { Product } from '@prisma/client';
 import { AuthGuard } from '@nestjs/passport';
@@ -108,6 +110,28 @@ export class ProductsController {
     
     const result = await this.productsService.findAll(filterDto);
     return result.data;
+  }
+
+  @Public()
+  @Get('filters')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(300) // Cache for 5 minutes
+  @ApiOperation({ summary: 'Get available filter options based on various criteria' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns available filter options',
+    type: FilterOptionsResponseDto,
+  })
+  @ApiQuery({ name: 'categoryId', required: false, type: String, description: 'Category ID to filter by' })
+  @ApiQuery({ name: 'categorySlug', required: false, type: String, description: 'Category slug to filter by (alternative to categoryId)' })
+  @ApiQuery({ name: 'brandId', required: false, type: String, description: 'Brand ID to filter by' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search term to filter by' })
+  @ApiQuery({ name: 'recursive', required: false, type: Boolean, description: 'Whether to include subcategories recursively' })
+  @ApiQuery({ name: 'minPrice', required: false, type: Number, description: 'Minimum price to consider' })
+  @ApiQuery({ name: 'maxPrice', required: false, type: Number, description: 'Maximum price to consider' })
+  @ApiNotFoundResponse({ description: 'Category not found' })
+  getFilters(@Query() filterOptionsDto: FilterOptionsQueryDto): Promise<FilterOptionsResponseDto> {
+    return this.productsService.getAvailableFilters(filterOptionsDto);
   }
 
   @Public()

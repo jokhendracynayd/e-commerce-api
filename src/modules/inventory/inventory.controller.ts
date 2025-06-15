@@ -18,6 +18,7 @@ import {
   UpdateInventoryDto,
   CreateInventoryLogDto,
   InventoryLogResponseDto,
+  AddStockDto,
 } from './dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -33,7 +34,10 @@ import {
   ApiQuery,
   ApiNotFoundResponse,
   ApiBadRequestResponse,
+  ApiCreatedResponse,
 } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('inventory')
 @Controller('inventory')
@@ -328,5 +332,144 @@ export class InventoryController {
       .then(() => {
         return this.inventoryService.findByVariant(variantId);
       });
+  }
+
+  @Get(':productId')
+  @Public()
+  @ApiOperation({ summary: 'Get inventory for a product' })
+  @ApiParam({ name: 'productId', description: 'Product ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns inventory information for a product',
+  })
+  async getProductInventory(@Param('productId') productId: string) {
+    return this.inventoryService.getProductInventory(productId);
+  }
+
+  @Get('variant/:variantId')
+  @Public()
+  @ApiOperation({ summary: 'Get inventory for a product variant' })
+  @ApiParam({ name: 'variantId', description: 'Product Variant ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns inventory information for a product variant',
+  })
+  async getVariantInventory(@Param('variantId') variantId: string) {
+    return this.inventoryService.getVariantInventory(variantId);
+  }
+
+  @Get('availability/product/:productId')
+  @Public()
+  @ApiOperation({ summary: 'Get real-time availability for a product' })
+  @ApiParam({ name: 'productId', description: 'Product ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns real-time availability information for a product',
+  })
+  async getProductAvailability(@Param('productId') productId: string) {
+    return this.inventoryService.getProductAvailability(productId);
+  }
+
+  @Get('availability/variant/:variantId')
+  @Public()
+  @ApiOperation({ summary: 'Get real-time availability for a product variant' })
+  @ApiParam({ name: 'variantId', description: 'Product Variant ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns real-time availability information for a product variant',
+  })
+  async getVariantAvailability(@Param('variantId') variantId: string) {
+    return this.inventoryService.getVariantAvailability(variantId);
+  }
+
+  @Get('availability/batch')
+  @Public()
+  @ApiOperation({ summary: 'Get real-time availability for multiple products or variants (GET method)' })
+  @ApiQuery({ 
+    name: 'productIds', 
+    description: 'Comma-separated list of product IDs', 
+    required: false 
+  })
+  @ApiQuery({ 
+    name: 'variantIds', 
+    description: 'Comma-separated list of variant IDs', 
+    required: false 
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns real-time availability information for multiple products/variants',
+  })
+  async getBatchAvailability(
+    @Query('productIds') productIds?: string,
+    @Query('variantIds') variantIds?: string,
+  ) {
+    const productIdArray = productIds ? productIds.split(',') : [];
+    const variantIdArray = variantIds ? variantIds.split(',') : [];
+    return this.inventoryService.getBatchAvailability(productIdArray, variantIdArray);
+  }
+
+  @Post('availability/batch')
+  @Public()
+  @ApiOperation({ summary: 'Get real-time availability for multiple products or variants (POST method)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        productIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of product IDs',
+        },
+        variantIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of variant IDs',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns real-time availability information for multiple products/variants',
+  })
+  async postBatchAvailability(
+    @Body('productIds') productIds?: string[],
+    @Body('variantIds') variantIds?: string[],
+  ) {
+    return this.inventoryService.getBatchAvailability(
+      productIds || [],
+      variantIds || []
+    );
+  }
+
+  // Admin endpoints below (protected)
+  @Post('update')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Update inventory levels (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Inventory updated successfully',
+  })
+  async updateInventory(@Body() updateInventoryDto: any) {
+    return this.inventoryService.updateInventory(updateInventoryDto);
+  }
+
+  // Add this new endpoint for adding initial stock
+  @Post('add')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ 
+    summary: 'Add initial stock for a product or variant',
+    description: 'Creates or updates inventory for a product/variant with initial stock' 
+  })
+  @ApiBody({ type: AddStockDto })
+  @ApiCreatedResponse({
+    description: 'Stock added successfully',
+    type: InventoryResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'Product or variant not found' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  async addStock(@Body() addStockDto: AddStockDto): Promise<InventoryResponseDto> {
+    return this.inventoryService.addStock(addStockDto);
   }
 }

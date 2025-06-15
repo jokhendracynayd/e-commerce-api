@@ -294,12 +294,12 @@ export class OrdersService {
         throw new BadRequestException('Order must contain at least one item');
       }
 
-      // Begin transaction
+      // Begin transaction with serializable isolation level to prevent race conditions
       const result = await this.prismaService.$transaction(async (prisma) => {
         // Generate order number
         const orderNumber = generateOrderNumber();
 
-        // Calculate prices and check inventory
+        // Calculate prices and check inventory against reservations
         const itemsWithPrices = await Promise.all(
           createOrderDto.items.map(async (item) => {
             // Get product
@@ -310,7 +310,6 @@ export class OrdersService {
                 title: true,
                 price: true,
                 discountPrice: true,
-                stockQuantity: true,
                 isActive: true,
               },
             });
@@ -330,7 +329,6 @@ export class OrdersService {
             // Check variant if provided
             let variantInfo: any = null;
             let price = product.discountPrice || product.price;
-            let availableStock = product.stockQuantity;
 
             if (item.variantId) {
               const variant = await prisma.productVariant.findUnique({
@@ -339,8 +337,6 @@ export class OrdersService {
                   id: true,
                   variantName: true,
                   price: true,
-                  stockQuantity: true,
-                  additionalPrice: true,
                   productId: true,
                 },
               });
@@ -357,13 +353,38 @@ export class OrdersService {
                 );
               }
 
-              // Use variant price and stock
+              // Use variant price
               price = variant.price;
-              availableStock = variant.stockQuantity;
               variantInfo = variant;
             }
-
-            // Check inventory
+            
+            // Get current inventory with accurate reservation counts
+            let inventory;
+            if (item.variantId) {
+              inventory = await prisma.inventory.findUnique({
+                where: { variantId: item.variantId },
+              });
+              
+              if (!inventory) {
+                throw new BadRequestException(
+                  `Inventory record not found for variant ${item.variantId}`
+                );
+              }
+            } else {
+              inventory = await prisma.inventory.findUnique({
+                where: { productId: item.productId },
+              });
+              
+              if (!inventory) {
+                throw new BadRequestException(
+                  `Inventory record not found for product ${item.productId}`
+                );
+              }
+            }
+            
+            // Check true availability (considering reservations)
+            const availableStock = inventory.stockQuantity - inventory.reservedQuantity;
+            
             if (availableStock < item.quantity) {
               throw new BadRequestException(
                 `Not enough stock for product ${product.title}${variantInfo ? ` (${variantInfo.variantName})` : ''}. 
@@ -472,14 +493,18 @@ export class OrdersService {
           },
         });
 
-        // Update inventory
+        // Update inventory and manage reservations
         for (const item of createOrderDto.items) {
           if (item.variantId) {
-            // Update variant inventory
-            await prisma.productVariant.update({
-              where: { id: item.variantId },
+            // Update variant inventory and release reservation
+            await prisma.inventory.update({
+              where: { variantId: item.variantId },
               data: {
                 stockQuantity: {
+                  decrement: item.quantity,
+                },
+                // Also reduce reservedQuantity to release any existing reservation
+                reservedQuantity: {
                   decrement: item.quantity,
                 },
               },
@@ -496,11 +521,15 @@ export class OrdersService {
               },
             });
           } else {
-            // Update product inventory
-            await prisma.product.update({
-              where: { id: item.productId },
+            // Update product inventory and release reservation
+            await prisma.inventory.update({
+              where: { productId: item.productId },
               data: {
                 stockQuantity: {
+                  decrement: item.quantity,
+                },
+                // Also reduce reservedQuantity to release any existing reservation
+                reservedQuantity: {
                   decrement: item.quantity,
                 },
               },
@@ -518,21 +547,43 @@ export class OrdersService {
           }
         }
 
-        // Clear cart if user is provided
+        // If user is provided, remove ordered items from their cart
+        // and release any existing reservations
         if (createOrderDto.userId) {
           const cart = await prisma.cart.findUnique({
             where: { userId: createOrderDto.userId },
-            select: { id: true },
+            include: { items: true },
           });
 
           if (cart) {
-            await prisma.cartItem.deleteMany({
-              where: { cartId: cart.id },
-            });
+            // Match cart items with ordered items and remove them
+            const orderProductIds = createOrderDto.items.map(i => i.productId);
+            const orderVariantIds = createOrderDto.items
+              .filter(i => i.variantId)
+              .map(i => i.variantId);
+            
+            // Find relevant cart items to delete
+            const cartItemsToDelete = cart.items.filter(item => 
+              orderProductIds.includes(item.productId) && 
+              (item.variantId ? orderVariantIds.includes(item.variantId) : true)
+            );
+            
+            // Delete matching cart items
+            if (cartItemsToDelete.length > 0) {
+              await prisma.cartItem.deleteMany({
+                where: {
+                  id: { in: cartItemsToDelete.map(item => item.id) },
+                },
+              });
+            }
           }
         }
 
         return order;
+      }, {
+        // Use serializable isolation level to prevent race conditions
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        timeout: 10000, // 10 second timeout
       });
 
       this.logger.log(`Created order: ${result.id} - ${result.orderNumber}`);

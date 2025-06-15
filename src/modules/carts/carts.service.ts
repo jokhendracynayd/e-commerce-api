@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma } from '@prisma/client';
+import * as crypto from 'crypto';
 import {
   AddToCartDto,
   UpdateCartItemDto,
@@ -121,6 +122,8 @@ export class CartsService {
   ): Promise<CartResponseDto> {
     try {
       const { productId, variantId, quantity } = addToCartDto;
+      // Default reservation time: 30 minutes
+      const RESERVATION_MINUTES = 30;
 
       // Validate product existence and active status
       const product = await this.prismaService.product.findUnique({
@@ -128,7 +131,6 @@ export class CartsService {
         select: {
           id: true,
           isActive: true,
-          stockQuantity: true,
           price: true,
           discountPrice: true,
         },
@@ -144,44 +146,93 @@ export class CartsService {
         );
       }
 
-      // Check variant if provided
-      let selectedPrice = product.discountPrice || product.price;
-      let availableStock = product.stockQuantity;
+      // Start transaction to handle cart, inventory, and reservation
+      return await this.prismaService.$transaction(async (prisma) => {
+        // Get inventory with proper locking to prevent race conditions
+        let inventory;
+        let availableStock = 0;
+        
+        if (variantId) {
+          // Check variant inventory
+          const variant = await prisma.productVariant.findUnique({
+            where: { id: variantId },
+            select: {
+              id: true,
+              productId: true,
+              price: true,
+              stockQuantity: true,
+            },
+          });
 
-      if (variantId) {
-        const variant = await this.prismaService.productVariant.findUnique({
-          where: { id: variantId },
-          select: {
-            id: true,
-            productId: true,
-            price: true,
-            stockQuantity: true,
-          },
-        });
+          if (!variant) {
+            throw new NotFoundException(`Variant with ID ${variantId} not found`);
+          }
 
-        if (!variant) {
-          throw new NotFoundException(`Variant with ID ${variantId} not found`);
+          if (variant.productId !== productId) {
+            throw new BadRequestException(
+              `Variant with ID ${variantId} does not belong to product with ID ${productId}`,
+            );
+          }
+          
+          // Get or create inventory record for variant
+          inventory = await prisma.inventory.findUnique({
+            where: { variantId },
+          });
+          
+          if (!inventory) {
+            // Create inventory record if it doesn't exist
+            inventory = await prisma.inventory.create({
+              data: {
+                productId,
+                variantId,
+                stockQuantity: variant.stockQuantity,
+                reservedQuantity: 0,
+              },
+            });
+            availableStock = variant.stockQuantity;
+          } else {
+            // Calculate actual availability including reservations
+            availableStock = inventory.stockQuantity - inventory.reservedQuantity;
+          }
+        } else {
+          // Check product inventory
+          inventory = await prisma.inventory.findUnique({
+            where: { productId },
+          });
+          
+          if (!inventory) {
+            // Get product stock quantity
+            const productDetails = await prisma.product.findUnique({
+              where: { id: productId },
+              select: { stockQuantity: true },
+            });
+            
+            if (!productDetails) {
+              throw new NotFoundException(`Product with ID ${productId} not found`);
+            }
+            
+            // Create inventory record if it doesn't exist
+            inventory = await prisma.inventory.create({
+              data: {
+                productId,
+                stockQuantity: productDetails.stockQuantity,
+                reservedQuantity: 0,
+              },
+            });
+            availableStock = productDetails.stockQuantity;
+          } else {
+            // Calculate actual availability including reservations
+            availableStock = inventory.stockQuantity - inventory.reservedQuantity;
+          }
         }
 
-        if (variant.productId !== productId) {
+        // Check real stock availability (considering reservations)
+        if (availableStock < quantity) {
           throw new BadRequestException(
-            `Variant with ID ${variantId} does not belong to product with ID ${productId}`,
+            `Not enough stock available. Requested: ${quantity}, Available: ${availableStock}`,
           );
         }
 
-        selectedPrice = variant.price;
-        availableStock = variant.stockQuantity;
-      }
-
-      // Check stock availability
-      if (availableStock < quantity) {
-        throw new BadRequestException(
-          `Not enough stock available. Requested: ${quantity}, Available: ${availableStock}`,
-        );
-      }
-
-      // Start transaction to handle cart and cart item operations
-      return await this.prismaService.$transaction(async (prisma) => {
         // Find or create the cart
         let cart = await prisma.cart.findUnique({
           where: { userId },
@@ -195,6 +246,9 @@ export class CartsService {
           });
         }
 
+        // Calculate reservation expiration time
+        const reservationExpires = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000);
+        
         // Check if the item already exists in the cart
         const existingCartItem = await prisma.cartItem.findFirst({
           where: {
@@ -205,23 +259,61 @@ export class CartsService {
         });
 
         let cartItem;
+        let newQuantityToReserve = quantity;
 
         if (existingCartItem) {
+          // Calculate how much additional quantity to reserve
+          newQuantityToReserve = quantity;
+          
           // Update the existing cart item
-          cartItem = await prisma.cartItem.update({
-            where: { id: existingCartItem.id },
+          // Use raw query to update with reservationExpires field
+          cartItem = await prisma.$queryRaw`
+            UPDATE "cart_items" 
+            SET "quantity" = ${existingCartItem.quantity + quantity}, 
+                "reservation_expires" = ${reservationExpires}::timestamp,
+                "updated_at" = NOW()
+            WHERE "id" = ${existingCartItem.id}
+            RETURNING *
+          `;
+          // Convert array result to single object
+          cartItem = Array.isArray(cartItem) ? cartItem[0] : cartItem;
+        } else {
+          // Create a new cart item with reservation
+          // Use raw query to create cart item with reservationExpires field
+          const result = await prisma.$queryRaw`
+            INSERT INTO "cart_items" ("id", "cart_id", "product_id", "variant_id", "quantity", "reservation_expires", "created_at", "updated_at")
+            VALUES (
+              ${crypto.randomUUID()}, 
+              ${cart.id}, 
+              ${productId}, 
+              ${variantId || null}, 
+              ${quantity}, 
+              ${reservationExpires}::timestamp, 
+              NOW(), 
+              NOW()
+            )
+            RETURNING *
+          `;
+          cartItem = Array.isArray(result) ? result[0] : result;
+        }
+
+        // Update inventory reservations
+        if (variantId) {
+          await prisma.inventory.update({
+            where: { variantId },
             data: {
-              quantity: existingCartItem.quantity + quantity,
+              reservedQuantity: {
+                increment: newQuantityToReserve,
+              },
             },
           });
         } else {
-          // Create a new cart item
-          cartItem = await prisma.cartItem.create({
+          await prisma.inventory.update({
+            where: { productId },
             data: {
-              cartId: cart.id,
-              productId,
-              variantId,
-              quantity,
+              reservedQuantity: {
+                increment: newQuantityToReserve,
+              },
             },
           });
         }
@@ -264,6 +356,10 @@ export class CartsService {
         });
 
         return this.transformCartToDto(updatedCart);
+      }, {
+        // Use serializable isolation to prevent race conditions
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        timeout: 10000, // 10 second timeout
       });
     } catch (error) {
       if (
