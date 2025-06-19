@@ -32,6 +32,13 @@ export class CartProductResponseDto {
   })
   discountPrice?: number | null;
 
+  @ApiProperty({
+    description: 'Currency code',
+    example: 'USD',
+    default: 'USD'
+  })
+  currency: string;
+
   @ApiPropertyOptional({
     description: 'Product image URL',
     example: 'https://example.com/images/product-1.jpg',

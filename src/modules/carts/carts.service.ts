@@ -39,6 +39,7 @@ export class CartsService {
                   slug: true,
                   price: true,
                   discountPrice: true,
+                  currency: true,
                   images: {
                     take: 1,
                     orderBy: {
@@ -79,6 +80,7 @@ export class CartsService {
                     slug: true,
                     price: true,
                     discountPrice: true,
+                    currency: true,
                     images: {
                       take: 1,
                       orderBy: {
@@ -133,6 +135,7 @@ export class CartsService {
           isActive: true,
           price: true,
           discountPrice: true,
+          currency: true,
         },
       });
 
@@ -331,6 +334,7 @@ export class CartsService {
                     slug: true,
                     price: true,
                     discountPrice: true,
+                    currency: true,
                     images: {
                       take: 1,
                       orderBy: {
@@ -384,17 +388,16 @@ export class CartsService {
     try {
       const { quantity } = updateCartItemDto;
 
-      // Find the cart
+      // Check if cart exists
       const cart = await this.prismaService.cart.findUnique({
         where: { userId },
-        select: { id: true },
       });
 
       if (!cart) {
         throw new NotFoundException(`Cart for user ${userId} not found`);
       }
 
-      // Check if the cart item exists and belongs to the user's cart
+      // Check if cart item exists
       const cartItem = await this.prismaService.cartItem.findFirst({
         where: {
           id: cartItemId,
@@ -404,7 +407,9 @@ export class CartsService {
           product: {
             select: {
               id: true,
+              isActive: true,
               stockQuantity: true,
+              currency: true,
             },
           },
           variant: {
@@ -417,78 +422,111 @@ export class CartsService {
       });
 
       if (!cartItem) {
-        throw new NotFoundException(
-          `Cart item with ID ${cartItemId} not found in user's cart`,
-        );
+        throw new NotFoundException(`Cart item with ID ${cartItemId} not found`);
       }
 
-      // Check stock availability
-      const availableStock = cartItem.variant
-        ? cartItem.variant.stockQuantity
-        : cartItem.product.stockQuantity;
+      // Start transaction
+      return await this.prismaService.$transaction(async (prisma) => {
+        // Get inventory with proper locking to prevent race conditions
+        let availableStock = 0;
+        
+        if (cartItem.variantId) {
+          // Check variant inventory
+          const inventory = await prisma.inventory.findUnique({
+            where: { variantId: cartItem.variantId },
+          });
 
-      if (availableStock < quantity) {
-        throw new BadRequestException(
-          `Not enough stock available. Requested: ${quantity}, Available: ${availableStock}`,
-        );
-      }
+          if (!inventory) {
+            // Fallback to variant stock if inventory record doesn't exist
+            availableStock = cartItem.variant ? cartItem.variant.stockQuantity : 0;
+          } else {
+            // Consider reservations
+            availableStock = inventory.stockQuantity - inventory.reservedQuantity + cartItem.quantity;
+          }
+        } else {
+          // Check product inventory
+          const inventory = await prisma.inventory.findUnique({
+            where: { productId: cartItem.productId },
+          });
 
-      // Update the cart item
-      await this.prismaService.cartItem.update({
-        where: { id: cartItemId },
-        data: { quantity },
-      });
+          if (!inventory) {
+            // Fallback to product stock if inventory record doesn't exist
+            availableStock = cartItem.product.stockQuantity;
+          } else {
+            // Consider reservations and current item quantity
+            availableStock = inventory.stockQuantity - inventory.reservedQuantity + cartItem.quantity;
+          }
+        }
 
-      // Return the updated cart
-      const updatedCart = await this.prismaService.cart.findUnique({
-        where: { userId },
-        include: {
-          items: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  title: true,
-                  slug: true,
-                  price: true,
-                  discountPrice: true,
-                  images: {
-                    take: 1,
-                    orderBy: {
-                      position: 'asc',
-                    },
-                    select: {
-                      imageUrl: true,
+        // Check stock availability
+        if (availableStock < quantity) {
+          throw new BadRequestException(
+            `Not enough stock available. Requested: ${quantity}, Available: ${availableStock}`,
+          );
+        }
+
+        // Update cart item
+        await prisma.cartItem.update({
+          where: { id: cartItemId },
+          data: {
+            quantity,
+          },
+        });
+
+        // Fetch updated cart
+        const updatedCart = await prisma.cart.findUnique({
+          where: { userId },
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    price: true,
+                    discountPrice: true,
+                    currency: true,
+                    images: {
+                      take: 1,
+                      orderBy: {
+                        position: 'asc',
+                      },
+                      select: {
+                        imageUrl: true,
+                      },
                     },
                   },
                 },
-              },
-              variant: {
-                select: {
-                  id: true,
-                  variantName: true,
-                  price: true,
-                  sku: true,
+                variant: {
+                  select: {
+                    id: true,
+                    variantName: true,
+                    price: true,
+                    sku: true,
+                  },
                 },
               },
             },
           },
-        },
-      });
+        });
 
-      return this.transformCartToDto(updatedCart);
+        return this.transformCartToDto(updatedCart);
+      });
     } catch (error) {
+      this.logger.error(
+        `Error updating cart item ${cartItemId} for user ${userId}: ${error.message}`,
+        error.stack,
+      );
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
       ) {
         throw error;
       }
-      this.logger.error(
-        `Error updating cart item ${cartItemId} for user ${userId}: ${error.message}`,
-        error.stack,
+      throw new InternalServerErrorException(
+        `Failed to update cart item: ${error.message}`,
       );
-      throw new InternalServerErrorException('Failed to update cart item');
     }
   }
 
@@ -539,6 +577,7 @@ export class CartsService {
                   slug: true,
                   price: true,
                   discountPrice: true,
+                  currency: true,
                   images: {
                     take: 1,
                     orderBy: {
@@ -565,7 +604,10 @@ export class CartsService {
 
       return this.transformCartToDto(updatedCart);
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       this.logger.error(
@@ -606,6 +648,7 @@ export class CartsService {
                   slug: true,
                   price: true,
                   discountPrice: true,
+                  currency: true,
                   images: {
                     take: 1,
                     orderBy: {
@@ -678,6 +721,7 @@ export class CartsService {
                   stockQuantity: true,
                   price: true,
                   discountPrice: true,
+                  currency: true,
                 },
               });
 
@@ -771,6 +815,7 @@ export class CartsService {
                       slug: true,
                       price: true,
                       discountPrice: true,
+                      currency: true,
                       images: {
                         take: 1,
                         orderBy: { position: 'asc' },
@@ -838,6 +883,7 @@ export class CartsService {
                     slug: true,
                     price: true,
                     discountPrice: true,
+                    currency: true,
                     images: {
                       take: 1,
                       orderBy: { position: 'asc' },
@@ -903,6 +949,7 @@ export class CartsService {
           discountPrice: item.product.discountPrice
             ? parseFloat(item.product.discountPrice.toString())
             : null,
+          currency: item.product.currency || 'USD', // Use product's currency or default to USD
           imageUrl,
         },
         variant: item.variant
