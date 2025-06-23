@@ -9,4 +9,4 @@ export class AddToWishlistDto {
   @IsNotEmpty({ message: 'Product ID is required' })
   @IsString({ message: 'Product ID must be a string' })
   productId: string;
-} 
+}

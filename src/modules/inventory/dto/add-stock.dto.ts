@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 export class AddStockDto {
   @ApiProperty({
@@ -29,7 +36,8 @@ export class AddStockDto {
   quantity: number;
 
   @ApiPropertyOptional({
-    description: 'Low stock threshold - when stock falls below this value, it will be marked as low stock',
+    description:
+      'Low stock threshold - when stock falls below this value, it will be marked as low stock',
     example: 5,
     default: 5,
   })
@@ -45,4 +53,4 @@ export class AddStockDto {
   @IsString()
   @IsOptional()
   note?: string;
-} 
+}

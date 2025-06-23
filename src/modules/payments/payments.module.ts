@@ -14,12 +14,7 @@ import { PaymentEncryptionUtil } from './utils/payment-encryption.utils';
 import { PaymentThrottlerGuard } from './guards/payment-throttler.guard';
 
 @Module({
-  imports: [
-    PrismaModule,
-    ConfigModule,
-    OrdersModule,
-    CommonModule,
-  ],
+  imports: [PrismaModule, ConfigModule, OrdersModule, CommonModule],
   controllers: [PaymentsController],
   providers: [
     PaymentsService,
@@ -33,4 +28,4 @@ import { PaymentThrottlerGuard } from './guards/payment-throttler.guard';
   ],
   exports: [PaymentsService],
 })
-export class PaymentsModule {} 
+export class PaymentsModule {}

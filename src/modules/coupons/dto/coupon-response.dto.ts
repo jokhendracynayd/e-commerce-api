@@ -77,4 +77,4 @@ export class CouponResponseDto {
 
   @ApiPropertyOptional({ type: [ProductDto] })
   products?: ProductDto[];
-} 
+}

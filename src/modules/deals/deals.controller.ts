@@ -1,32 +1,32 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Param, 
-  Delete, 
-  Query, 
-  Patch, 
-  UseGuards, 
-  HttpCode, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Query,
+  Patch,
+  UseGuards,
+  HttpCode,
   HttpStatus,
-  ParseUUIDPipe
+  ParseUUIDPipe,
 } from '@nestjs/common';
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiResponse, 
-  ApiBearerAuth, 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
   ApiParam,
-  ApiQuery
+  ApiQuery,
 } from '@nestjs/swagger';
 import { DealsService } from './deals.service';
-import { 
+import {
   CreateDealDto,
   UpdateDealDto,
   DealResponseDto,
   DealListResponseDto,
-  AddProductToDealDto
+  AddProductToDealDto,
 } from './dto';
 import { JwtAuthGuard, Public } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -41,15 +41,19 @@ export class DealsController {
   @Public()
   @Get()
   @ApiOperation({ summary: 'Get all deals with pagination and filtering' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Returns a list of deals', 
-    type: DealListResponseDto 
+  @ApiResponse({
+    status: 200,
+    description: 'Returns a list of deals',
+    type: DealListResponseDto,
   })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
-  @ApiQuery({ name: 'status', required: false, enum: ['Active', 'Upcoming', 'Ended'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['Active', 'Upcoming', 'Ended'],
+  })
   @ApiQuery({ name: 'sortBy', required: false, type: String })
   @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
   async findAll(
@@ -62,7 +66,7 @@ export class DealsController {
   ) {
     const pageNum = page !== undefined ? Number(page) : 1;
     const limitNum = limit !== undefined ? Number(limit) : 10;
-    
+
     return this.dealsService.findAll({
       skip: pageNum > 0 ? (pageNum - 1) * limitNum : 0,
       take: limitNum > 0 ? limitNum : 10,
@@ -76,10 +80,10 @@ export class DealsController {
   @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Get a deal by ID' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Returns the deal', 
-    type: DealResponseDto 
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the deal',
+    type: DealResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Deal not found' })
   @ApiParam({ name: 'id', description: 'Deal ID' })
@@ -90,10 +94,10 @@ export class DealsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post()
   @ApiOperation({ summary: 'Create a new deal' })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Deal created successfully', 
-    type: DealResponseDto 
+  @ApiResponse({
+    status: 201,
+    description: 'Deal created successfully',
+    type: DealResponseDto,
   })
   @ApiBearerAuth()
   @Roles('ADMIN', 'SELLER')
@@ -104,18 +108,18 @@ export class DealsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch(':id')
   @ApiOperation({ summary: 'Update a deal' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Deal updated successfully', 
-    type: DealResponseDto 
+  @ApiResponse({
+    status: 200,
+    description: 'Deal updated successfully',
+    type: DealResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Deal not found' })
   @ApiParam({ name: 'id', description: 'Deal ID' })
   @ApiBearerAuth()
   @Roles('ADMIN', 'SELLER')
   async update(
-    @Param('id', ParseUUIDPipe) id: string, 
-    @Body() updateDealDto: UpdateDealDto
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDealDto: UpdateDealDto,
   ) {
     return this.dealsService.update(id, updateDealDto);
   }
@@ -136,9 +140,9 @@ export class DealsController {
   @Public()
   @Get(':id/products')
   @ApiOperation({ summary: 'Get products in a deal' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Returns the products in the deal'
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the products in the deal',
   })
   @ApiResponse({ status: 404, description: 'Deal not found' })
   @ApiParam({ name: 'id', description: 'Deal ID' })
@@ -151,7 +155,7 @@ export class DealsController {
   ) {
     const pageNum = page !== undefined ? Number(page) : 1;
     const limitNum = limit !== undefined ? Number(limit) : 10;
-    
+
     return this.dealsService.getProducts(id, {
       skip: pageNum > 0 ? (pageNum - 1) * limitNum : 0,
       take: limitNum > 0 ? limitNum : 10,
@@ -161,7 +165,10 @@ export class DealsController {
   @Public()
   @Post(':id/products')
   @ApiOperation({ summary: 'Add a product to a deal' })
-  @ApiResponse({ status: 200, description: 'Product added to deal successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Product added to deal successfully',
+  })
   @ApiResponse({ status: 404, description: 'Deal or product not found' })
   @ApiResponse({ status: 400, description: 'Product already in deal' })
   @ApiParam({ name: 'id', description: 'Deal ID' })
@@ -171,13 +178,16 @@ export class DealsController {
   ) {
     console.log(`Adding product ${addProductDto.productId} to deal ${id}`);
     try {
-      const result = await this.dealsService.addProduct(id, addProductDto.productId);
+      const result = await this.dealsService.addProduct(
+        id,
+        addProductDto.productId,
+      );
       return result;
     } catch (error) {
       console.error(`Error adding product to deal: ${error.message}`, {
         dealId: id,
         productId: addProductDto.productId,
-        stack: error.stack
+        stack: error.stack,
       });
       throw error;
     }
@@ -186,7 +196,10 @@ export class DealsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Delete(':id/products/:productId')
   @ApiOperation({ summary: 'Remove a product from a deal' })
-  @ApiResponse({ status: 200, description: 'Product removed from deal successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Product removed from deal successfully',
+  })
   @ApiResponse({ status: 404, description: 'Deal or product not found' })
   @ApiResponse({ status: 400, description: 'Product not in deal' })
   @ApiParam({ name: 'id', description: 'Deal ID' })
@@ -203,15 +216,34 @@ export class DealsController {
   @Public()
   @Get('types/:dealType/products')
   @ApiOperation({ summary: 'Get products by deal type' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Returns products associated with the specified deal type'
+  @ApiResponse({
+    status: 200,
+    description: 'Returns products associated with the specified deal type',
   })
   @ApiResponse({ status: 400, description: 'Invalid deal type' })
-  @ApiParam({ name: 'dealType', enum: DealType, description: 'Deal type (TRENDING, FLASH, DEAL_OF_DAY)' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (starts at 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
-  @ApiQuery({ name: 'status', required: false, enum: ['Active', 'Upcoming', 'Ended'], description: 'Deal status filter' })
+  @ApiParam({
+    name: 'dealType',
+    enum: DealType,
+    description: 'Deal type (TRENDING, FLASH, DEAL_OF_DAY)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (starts at 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['Active', 'Upcoming', 'Ended'],
+    description: 'Deal status filter',
+  })
   async getProductsByDealType(
     @Param('dealType') dealType: DealType,
     @Query('page') page?: number,
@@ -220,11 +252,11 @@ export class DealsController {
   ) {
     const pageNum = page !== undefined ? Number(page) : 1;
     const limitNum = limit !== undefined ? Number(limit) : 10;
-    
+
     return this.dealsService.getProductsByDealType(dealType, {
       skip: pageNum > 0 ? (pageNum - 1) * limitNum : 0,
       take: limitNum > 0 ? limitNum : 10,
-      status
+      status,
     });
   }
-} 
+}

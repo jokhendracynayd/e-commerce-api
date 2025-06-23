@@ -4,7 +4,13 @@ import { PrismaClient } from '@prisma/client';
 // This extends the PrismaClient type to include our models
 declare global {
   namespace PrismaJson {
-    type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
+    type JsonValue =
+      | string
+      | number
+      | boolean
+      | null
+      | { [key: string]: JsonValue }
+      | JsonValue[];
   }
 }
 

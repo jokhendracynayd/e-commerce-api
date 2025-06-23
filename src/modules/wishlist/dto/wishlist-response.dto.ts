@@ -26,4 +26,4 @@ export class WishlistRemoveResponseDto {
 
   @ApiProperty({ example: 'Item removed from wishlist successfully' })
   message: string;
-} 
+}

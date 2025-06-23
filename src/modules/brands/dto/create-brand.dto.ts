@@ -47,7 +47,9 @@ export class CreateBrandDto {
   @IsOptional()
   @IsString()
   @IsUrl({}, { message: 'Website must be a valid URL' })
-  @MaxLength(500, { message: 'Website URL must be at most 500 characters long' })
+  @MaxLength(500, {
+    message: 'Website URL must be at most 500 characters long',
+  })
   website?: string;
 
   @ApiPropertyOptional({

@@ -16,7 +16,11 @@ class WishlistProductDto {
   @ApiProperty({ example: 79.99, required: false, nullable: true })
   discountPrice?: number | null;
 
-  @ApiProperty({ example: 'https://example.com/images/headphones.jpg', required: false, nullable: true })
+  @ApiProperty({
+    example: 'https://example.com/images/headphones.jpg',
+    required: false,
+    nullable: true,
+  })
   imageUrl: string | null;
 }
 
@@ -35,4 +39,4 @@ export class WishlistItemDto {
 
   @ApiProperty({ type: WishlistProductDto })
   product: WishlistProductDto;
-} 
+}

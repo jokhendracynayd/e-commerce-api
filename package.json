@@ -18,7 +18,13 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:payment": "ts-node -r tsconfig-paths/register src/test-payment-provider.ts"
+    "test:payment": "ts-node -r tsconfig-paths/register src/test-payment-provider.ts",
+    "test:unit": "jest --testPathPattern=src --testPathIgnorePatterns=test",
+    "test:integration": "jest --testPathPattern=test --testPathIgnorePatterns=e2e",
+    "test:all": "npm run test:unit && npm run test:e2e",
+    "test:ci": "npm run test:cov && npm run test:e2e",
+    "test:db:setup": "DATABASE_URL=postgresql://test:test@localhost:5432/ecommerce_test npx prisma migrate deploy",
+    "test:db:reset": "DATABASE_URL=postgresql://test:test@localhost:5432/ecommerce_test npx prisma migrate reset --force"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.817.0",
@@ -101,22 +107,5 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
   }
 }

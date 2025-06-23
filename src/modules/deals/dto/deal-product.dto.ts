@@ -8,4 +8,4 @@ export class AddProductToDealDto {
   })
   @IsUUID(4)
   productId: string;
-} 
+}

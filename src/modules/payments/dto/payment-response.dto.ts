@@ -1,6 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentStatus } from '@prisma/client';
-import { PaymentMethod, PaymentProvider } from '../interfaces/payment.interface';
+import {
+  PaymentMethod,
+  PaymentProvider,
+} from '../interfaces/payment.interface';
 
 export class PaymentIntentResponseDto {
   @ApiProperty({
@@ -56,8 +59,8 @@ export class PaymentIntentResponseDto {
     description: 'Client-side data needed for payment processing',
     example: {
       clientSecret: 'pi_3O9mDn2eZvKYlo2C1KrtBUMM_secret_xyz',
-      publishableKey: 'pk_test_xyz'
-    }
+      publishableKey: 'pk_test_xyz',
+    },
   })
   clientData?: Record<string, any>;
 
@@ -105,4 +108,4 @@ export class PaymentResultResponseDto {
     example: 'Payment verified successfully',
   })
   message: string;
-} 
+}

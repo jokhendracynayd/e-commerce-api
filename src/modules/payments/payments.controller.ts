@@ -12,7 +12,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
-import { CreatePaymentIntentDto, RefundPaymentDto, VerifyPaymentDto } from './dto';
+import {
+  CreatePaymentIntentDto,
+  RefundPaymentDto,
+  VerifyPaymentDto,
+} from './dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -26,7 +30,10 @@ import {
   ApiBody,
   ApiHeader,
 } from '@nestjs/swagger';
-import { PaymentIntentResponseDto, PaymentResultResponseDto } from './dto/payment-response.dto';
+import {
+  PaymentIntentResponseDto,
+  PaymentResultResponseDto,
+} from './dto/payment-response.dto';
 import { WebhookVerifier } from './utils/webhook-verifier';
 import { Public } from '../../common/decorators/public.decorator';
 import { RateLimited } from '../../common/decorators/rate-limit.decorator';
@@ -74,14 +81,14 @@ export class PaymentsController {
   @ApiBearerAuth('JWT-auth')
   @RateLimited()
   async createPaymentIntent(
-    @Body() createPaymentIntentDto: CreatePaymentIntentDto, 
-    @Req() req: RequestWithUser
+    @Body() createPaymentIntentDto: CreatePaymentIntentDto,
+    @Req() req: RequestWithUser,
   ) {
     // Add the user's email to the DTO if available and not already provided
     if (!createPaymentIntentDto.customerEmail && req.user?.email) {
       createPaymentIntentDto.customerEmail = req.user.email;
     }
-    
+
     return this.paymentsService.createPaymentIntent(createPaymentIntentDto);
   }
 
@@ -140,26 +147,35 @@ export class PaymentsController {
     type: [PaymentIntentResponseDto],
   })
   @ApiBearerAuth('JWT-auth')
-  async getPaymentsByOrderId(@Param('orderId') orderId: string, @Req() req: RequestWithUser) {
+  async getPaymentsByOrderId(
+    @Param('orderId') orderId: string,
+    @Req() req: RequestWithUser,
+  ) {
     return this.paymentsService.getPaymentsByOrderId(orderId);
   }
 
   @Public()
   @Post('webhooks/stripe')
   @ApiOperation({ summary: 'Handle Stripe payment webhooks' })
-  async handleStripeWebhook(@Body() payload: any, @Req() req: RawBodyRequest<any>) {
+  async handleStripeWebhook(
+    @Body() payload: any,
+    @Req() req: RawBodyRequest<any>,
+  ) {
     const signature = req.headers['stripe-signature'];
-    
+
     if (!signature) {
       throw new BadRequestException('Missing Stripe signature');
     }
 
     // Raw body is needed for Stripe webhook signature verification
     const rawBody = req.rawBody?.toString() || JSON.stringify(payload);
-    
+
     // Verify the webhook signature
-    const isValid = this.webhookVerifier.verifyStripeWebhook(rawBody, signature as string);
-    
+    const isValid = this.webhookVerifier.verifyStripeWebhook(
+      rawBody,
+      signature as string,
+    );
+
     if (!isValid) {
       throw new UnauthorizedException('Invalid Stripe webhook signature');
     }
@@ -173,14 +189,16 @@ export class PaymentsController {
         await this.paymentsService.handlePaymentFailed(payload.data.object);
         break;
       case 'payment_intent.requires_action':
-        await this.paymentsService.handlePaymentRequiresAction(payload.data.object);
+        await this.paymentsService.handlePaymentRequiresAction(
+          payload.data.object,
+        );
         break;
       case 'charge.refunded':
         await this.paymentsService.handlePaymentRefunded(payload.data.object);
         break;
       // Add other event types as needed
     }
-    
+
     // Return a 200 OK quickly to acknowledge receipt
     return { received: true, provider: 'stripe' };
   }
@@ -190,17 +208,17 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Handle Razorpay payment webhooks' })
   async handleRazorpayWebhook(@Body() payload: any, @Req() req: any) {
     const signature = req.headers['x-razorpay-signature'];
-    
+
     if (!signature) {
       throw new BadRequestException('Missing Razorpay signature');
     }
 
     // Verify the webhook signature
     const isValid = this.webhookVerifier.verifyRazorpayWebhook(
-      JSON.stringify(payload), 
-      signature as string
+      JSON.stringify(payload),
+      signature as string,
     );
-    
+
     if (!isValid) {
       throw new UnauthorizedException('Invalid Razorpay webhook signature');
     }
@@ -208,17 +226,23 @@ export class PaymentsController {
     // Handle different event types
     switch (payload.event) {
       case 'payment.captured':
-        await this.paymentsService.handlePaymentSucceeded(payload.payload.payment.entity);
+        await this.paymentsService.handlePaymentSucceeded(
+          payload.payload.payment.entity,
+        );
         break;
       case 'payment.failed':
-        await this.paymentsService.handlePaymentFailed(payload.payload.payment.entity);
+        await this.paymentsService.handlePaymentFailed(
+          payload.payload.payment.entity,
+        );
         break;
       case 'refund.processed':
-        await this.paymentsService.handlePaymentRefunded(payload.payload.refund.entity);
+        await this.paymentsService.handlePaymentRefunded(
+          payload.payload.refund.entity,
+        );
         break;
       // Add other event types as needed
     }
-    
+
     // Return a 200 OK quickly to acknowledge receipt
     return { received: true, provider: 'razorpay' };
   }
@@ -226,29 +250,35 @@ export class PaymentsController {
   @Public()
   @Post('webhooks/phonepe')
   @ApiOperation({ summary: 'Handle PhonePe UPI webhooks' })
-  async handlePhonePeWebhook(@Body() payload: any, @Req() req: RawBodyRequest<any>) {
+  async handlePhonePeWebhook(
+    @Body() payload: any,
+    @Req() req: RawBodyRequest<any>,
+  ) {
     const xVerify = req.headers['x-verify'];
-    
+
     if (!xVerify) {
       throw new BadRequestException('Missing PhonePe X-VERIFY header');
     }
 
     // Raw body is needed for PhonePe webhook signature verification
     const rawBody = req.rawBody?.toString() || JSON.stringify(payload);
-    
+
     // Verify the webhook signature
     const isValid = this.webhookVerifier.verifyPhonePeWebhook(
-      rawBody, 
-      xVerify as string
+      rawBody,
+      xVerify as string,
     );
-    
+
     if (!isValid) {
       throw new UnauthorizedException('Invalid PhonePe webhook signature');
     }
 
     // Map PhonePe payment status to our system's payment status
     // PhonePe payment statuses: SUCCESS, FAILED, PENDING
-    if (payload.code === 'PAYMENT_SUCCESS' || (payload.data && payload.data.responseCode === 'SUCCESS')) {
+    if (
+      payload.code === 'PAYMENT_SUCCESS' ||
+      (payload.data && payload.data.responseCode === 'SUCCESS')
+    ) {
       await this.paymentsService.handlePaymentSucceeded({
         id: payload.data?.transactionId,
         amount: payload.data?.amount,
@@ -257,10 +287,13 @@ export class PaymentsController {
         metadata: {
           orderId: payload.data?.merchantOrderId,
           providerReferenceId: payload.data?.providerReferenceId,
-          upiTransactionId: payload.data?.transactionId
-        }
+          upiTransactionId: payload.data?.transactionId,
+        },
       });
-    } else if (payload.code === 'PAYMENT_ERROR' || (payload.data && payload.data.responseCode === 'FAILURE')) {
+    } else if (
+      payload.code === 'PAYMENT_ERROR' ||
+      (payload.data && payload.data.responseCode === 'FAILURE')
+    ) {
       await this.paymentsService.handlePaymentFailed({
         id: payload.data?.transactionId,
         amount: payload.data?.amount,
@@ -269,11 +302,11 @@ export class PaymentsController {
         metadata: {
           orderId: payload.data?.merchantOrderId,
           errorCode: payload.data?.responseCode,
-          errorMessage: payload.data?.responseMessage
-        }
+          errorMessage: payload.data?.responseMessage,
+        },
       });
     }
-    
+
     // Return a 200 OK quickly to acknowledge receipt
     return { received: true, provider: 'phonepe' };
   }
@@ -281,29 +314,35 @@ export class PaymentsController {
   @Public()
   @Post('webhooks/googlepay')
   @ApiOperation({ summary: 'Handle Google Pay UPI webhooks' })
-  async handleGooglePayWebhook(@Body() payload: any, @Req() req: RawBodyRequest<any>) {
+  async handleGooglePayWebhook(
+    @Body() payload: any,
+    @Req() req: RawBodyRequest<any>,
+  ) {
     const signature = req.headers['x-goog-signature'];
-    
+
     if (!signature) {
       throw new BadRequestException('Missing Google Pay signature');
     }
 
     // Raw body is needed for Google Pay webhook signature verification
     const rawBody = req.rawBody?.toString() || JSON.stringify(payload);
-    
+
     // Verify the webhook signature
     const isValid = this.webhookVerifier.verifyGooglePayWebhook(
-      rawBody, 
-      signature as string
+      rawBody,
+      signature as string,
     );
-    
+
     if (!isValid) {
       throw new UnauthorizedException('Invalid Google Pay webhook signature');
     }
 
     // Process Google Pay UPI webhook
     // Google Pay webhook structure varies based on integration type
-    if (payload.eventType === 'PAYMENT_COMPLETE' || payload.status === 'SUCCESS') {
+    if (
+      payload.eventType === 'PAYMENT_COMPLETE' ||
+      payload.status === 'SUCCESS'
+    ) {
       await this.paymentsService.handlePaymentSucceeded({
         id: payload.transactionId || payload.id,
         amount: payload.amount,
@@ -311,10 +350,13 @@ export class PaymentsController {
         status: 'SUCCESS',
         metadata: {
           orderId: payload.orderId || payload.merchantTransactionId,
-          upiTransactionId: payload.upiTransactionId || payload.transactionId
-        }
+          upiTransactionId: payload.upiTransactionId || payload.transactionId,
+        },
       });
-    } else if (payload.eventType === 'PAYMENT_FAILED' || payload.status === 'FAILURE') {
+    } else if (
+      payload.eventType === 'PAYMENT_FAILED' ||
+      payload.status === 'FAILURE'
+    ) {
       await this.paymentsService.handlePaymentFailed({
         id: payload.transactionId || payload.id,
         amount: payload.amount,
@@ -323,11 +365,11 @@ export class PaymentsController {
         metadata: {
           orderId: payload.orderId || payload.merchantTransactionId,
           errorCode: payload.errorCode,
-          errorMessage: payload.errorMessage
-        }
+          errorMessage: payload.errorMessage,
+        },
       });
     }
-    
+
     // Return a 200 OK quickly to acknowledge receipt
     return { received: true, provider: 'googlepay' };
   }
@@ -339,7 +381,7 @@ export class PaymentsController {
     // Paytm includes checksum in the payload itself
     // Verify the webhook signature
     const isValid = this.webhookVerifier.verifyPaytmWebhook(payload);
-    
+
     if (!isValid) {
       throw new UnauthorizedException('Invalid Paytm webhook signature');
     }
@@ -358,8 +400,8 @@ export class PaymentsController {
           txnDate: payload.TXNDATE,
           gatewayName: payload.GATEWAYNAME,
           bankName: payload.BANKNAME,
-          paymentMode: payload.PAYMENTMODE
-        }
+          paymentMode: payload.PAYMENTMODE,
+        },
       });
     } else if (payload.STATUS === 'TXN_FAILURE') {
       await this.paymentsService.handlePaymentFailed({
@@ -370,11 +412,11 @@ export class PaymentsController {
         metadata: {
           orderId: payload.ORDERID,
           respCode: payload.RESPCODE,
-          respMsg: payload.RESPMSG
-        }
+          respMsg: payload.RESPMSG,
+        },
       });
     }
-    
+
     // Return a 200 OK quickly to acknowledge receipt
     return { received: true, provider: 'paytm' };
   }
@@ -382,22 +424,25 @@ export class PaymentsController {
   @Public()
   @Post('webhooks/bharatpe')
   @ApiOperation({ summary: 'Handle BharatPe UPI webhooks' })
-  async handleBharatPeWebhook(@Body() payload: any, @Req() req: RawBodyRequest<any>) {
+  async handleBharatPeWebhook(
+    @Body() payload: any,
+    @Req() req: RawBodyRequest<any>,
+  ) {
     const signature = req.headers['x-bharatpe-signature'];
-    
+
     if (!signature) {
       throw new BadRequestException('Missing BharatPe signature');
     }
 
     // Raw body is needed for BharatPe webhook signature verification
     const rawBody = req.rawBody?.toString() || JSON.stringify(payload);
-    
+
     // Verify the webhook signature
     const isValid = this.webhookVerifier.verifyBharatPeWebhook(
-      rawBody, 
-      signature as string
+      rawBody,
+      signature as string,
     );
-    
+
     if (!isValid) {
       throw new UnauthorizedException('Invalid BharatPe webhook signature');
     }
@@ -413,8 +458,8 @@ export class PaymentsController {
         metadata: {
           orderId: payload.merchantOrderId || payload.orderId,
           upiTransactionId: payload.upiTransactionId,
-          merchantId: payload.merchantId
-        }
+          merchantId: payload.merchantId,
+        },
       });
     } else if (payload.status === 'FAILED' || payload.txnStatus === 'FAILED') {
       await this.paymentsService.handlePaymentFailed({
@@ -425,11 +470,11 @@ export class PaymentsController {
         metadata: {
           orderId: payload.merchantOrderId || payload.orderId,
           errorCode: payload.errorCode,
-          errorMessage: payload.errorMessage || payload.statusMessage
-        }
+          errorMessage: payload.errorMessage || payload.statusMessage,
+        },
       });
     }
-    
+
     // Return a 200 OK quickly to acknowledge receipt
     return { received: true, provider: 'bharatpe' };
   }

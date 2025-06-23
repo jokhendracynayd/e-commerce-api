@@ -19,12 +19,14 @@ export function RateLimited() {
     }),
     ApiHeader({
       name: 'Retry-After',
-      description: 'How many seconds to wait before retrying when rate limit is exceeded',
+      description:
+        'How many seconds to wait before retrying when rate limit is exceeded',
       required: false,
     }),
     ApiResponse({
       status: 429,
-      description: 'Too Many Requests - Rate limit exceeded. Please try again later.',
+      description:
+        'Too Many Requests - Rate limit exceeded. Please try again later.',
     }),
   );
-} 
+}

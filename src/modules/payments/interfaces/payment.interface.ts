@@ -64,4 +64,4 @@ export interface RefundPaymentDto {
   paymentId: string;
   amount?: number; // Optional for partial refunds
   reason?: string;
-} 
+}

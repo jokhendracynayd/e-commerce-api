@@ -11,13 +11,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         throttlers: [
           {
             ttl: config.get('THROTTLE_TTL', 60) * 1000, // Convert to ms, Default: 60 seconds
-            limit: config.get('THROTTLE_LIMIT', 10),    // Default: 10 requests per TTL
+            limit: config.get('THROTTLE_LIMIT', 10), // Default: 10 requests per TTL
           },
           // Payment-specific throttler with stricter limits
           {
             name: 'payment',
             ttl: config.get('PAYMENT_THROTTLE_TTL', 60) * 1000, // Convert to ms, Default: 60 seconds
-            limit: config.get('PAYMENT_THROTTLE_LIMIT', 5),    // Default: 5 payment operations per TTL
+            limit: config.get('PAYMENT_THROTTLE_LIMIT', 5), // Default: 5 payment operations per TTL
           },
         ],
       }),
@@ -25,4 +25,4 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
   ],
   exports: [ThrottlerModule],
 })
-export class RateLimitModule {} 
+export class RateLimitModule {}

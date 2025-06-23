@@ -69,4 +69,4 @@ export class CreateProductSpecificationBulkDto {
     description: 'Array of specifications to create',
   })
   specifications: CreateProductSpecificationDto[];
-} 
+}

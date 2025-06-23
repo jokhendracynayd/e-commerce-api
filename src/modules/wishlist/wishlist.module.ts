@@ -9,4 +9,4 @@ import { CommonModule } from '../../common/common.module';
   providers: [WishlistService],
   exports: [WishlistService],
 })
-export class WishlistModule {} 
+export class WishlistModule {}

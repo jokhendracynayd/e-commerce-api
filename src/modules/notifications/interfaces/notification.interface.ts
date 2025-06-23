@@ -31,4 +31,4 @@ export interface EmailJob {
   cc?: string[];
   bcc?: string[];
   attachments?: any[];
-} 
+}

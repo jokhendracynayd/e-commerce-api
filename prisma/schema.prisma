@@ -40,6 +40,9 @@ model User {
   reviews             ProductReview[]
   products            Product[]
   wishlistItems       WishlistItem[]
+  activities          UserActivity[]
+  browsingHistory     BrowsingHistory[]
+  recommendations     ProductRecommendation[]
 
   @@map("users")
 }
@@ -132,6 +135,11 @@ model Product {
   seller           User?                  @relation(fields: [sellerId], references: [id])
   subCategory      Category?              @relation("SubCategoryProducts", fields: [subCategoryId], references: [id])
   wishlistItems    WishlistItem[]
+  browsingHistory      BrowsingHistory[]
+  baseRecommendations  ProductRecommendation[] @relation("BaseProduct")
+  targetRecommendations ProductRecommendation[] @relation("RecommendedProduct")
+  similarityBase       ProductSimilarity[]     @relation("SimilarityBase")
+  similarityTarget     ProductSimilarity[]     @relation("SimilarityTarget")
 
   @@index([categoryId], map: "idx_product_category")
   @@index([slug], map: "idx_product_slug")
@@ -522,4 +530,195 @@ enum CouponStatus {
   ACTIVE
   EXPIRED
   DISABLED
+}
+
+// ===================================
+// RECOMMENDATION SYSTEM MODELS
+// ===================================
+
+model UserActivity {
+  id           String           @id @default(uuid())
+  userId       String?          @map("user_id")
+  sessionId    String           @map("session_id")
+  activityType UserActivityType @map("activity_type")
+  entityId     String?          @map("entity_id")
+  entityType   String?          @map("entity_type")
+  metadata     Json?
+  ipAddress    String?          @map("ip_address")
+  userAgent    String?          @map("user_agent")
+  referrer     String?
+  pageUrl      String?          @map("page_url")
+  deviceType   String?          @map("device_type")
+  duration     Int?             // Time spent in seconds
+  timestamp    DateTime         @default(now())
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  user         User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, timestamp])
+  @@index([sessionId, timestamp])
+  @@index([entityId, entityType])
+  @@index([activityType, timestamp])
+  @@index([timestamp]) // For cleanup jobs
+  @@index([createdAt])
+  @@map("user_activities")
+}
+
+model BrowsingHistory {
+  id           String   @id @default(uuid())
+  userId       String?  @map("user_id")
+  sessionId    String   @map("session_id")
+  productId    String   @map("product_id")
+  viewedAt     DateTime @default(now()) @map("viewed_at")
+  lastViewedAt DateTime @updatedAt @map("last_viewed_at")
+  viewCount    Int      @default(1) @map("view_count")
+  timeSpent    Int?     @map("time_spent") // in seconds
+  source       String?  // e.g., "search", "category", "recommendation"
+  deviceType   String?  @map("device_type")
+  conversion   Boolean  @default(false) // Did this view lead to purchase?
+  conversionAt DateTime? @map("conversion_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId]) // Prevent duplicates, update instead
+  @@index([userId, lastViewedAt])
+  @@index([sessionId, viewedAt])
+  @@index([productId, viewedAt])
+  @@index([source, viewedAt])
+  @@index([conversion, conversionAt])
+  @@index([createdAt])
+  @@map("browsing_history")
+}
+
+model ProductRecommendation {
+  id                  String             @id @default(uuid())
+  userId              String?            @map("user_id")
+  sessionId           String?            @map("session_id") // For anonymous users
+  productId           String?            @map("product_id") // Null for global recommendations
+  recommendedProductId String            @map("recommended_product_id")
+  recommendationType  RecommendationType @map("recommendation_type")
+  score               Float              @default(0)
+  position            Int?               // Position in recommendation list
+  batchId             String?            @map("batch_id") // Link to generation batch
+  
+  // Tracking metrics
+  viewed              Boolean            @default(false)
+  clicked             Boolean            @default(false)
+  converted           Boolean            @default(false)
+  viewedAt            DateTime?          @map("viewed_at")
+  clickedAt           DateTime?          @map("clicked_at")
+  convertedAt         DateTime?          @map("converted_at")
+  
+  // Metadata
+  algorithmVersion    String?            @map("algorithm_version")
+  metadata            Json?              // Store algorithm-specific data
+  expiresAt           DateTime?          @map("expires_at")
+  
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+  
+  user                User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product             Product?           @relation("BaseProduct", fields: [productId], references: [id], onDelete: Cascade)
+  recommendedProduct  Product            @relation("RecommendedProduct", fields: [recommendedProductId], references: [id], onDelete: Cascade)
+  batch               RecommendationBatch? @relation(fields: [batchId], references: [id])
+
+  @@unique([userId, sessionId, productId, recommendedProductId, recommendationType])
+  @@index([userId, recommendationType, score])
+  @@index([sessionId, recommendationType, score])
+  @@index([productId, recommendationType, score])
+  @@index([recommendationType, score, createdAt])
+  @@index([expiresAt]) // For cleanup
+  @@index([batchId])
+  @@map("product_recommendations")
+}
+
+model RecommendationBatch {
+  id               String                 @id @default(uuid())
+  batchType        RecommendationType     @map("batch_type")
+  algorithmVersion String                 @map("algorithm_version")
+  totalGenerated   Int                    @default(0) @map("total_generated")
+  status           BatchStatus            @default(RUNNING)
+  startedAt        DateTime               @default(now()) @map("started_at")
+  completedAt      DateTime?              @map("completed_at")
+  errorMessage     String?                @map("error_message")
+  metadata         Json?
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+  
+  recommendations  ProductRecommendation[]
+  
+  @@index([batchType, status])
+  @@index([startedAt])
+  @@index([createdAt])
+  @@map("recommendation_batches")
+}
+
+model ProductSimilarity {
+  id              String   @id @default(uuid())
+  productId       String   @map("product_id")
+  similarProductId String  @map("similar_product_id")
+  similarityScore Float    @map("similarity_score")
+  similarityType  String   // "category", "attributes", "collaborative"
+  lastCalculated  DateTime @default(now()) @map("last_calculated")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  product         Product  @relation("SimilarityBase", fields: [productId], references: [id], onDelete: Cascade)
+  similarProduct  Product  @relation("SimilarityTarget", fields: [similarProductId], references: [id], onDelete: Cascade)
+  
+  @@unique([productId, similarProductId, similarityType])
+  @@index([productId, similarityScore])
+  @@index([similarityType, similarityScore])
+  @@index([createdAt])
+  @@map("product_similarities")
+}
+
+// ===================================
+// RECOMMENDATION SYSTEM ENUMS
+// ===================================
+
+enum UserActivityType {
+  PAGE_VIEW
+  PRODUCT_VIEW
+  CATEGORY_VIEW
+  BRAND_VIEW
+  SEARCH
+  FILTER_USE
+  SORT_USE
+  PAGINATION
+  ADD_TO_CART
+  REMOVE_FROM_CART
+  ADD_TO_WISHLIST
+  REMOVE_FROM_WISHLIST
+  CHECKOUT_START
+  CHECKOUT_STEP
+  CHECKOUT_COMPLETE
+  PRODUCT_CLICK
+  PRODUCT_SHARE
+  REVIEW_SUBMITTED
+  COUPON_APPLIED
+}
+
+enum RecommendationType {
+  PERSONALIZED
+  SIMILAR_PRODUCTS
+  FREQUENTLY_BOUGHT_TOGETHER
+  TRENDING
+  RECENTLY_VIEWED
+  TOP_RATED
+  BESTSELLERS
+  SEASONAL
+  PRICE_DROP
+  NEW_ARRIVALS
+  CATEGORY_TRENDING
+}
+
+enum BatchStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
 }

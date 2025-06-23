@@ -1,4 +1,11 @@
-import { IsString, IsArray, IsOptional, IsUUID, ValidateNested, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsArray,
+  IsOptional,
+  IsUUID,
+  ValidateNested,
+  IsNumber,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -25,10 +32,13 @@ export class ApplyCouponDto {
   @IsString()
   subtotal: string;
 
-  @ApiPropertyOptional({ type: [CartItemDto], description: 'Cart items for validation' })
+  @ApiPropertyOptional({
+    type: [CartItemDto],
+    description: 'Cart items for validation',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CartItemDto)
   @IsOptional()
   cartItems?: CartItemDto[];
-} 
+}

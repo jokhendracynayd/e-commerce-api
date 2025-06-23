@@ -11,7 +11,10 @@ import {
   IsString,
   IsUUID,
 } from 'class-validator';
-import { PaymentMethod, PaymentProvider } from '../interfaces/payment.interface';
+import {
+  PaymentMethod,
+  PaymentProvider,
+} from '../interfaces/payment.interface';
 
 export class CreatePaymentIntentDto {
   @ApiProperty({
@@ -83,4 +86,4 @@ export class CreatePaymentIntentDto {
   @IsOptional()
   @IsString()
   idempotencyKey?: string;
-} 
+}

@@ -30,4 +30,4 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     // For non-public routes, use the standard JWT auth guard
     return super.canActivate(context);
   }
-} 
+}

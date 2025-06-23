@@ -1,1 +1,1 @@
-/// <reference path="./types/prisma-extensions.d.ts" /> 
+/// <reference path="./types/prisma-extensions.d.ts" />

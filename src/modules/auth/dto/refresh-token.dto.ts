@@ -12,7 +12,7 @@ export class RefreshTokenDto {
   @ApiProperty({
     description: 'JWT refresh token (optional when using HTTP-only cookies)',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString({ message: 'refreshToken must be a string' })

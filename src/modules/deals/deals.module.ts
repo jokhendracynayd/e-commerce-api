@@ -10,4 +10,4 @@ import { CommonModule } from '../../common/common.module';
   providers: [DealsService, PrismaService],
   exports: [DealsService],
 })
-export class DealsModule {} 
+export class DealsModule {}

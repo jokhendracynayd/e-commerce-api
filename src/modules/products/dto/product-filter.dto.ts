@@ -52,7 +52,7 @@ export class ProductFilterDto {
   @IsOptional()
   @IsUUID(4)
   categoryId?: string;
-  
+
   @ApiPropertyOptional({
     description: 'Category slug to filter products (alternative to categoryId)',
     example: 'electronics',
@@ -60,11 +60,12 @@ export class ProductFilterDto {
   @IsOptional()
   @IsString()
   categorySlug?: string;
-  
+
   @ApiPropertyOptional({
-    description: 'Whether to include products from all subcategories recursively',
+    description:
+      'Whether to include products from all subcategories recursively',
     example: true,
-    default: false
+    default: false,
   })
   @IsOptional()
   @Transform(({ value }) => {

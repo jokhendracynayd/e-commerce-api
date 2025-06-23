@@ -117,7 +117,8 @@ export class CreateProductVariantDto {
   stockQuantity: number;
 
   @ApiPropertyOptional({
-    description: 'Low stock threshold - when stock falls below this value, it will be marked as low stock',
+    description:
+      'Low stock threshold - when stock falls below this value, it will be marked as low stock',
     example: 5,
     default: 5,
   })

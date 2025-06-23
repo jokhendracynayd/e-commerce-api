@@ -6,7 +6,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
-import { WishlistResponseDto, WishlistAddResponseDto, WishlistRemoveResponseDto } from './dto';
+import {
+  WishlistResponseDto,
+  WishlistAddResponseDto,
+  WishlistRemoveResponseDto,
+} from './dto';
 import { AddToWishlistDto } from './dto';
 import { Prisma } from '@prisma/client';
 
@@ -187,14 +191,19 @@ export class WishlistService {
         `Error removing product ${productId} from wishlist for user ${userId}:`,
         error,
       );
-      throw new InternalServerErrorException('Failed to remove item from wishlist');
+      throw new InternalServerErrorException(
+        'Failed to remove item from wishlist',
+      );
     }
   }
 
   /**
    * Check if a product is in the user's wishlist
    */
-  async isProductInWishlist(userId: string, productId: string): Promise<boolean> {
+  async isProductInWishlist(
+    userId: string,
+    productId: string,
+  ): Promise<boolean> {
     try {
       const count = await this.prismaService.wishlistItem.count({
         where: {
@@ -257,4 +266,4 @@ export class WishlistService {
       },
     };
   }
-} 
+}

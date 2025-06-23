@@ -25,12 +25,16 @@ export class SpecificationsService {
     });
 
     if (!category) {
-      throw new NotFoundException(`Category with ID ${dto.categoryId} not found`);
+      throw new NotFoundException(
+        `Category with ID ${dto.categoryId} not found`,
+      );
     }
 
     // Check if a template with the same key already exists for this category
     // Use type assertion to work around TypeScript error
-    const existingTemplate = await (this.prisma as any).specificationTemplate.findUnique({
+    const existingTemplate = await (
+      this.prisma as any
+    ).specificationTemplate.findUnique({
       where: {
         categoryId_specKey: {
           categoryId: dto.categoryId,
@@ -74,21 +78,22 @@ export class SpecificationsService {
     // Get all templates for this category
     return (this.prisma as any).specificationTemplate.findMany({
       where: { categoryId },
-      orderBy: [
-        { specGroup: 'asc' },
-        { sortOrder: 'asc' },
-      ],
+      orderBy: [{ specGroup: 'asc' }, { sortOrder: 'asc' }],
     });
   }
 
   async deleteSpecificationTemplate(id: string) {
     // Check if the template exists
-    const template = await (this.prisma as any).specificationTemplate.findUnique({
+    const template = await (
+      this.prisma as any
+    ).specificationTemplate.findUnique({
       where: { id },
     });
 
     if (!template) {
-      throw new NotFoundException(`Specification template with ID ${id} not found`);
+      throw new NotFoundException(
+        `Specification template with ID ${id} not found`,
+      );
     }
 
     // Delete the template
@@ -110,7 +115,9 @@ export class SpecificationsService {
     }
 
     // Check if a spec with the same key already exists for this product
-    const existingSpec = await (this.prisma as any).productSpecification.findUnique({
+    const existingSpec = await (
+      this.prisma as any
+    ).productSpecification.findUnique({
       where: {
         productId_specKey: {
           productId: dto.productId,
@@ -138,19 +145,24 @@ export class SpecificationsService {
     });
   }
 
-  async createProductSpecificationsBulk(dto: CreateProductSpecificationBulkDto) {
+  async createProductSpecificationsBulk(
+    dto: CreateProductSpecificationBulkDto,
+  ) {
     if (!dto.specifications || dto.specifications.length === 0) {
       throw new BadRequestException('No specifications provided');
     }
 
     // Group specifications by productId for better validation
-    const specsByProductId = dto.specifications.reduce((acc, spec) => {
-      if (!acc[spec.productId]) {
-        acc[spec.productId] = [];
-      }
-      acc[spec.productId].push(spec);
-      return acc;
-    }, {} as Record<string, CreateProductSpecificationDto[]>);
+    const specsByProductId = dto.specifications.reduce(
+      (acc, spec) => {
+        if (!acc[spec.productId]) {
+          acc[spec.productId] = [];
+        }
+        acc[spec.productId].push(spec);
+        return acc;
+      },
+      {} as Record<string, CreateProductSpecificationDto[]>,
+    );
 
     // Validate each product exists
     const productIds = Object.keys(specsByProductId);
@@ -160,10 +172,14 @@ export class SpecificationsService {
     });
 
     const foundProductIds = products.map((p) => p.id);
-    const missingProductIds = productIds.filter((id) => !foundProductIds.includes(id));
+    const missingProductIds = productIds.filter(
+      (id) => !foundProductIds.includes(id),
+    );
 
     if (missingProductIds.length > 0) {
-      throw new NotFoundException(`Products with IDs ${missingProductIds.join(', ')} not found`);
+      throw new NotFoundException(
+        `Products with IDs ${missingProductIds.join(', ')} not found`,
+      );
     }
 
     // Execute as transaction
@@ -211,10 +227,7 @@ export class SpecificationsService {
     // Get specifications for this product
     return (this.prisma as any).productSpecification.findMany({
       where: { productId },
-      orderBy: [
-        { specGroup: 'asc' },
-        { sortOrder: 'asc' },
-      ],
+      orderBy: [{ specGroup: 'asc' }, { sortOrder: 'asc' }],
     });
   }
 
@@ -222,13 +235,16 @@ export class SpecificationsService {
     const specs = await this.getProductSpecifications(productId);
 
     // Group by specGroup
-    const grouped = specs.reduce((acc, spec) => {
-      if (!acc[spec.specGroup]) {
-        acc[spec.specGroup] = [];
-      }
-      acc[spec.specGroup].push(spec);
-      return acc;
-    }, {} as Record<string, any[]>);
+    const grouped = specs.reduce(
+      (acc, spec) => {
+        if (!acc[spec.specGroup]) {
+          acc[spec.specGroup] = [];
+        }
+        acc[spec.specGroup].push(spec);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
 
     // Transform to response format
     return Object.entries(grouped).map(([groupName, specifications]) => ({
@@ -237,7 +253,10 @@ export class SpecificationsService {
     }));
   }
 
-  async updateProductSpecification(id: string, dto: Partial<CreateProductSpecificationDto>) {
+  async updateProductSpecification(
+    id: string,
+    dto: Partial<CreateProductSpecificationDto>,
+  ) {
     // Check if the specification exists
     const spec = await (this.prisma as any).productSpecification.findUnique({
       where: { id },
@@ -254,7 +273,8 @@ export class SpecificationsService {
         specValue: dto.specValue !== undefined ? dto.specValue : undefined,
         specGroup: dto.specGroup !== undefined ? dto.specGroup : undefined,
         sortOrder: dto.sortOrder !== undefined ? dto.sortOrder : undefined,
-        isFilterable: dto.isFilterable !== undefined ? dto.isFilterable : undefined,
+        isFilterable:
+          dto.isFilterable !== undefined ? dto.isFilterable : undefined,
       },
     });
   }
@@ -290,6 +310,9 @@ export class SpecificationsService {
       where: { productId },
     });
 
-    return { deleted: true, message: `All specifications for product ${productId} deleted` };
+    return {
+      deleted: true,
+      message: `All specifications for product ${productId} deleted`,
+    };
   }
-} 
+}

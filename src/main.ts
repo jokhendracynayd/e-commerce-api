@@ -17,7 +17,7 @@ import { BrandResponseDto } from './modules/brands/dto/brand-response.dto';
 import { AddressDto } from './modules/users/dto/address.dto';
 import { UpdateProductTagsDto } from './modules/products/dto/update-product-tags.dto';
 import { ProductResponseDto } from './modules/products/dto/product-response.dto';
-import { 
+import {
   CouponResponseDto,
   CouponType,
   CouponStatus,
@@ -27,7 +27,7 @@ import {
   ValidateCouponDto,
   CategoryDto,
   ProductDto,
-  CartItemDto
+  CartItemDto,
 } from './modules/coupons/dto';
 
 async function bootstrap() {
@@ -49,7 +49,7 @@ async function bootstrap() {
     // Create a contextId for resolving scoped providers
     const appLoggerFactory = await app.resolve(AppLogger);
     const appLogger = appLoggerFactory.setContext('GlobalExceptionFilter');
-    
+
     // Also explicitly apply AllExceptionsFilter to ensure it catches all exceptions
     // This works alongside the provider in AppModule
     app.useGlobalFilters(new AllExceptionsFilter(appLogger));
@@ -61,31 +61,32 @@ async function bootstrap() {
 
     // Security settings
     app.use(helmet());
-    
+
     // Add cookie parser middleware - must be before csrf
     app.use(cookieParser());
-    
+
     // Configure CORS with credentials support
-    const corsOrigin = nodeEnv === 'production' ? 'https://yourdomain.com' : true;
+    const corsOrigin =
+      nodeEnv === 'production' ? 'https://yourdomain.com' : true;
     app.enableCors({
       origin: corsOrigin,
       credentials: true,
     });
-    
+
     // Global prefix will be set once at the end of setup
-    
+
     // Custom middleware to handle CSRF protection for different paths
     app.use((req, res, next) => {
       const fullPath = req.originalUrl || req.url;
       const method = req.method;
-      
+
       // Safe methods don't need CSRF protection
       if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
         // For safe methods, just add the CSRF token cookie
         addCsrfTokenCookie(req, res);
         return next();
       }
-      
+
       // Check for paths that should be exempt from CSRF protection
       const exemptPaths = [
         // Auth routes
@@ -96,54 +97,56 @@ async function bootstrap() {
         '/auth/admin/login',
         '/auth/csrf-token',
         '/docs',
-        
+
         // Cart operations
         '/carts/merge-anonymous',
         '/carts/add-item',
         '/carts/items/',
         '/carts/clear',
         '/carts/my-cart',
-        
+
         // User operations
         '/users/me/addresses',
-        
+
         // Product operations
         '/products',
         '/products/',
-        
+
         // Order operations
         '/orders',
         '/orders/user-order',
         '/orders/my-orders',
-        
+
         // Wishlist operations
         '/wishlist/',
-        
+
         // Coupon operations
         '/coupons/',
-        
+
         // Inventory operations
         '/inventory/availability/batch',
         '/inventory/availability/product',
         '/inventory/availability/variant',
         '/inventory/add',
       ];
-      
+
       // Log the path being checked (for debugging)
       console.log(`Checking CSRF for ${method} ${fullPath}`);
-      
+
       // Check if this path should be exempt from CSRF
-      const shouldExempt = exemptPaths.some(exemptPath => 
-        fullPath.includes(`/api/v1${exemptPath}`) || fullPath.includes(exemptPath)
+      const shouldExempt = exemptPaths.some(
+        (exemptPath) =>
+          fullPath.includes(`/api/v1${exemptPath}`) ||
+          fullPath.includes(exemptPath),
       );
-      
+
       if (shouldExempt) {
         console.log(`Exempting path from CSRF: ${fullPath}`);
         // Skip CSRF for exempt paths but still add token cookie
         addCsrfTokenCookie(req, res);
         return next();
       }
-      
+
       // For all other paths, apply CSRF protection
       console.log(`Applying CSRF protection to: ${fullPath}`);
       return csurf({
@@ -152,10 +155,10 @@ async function bootstrap() {
           httpOnly: false,
           sameSite: nodeEnv === 'production' ? 'strict' : 'lax',
           secure: nodeEnv === 'production',
-        }
+        },
       })(req, res, next);
     });
-    
+
     // Helper function to add CSRF token cookie
     function addCsrfTokenCookie(req, res) {
       // For exempt routes, set a dummy token
@@ -234,8 +237,8 @@ async function bootstrap() {
 
     const document = SwaggerModule.createDocument(app, swaggerConfig, {
       extraModels: [
-        CategoryResponseDto, 
-        BrandResponseDto, 
+        CategoryResponseDto,
+        BrandResponseDto,
         AddressDto,
         UpdateProductTagsDto,
         ProductResponseDto,
@@ -246,7 +249,7 @@ async function bootstrap() {
         ValidateCouponDto,
         CartItemDto,
         CategoryDto,
-        ProductDto
+        ProductDto,
       ],
     });
     SwaggerModule.setup('api/v1/docs', app, document, {

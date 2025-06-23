@@ -78,7 +78,7 @@ export class AuthController {
   @ApiBody({ type: LoginDto })
   async login(
     @Body() loginDto: LoginDto,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     const user = await this.authService.validateUser(
       loginDto.email,
@@ -119,12 +119,12 @@ export class AuthController {
   @ApiBody({ type: AdminLoginDto })
   async adminLogin(
     @Body() adminLoginDto: AdminLoginDto,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     return this.authService.adminLogin(
       adminLoginDto.email,
       adminLoginDto.password,
-      res
+      res,
     );
   }
 
@@ -181,23 +181,23 @@ export class AuthController {
   async refreshToken(
     @Body() refreshTokenDto: RefreshTokenDto,
     @Req() req: any,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponseDto> {
     // First try to get refresh token from cookie
     const refreshTokenFromCookie = req.cookies?.refresh_token;
-    
+
     // If no cookie, fall back to body
     const refreshToken = refreshTokenFromCookie || refreshTokenDto.refreshToken;
-    
+
     // If neither is provided, this will fail validation
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
     }
-    
+
     return this.authService.refreshToken(
       refreshTokenDto.userId,
       refreshToken,
-      res
+      res,
     );
   }
 
@@ -214,7 +214,7 @@ export class AuthController {
   @ApiCookieAuth('refresh_token')
   async logout(
     @Req() req: any,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ): Promise<LogoutResponseDto> {
     return this.authService.logout(req.user.id, res);
   }
@@ -260,11 +260,17 @@ export class AuthController {
     schema: {
       properties: {
         statusCode: { type: 'number', example: 200 },
-        message: { type: 'string', example: 'CSRF token generated successfully' },
+        message: {
+          type: 'string',
+          example: 'CSRF token generated successfully',
+        },
       },
     },
   })
-  async getCsrfToken(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async getCsrfToken(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     // The token is already set in a cookie by the CSRF middleware
     return {
       statusCode: HttpStatus.OK,

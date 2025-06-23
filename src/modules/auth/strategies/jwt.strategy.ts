@@ -38,11 +38,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // Check if user is blocked
       if (user.status === 'BLOCKED') {
         this.logger.warn(`Blocked user attempted to access: ${user.email}`);
-        throw new UnauthorizedException('Your account has been blocked. Please contact support.');
+        throw new UnauthorizedException(
+          'Your account has been blocked. Please contact support.',
+        );
       }
 
       const { password, refreshToken, ...result } = user;
-      
+
       // Convert database fields to match DTO format if needed
       return {
         ...result,

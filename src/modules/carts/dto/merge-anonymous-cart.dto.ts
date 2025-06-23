@@ -60,4 +60,4 @@ export class MergeAnonymousCartDto {
   @ValidateNested({ each: true })
   @Type(() => AnonymousCartItemDto)
   items: AnonymousCartItemDto[];
-} 
+}

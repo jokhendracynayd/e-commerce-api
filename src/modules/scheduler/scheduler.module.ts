@@ -4,11 +4,8 @@ import { ReservationCleanupService } from './reservation-cleanup.service';
 import { PrismaModule } from '../../common/prisma.module';
 
 @Module({
-  imports: [
-    ScheduleModule.forRoot(),
-    PrismaModule,
-  ],
+  imports: [ScheduleModule.forRoot(), PrismaModule],
   providers: [ReservationCleanupService],
   exports: [ReservationCleanupService],
 })
-export class SchedulerModule {} 
+export class SchedulerModule {}

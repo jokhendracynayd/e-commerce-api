@@ -14,16 +14,18 @@ export class WebhookVerifier {
    */
   verifyStripeWebhook(payload: string, signature: string): boolean {
     try {
-      const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
-      
+      const webhookSecret = this.configService.get<string>(
+        'STRIPE_WEBHOOK_SECRET',
+      );
+
       if (!webhookSecret) {
         throw new Error('Missing Stripe webhook secret');
       }
 
       // Split the signature into timestamp and signatures
       const parts = signature.split(',');
-      const timestampPart = parts.find(part => part.startsWith('t='));
-      const signaturesPart = parts.find(part => part.startsWith('v1='));
+      const timestampPart = parts.find((part) => part.startsWith('t='));
+      const signaturesPart = parts.find((part) => part.startsWith('v1='));
 
       if (!timestampPart || !signaturesPart) {
         throw new Error('Invalid Stripe signature format');
@@ -34,7 +36,7 @@ export class WebhookVerifier {
 
       // Create the signature string that Stripe expects
       const signedPayload = `${timestamp}.${payload}`;
-      
+
       // Generate HMAC signature using the webhook secret
       const hmac = crypto.createHmac('sha256', webhookSecret);
       hmac.update(signedPayload);
@@ -42,8 +44,8 @@ export class WebhookVerifier {
 
       // Compare signatures using a constant-time comparison function to avoid timing attacks
       return crypto.timingSafeEqual(
-        Buffer.from(calculatedSignature), 
-        Buffer.from(signatureProvided)
+        Buffer.from(calculatedSignature),
+        Buffer.from(signatureProvided),
       );
     } catch (error) {
       console.error('Stripe webhook verification error:', error);
@@ -59,8 +61,10 @@ export class WebhookVerifier {
    */
   verifyRazorpayWebhook(payload: string, signature: string): boolean {
     try {
-      const webhookSecret = this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET');
-      
+      const webhookSecret = this.configService.get<string>(
+        'RAZORPAY_WEBHOOK_SECRET',
+      );
+
       if (!webhookSecret) {
         throw new Error('Missing Razorpay webhook secret');
       }
@@ -72,15 +76,15 @@ export class WebhookVerifier {
 
       // Compare signatures using a constant-time comparison function
       return crypto.timingSafeEqual(
-        Buffer.from(calculatedSignature), 
-        Buffer.from(signature)
+        Buffer.from(calculatedSignature),
+        Buffer.from(signature),
       );
     } catch (error) {
       console.error('Razorpay webhook verification error:', error);
       return false;
     }
   }
-  
+
   /**
    * Verify a webhook signature from PhonePe
    * @param payload The raw payload (request body)
@@ -90,8 +94,9 @@ export class WebhookVerifier {
   verifyPhonePeWebhook(payload: string, xVerify: string): boolean {
     try {
       const saltKey = this.configService.get<string>('PHONEPE_SALT_KEY');
-      const saltIndex = this.configService.get<string>('PHONEPE_SALT_INDEX') || '1';
-      
+      const saltIndex =
+        this.configService.get<string>('PHONEPE_SALT_INDEX') || '1';
+
       if (!saltKey) {
         throw new Error('Missing PhonePe salt key');
       }
@@ -108,7 +113,7 @@ export class WebhookVerifier {
       return false;
     }
   }
-  
+
   /**
    * Verify a webhook signature from Google Pay (UPI)
    * @param payload The raw payload (request body)
@@ -117,8 +122,10 @@ export class WebhookVerifier {
    */
   verifyGooglePayWebhook(payload: string, signature: string): boolean {
     try {
-      const webhookSecret = this.configService.get<string>('GPAY_WEBHOOK_SECRET');
-      
+      const webhookSecret = this.configService.get<string>(
+        'GPAY_WEBHOOK_SECRET',
+      );
+
       if (!webhookSecret) {
         throw new Error('Missing Google Pay webhook secret');
       }
@@ -135,7 +142,7 @@ export class WebhookVerifier {
       return false;
     }
   }
-  
+
   /**
    * Verify a webhook signature from Paytm UPI
    * @param payload The webhook payload
@@ -144,7 +151,7 @@ export class WebhookVerifier {
   verifyPaytmWebhook(payload: any): boolean {
     try {
       const paytmSecret = this.configService.get<string>('PAYTM_MERCHANT_KEY');
-      
+
       if (!paytmSecret || !payload.checksum) {
         throw new Error('Missing Paytm secret or checksum in payload');
       }
@@ -155,10 +162,11 @@ export class WebhookVerifier {
       delete payloadWithoutChecksum.checksum;
 
       // Convert payload to sorted query string
-      const sortedParams = Object.keys(payloadWithoutChecksum).sort()
-        .map(key => `${key}=${payloadWithoutChecksum[key]}`)
+      const sortedParams = Object.keys(payloadWithoutChecksum)
+        .sort()
+        .map((key) => `${key}=${payloadWithoutChecksum[key]}`)
         .join('&');
-      
+
       // Generate HMAC signature
       const hmac = crypto.createHmac('sha256', paytmSecret);
       hmac.update(sortedParams);
@@ -170,7 +178,7 @@ export class WebhookVerifier {
       return false;
     }
   }
-  
+
   /**
    * Verify a webhook signature from BharatPe UPI
    * @param payload The webhook payload
@@ -179,8 +187,10 @@ export class WebhookVerifier {
    */
   verifyBharatPeWebhook(payload: string, signatureHeader: string): boolean {
     try {
-      const webhookSecret = this.configService.get<string>('BHARATPE_API_SECRET');
-      
+      const webhookSecret = this.configService.get<string>(
+        'BHARATPE_API_SECRET',
+      );
+
       if (!webhookSecret || !signatureHeader) {
         throw new Error('Missing BharatPe secret or signature header');
       }
@@ -195,4 +205,4 @@ export class WebhookVerifier {
       return false;
     }
   }
-} 
+}

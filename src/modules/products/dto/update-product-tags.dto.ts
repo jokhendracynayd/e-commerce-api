@@ -10,9 +10,9 @@ export class UpdateProductTagsDto {
     ],
     type: [String],
     isArray: true,
-    required: true
+    required: true,
   })
   @IsArray()
   @IsUUID(4, { each: true })
   tagIds: string[];
-} 
+}

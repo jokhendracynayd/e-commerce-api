@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { PaymentStatus } from '@prisma/client';
@@ -25,12 +29,14 @@ export class RazorpayProvider implements PaymentProviderInterface {
     try {
       // In a real implementation, this would use the Razorpay SDK
       // This is just a placeholder implementation
-      
+
       const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
       const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
-      
+
       if (!keyId || !keySecret) {
-        throw new InternalServerErrorException('Razorpay configuration missing');
+        throw new InternalServerErrorException(
+          'Razorpay configuration missing',
+        );
       }
 
       // Add idempotency key if provided
@@ -42,7 +48,7 @@ export class RazorpayProvider implements PaymentProviderInterface {
 
       // Record metrics
       const startTime = Date.now();
-      
+
       // Here, in a real implementation, we would call Razorpay API
       // const razorpay = new Razorpay({
       //    key_id: keyId,
@@ -68,7 +74,10 @@ export class RazorpayProvider implements PaymentProviderInterface {
         keyId,
       };
     } catch (error) {
-      this.logger.error(`Error creating Razorpay order: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error creating Razorpay order: ${error.message}`,
+        error.stack,
+      );
       throw new InternalServerErrorException('Failed to create Razorpay order');
     }
   }
@@ -84,13 +93,15 @@ export class RazorpayProvider implements PaymentProviderInterface {
     try {
       // This is a placeholder for actual Razorpay payment verification
       // In production, you would use the Razorpay SDK to verify the payment signature
-      
+
       const startTime = Date.now();
 
       if (!signature) {
-        throw new BadRequestException('Razorpay signature is required for verification');
+        throw new BadRequestException(
+          'Razorpay signature is required for verification',
+        );
       }
-      
+
       // Here, in a real implementation, we would verify the signature
       // const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
       // const payload = payment.providerPaymentId + '|' + providerPaymentId;
@@ -103,10 +114,10 @@ export class RazorpayProvider implements PaymentProviderInterface {
       // if (!isValid) {
       //    throw new Error('Invalid signature');
       // }
-      
+
       const processingTime = Date.now() - startTime;
       this.logger.log(`Razorpay payment verification took ${processingTime}ms`);
-      
+
       // Simulate successful verification
       return {
         success: true,
@@ -117,7 +128,10 @@ export class RazorpayProvider implements PaymentProviderInterface {
         transactionId: providerPaymentId,
       };
     } catch (error) {
-      this.logger.error(`Razorpay payment verification failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Razorpay payment verification failed: ${error.message}`,
+        error.stack,
+      );
       return {
         success: false,
         paymentId: payment.id,
@@ -140,9 +154,9 @@ export class RazorpayProvider implements PaymentProviderInterface {
     try {
       // This is a placeholder for actual Razorpay refund processing
       // In production, you would use the Razorpay SDK to process the refund
-      
+
       const startTime = Date.now();
-      
+
       // Here, in a real implementation, we would call Razorpay API
       // const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
       // const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
@@ -157,7 +171,7 @@ export class RazorpayProvider implements PaymentProviderInterface {
       //
       // const refund = await razorpay.payments.refund(payment.providerPaymentId, {
       //    amount: refundAmount, // If undefined, refund the full amount
-      //    notes: { 
+      //    notes: {
       //      reason: reason || 'requested_by_customer',
       //      orderId: payment.orderId,
       //      isPartialRefund: isPartialRefund ? 'true' : 'false'
@@ -166,43 +180,47 @@ export class RazorpayProvider implements PaymentProviderInterface {
       //
       // // Handle refund status
       // if (refund.status === 'processed') {
-      //   const refundStatus = isPartialRefund ? 
+      //   const refundStatus = isPartialRefund ?
       //     'PARTIALLY_REFUNDED' : // This would be converted to your app's enum
       //     PaymentStatus.REFUNDED;
-      //   
+      //
       //   return {
       //     success: true,
       //     paymentId: payment.id,
       //     orderId: payment.orderId,
       //     status: refundStatus,
-      //     message: isPartialRefund ? 
-      //       `Payment partially refunded (${amount})` : 
+      //     message: isPartialRefund ?
+      //       `Payment partially refunded (${amount})` :
       //       'Payment fully refunded',
       //     transactionId: refund.id,
       //   };
       // } else {
       //   throw new Error(`Refund failed with status: ${refund.status}`);
       // }
-      
+
       const processingTime = Date.now() - startTime;
       this.logger.log(`Razorpay refund processing took ${processingTime}ms`);
-      
+
       // For the mock implementation
-      const isPartialRefund = amount && amount < parseFloat(payment.amount.toString());
-      
+      const isPartialRefund =
+        amount && amount < parseFloat(payment.amount.toString());
+
       // Simulate successful refund
       return {
         success: true,
         paymentId: payment.id,
         orderId: payment.orderId,
         status: PaymentStatus.REFUNDED, // In real impl, use PARTIALLY_REFUNDED for partial
-        message: isPartialRefund ? 
-          `Payment partially refunded (${amount})` : 
-          'Payment fully refunded',
+        message: isPartialRefund
+          ? `Payment partially refunded (${amount})`
+          : 'Payment fully refunded',
         transactionId: `rfnd_${uuidv4().replace(/-/g, '')}`,
       };
     } catch (error) {
-      this.logger.error(`Razorpay refund failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Razorpay refund failed: ${error.message}`,
+        error.stack,
+      );
       return {
         success: false,
         paymentId: payment.id,
@@ -213,4 +231,4 @@ export class RazorpayProvider implements PaymentProviderInterface {
       };
     }
   }
-} 
+}

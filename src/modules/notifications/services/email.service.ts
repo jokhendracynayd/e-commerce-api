@@ -45,7 +45,9 @@ export class EmailService {
           removeOnComplete: true,
         },
       );
-      this.logger.log(`Email queued successfully: ${options.subject} to ${options.to}`);
+      this.logger.log(
+        `Email queued successfully: ${options.subject} to ${options.to}`,
+      );
     } catch (error) {
       this.logger.error(
         `Failed to queue email to ${options.to}: ${error.message}`,
@@ -57,8 +59,8 @@ export class EmailService {
 
   /**
    * Send an email directly (bypassing the queue)
-   * @param options Email options 
-   * @returns 
+   * @param options Email options
+   * @returns
    */
   async sendEmail(options: EmailOptions): Promise<void> {
     try {
@@ -71,7 +73,9 @@ export class EmailService {
         bcc: options.bcc,
         attachments: options.attachments,
       });
-      this.logger.log(`Email sent successfully: ${options.subject} to ${options.to}`);
+      this.logger.log(
+        `Email sent successfully: ${options.subject} to ${options.to}`,
+      );
     } catch (error) {
       this.logger.error(
         `Failed to send email to ${options.to}: ${error.message}`,
@@ -99,7 +103,10 @@ export class EmailService {
 
       return user.email;
     } catch (error) {
-      this.logger.error(`Failed to get user email: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to get user email: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -125,7 +132,10 @@ export class EmailService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to send welcome email: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to send welcome email: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -139,9 +149,9 @@ export class EmailService {
     try {
       const email = await this.getUserEmail(userId);
       const userName = data.firstName || 'Valued Customer';
-      
+
       // Format order items for the email
-      const formattedItems = data.items?.map(item => ({
+      const formattedItems = data.items?.map((item) => ({
         name: item.productName,
         quantity: item.quantity,
         price: this.formatPrice(item.price),
@@ -167,7 +177,10 @@ export class EmailService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to send order confirmation email: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to send order confirmation email: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -198,7 +211,10 @@ export class EmailService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to send order shipped email: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to send order shipped email: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -226,7 +242,10 @@ export class EmailService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to send order delivered email: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to send order delivered email: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -251,7 +270,10 @@ export class EmailService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to send password reset email: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to send password reset email: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -276,7 +298,10 @@ export class EmailService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to send email verification: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to send email verification: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -302,7 +327,10 @@ export class EmailService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to send promotion email: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to send promotion email: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -314,8 +342,11 @@ export class EmailService {
   async sendLowStockAlert(data: any): Promise<void> {
     try {
       // Get admin emails or a specific stock notification email
-      const adminEmail = this.configService.get('ADMIN_EMAIL', 'admin@example.com');
-      
+      const adminEmail = this.configService.get(
+        'ADMIN_EMAIL',
+        'admin@example.com',
+      );
+
       await this.queueEmail({
         to: adminEmail,
         subject: `Low Stock Alert: ${data.productName}`,
@@ -331,7 +362,10 @@ export class EmailService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to send low stock alert: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to send low stock alert: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -343,7 +377,7 @@ export class EmailService {
    */
   private formatAddress(address: any): string {
     if (!address) return 'Address not provided';
-    
+
     return `${address.line1}${address.line2 ? ', ' + address.line2 : ''}, 
             ${address.city}, ${address.state} ${address.postalCode}, 
             ${address.country}`;
@@ -361,4 +395,4 @@ export class EmailService {
       currency: currency,
     }).format(amount);
   }
-} 
+}

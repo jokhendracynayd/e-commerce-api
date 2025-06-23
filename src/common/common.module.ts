@@ -7,10 +7,7 @@ import { RolesGuard } from './guards/roles.guard';
 
 @Module({
   imports: [LoggerModule, DatabaseModule],
-  providers: [
-    AppLogger,
-    RolesGuard,
-  ],
+  providers: [AppLogger, RolesGuard],
   exports: [AppLogger, DatabaseModule, RolesGuard],
 })
 export class CommonModule implements NestModule {

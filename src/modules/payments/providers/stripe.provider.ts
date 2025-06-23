@@ -25,10 +25,13 @@ export class StripeProvider implements PaymentProviderInterface {
     try {
       // In a real implementation, this would use the Stripe SDK
       // This is just a placeholder implementation
-      
-      const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
-      const stripePublishableKey = this.configService.get<string>('STRIPE_PUBLISHABLE_KEY');
-      
+
+      const stripeSecretKey =
+        this.configService.get<string>('STRIPE_SECRET_KEY');
+      const stripePublishableKey = this.configService.get<string>(
+        'STRIPE_PUBLISHABLE_KEY',
+      );
+
       if (!stripeSecretKey || !stripePublishableKey) {
         throw new InternalServerErrorException('Stripe configuration missing');
       }
@@ -47,7 +50,7 @@ export class StripeProvider implements PaymentProviderInterface {
 
       // Record metrics
       const startTime = Date.now();
-      
+
       // Here, in a real implementation, we would call Stripe API
       // const stripe = new Stripe(stripeSecretKey);
       // const intent = await stripe.paymentIntents.create({
@@ -63,7 +66,7 @@ export class StripeProvider implements PaymentProviderInterface {
       //    // Add automatic payment methods if using Payment Element
       //    automatic_payment_methods: { enabled: true },
       // }, options);
-      
+
       // Handle 3D Secure or other authentication requirements
       // if (intent.status === 'requires_action') {
       //    return {
@@ -76,7 +79,9 @@ export class StripeProvider implements PaymentProviderInterface {
       // }
 
       const processingTime = Date.now() - startTime;
-      this.logger.log(`Stripe payment intent creation took ${processingTime}ms`);
+      this.logger.log(
+        `Stripe payment intent creation took ${processingTime}ms`,
+      );
 
       return {
         id: paymentIntentId,
@@ -86,8 +91,13 @@ export class StripeProvider implements PaymentProviderInterface {
         publishableKey: stripePublishableKey,
       };
     } catch (error) {
-      this.logger.error(`Error creating Stripe payment intent: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('Failed to create Stripe payment intent');
+      this.logger.error(
+        `Error creating Stripe payment intent: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Failed to create Stripe payment intent',
+      );
     }
   }
 
@@ -101,13 +111,13 @@ export class StripeProvider implements PaymentProviderInterface {
     try {
       // This is a placeholder for actual Stripe payment verification
       // In production, you would use the Stripe SDK to verify the payment
-      
+
       const startTime = Date.now();
-      
+
       // Here, in a real implementation, we would call Stripe API
       // const stripe = new Stripe(this.configService.get('STRIPE_SECRET_KEY'));
       // const intent = await stripe.paymentIntents.retrieve(providerPaymentId);
-      
+
       // Handle different payment intent statuses
       // switch (intent.status) {
       //   case 'succeeded':
@@ -164,10 +174,10 @@ export class StripeProvider implements PaymentProviderInterface {
       //       message: `Unknown payment status: ${intent.status}`,
       //     };
       // }
-      
+
       const processingTime = Date.now() - startTime;
       this.logger.log(`Stripe payment verification took ${processingTime}ms`);
-      
+
       // Simulate successful verification
       return {
         success: true,
@@ -178,7 +188,10 @@ export class StripeProvider implements PaymentProviderInterface {
         transactionId: providerPaymentId,
       };
     } catch (error) {
-      this.logger.error(`Stripe payment verification failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Stripe payment verification failed: ${error.message}`,
+        error.stack,
+      );
       return {
         success: false,
         paymentId: payment.id,
@@ -201,16 +214,16 @@ export class StripeProvider implements PaymentProviderInterface {
     try {
       // This is a placeholder for actual Stripe refund processing
       // In production, you would use the Stripe SDK to process the refund
-      
+
       const startTime = Date.now();
-      
+
       // Here, in a real implementation, we would call Stripe API
       // const stripe = new Stripe(this.configService.get('STRIPE_SECRET_KEY'));
-      // 
+      //
       // // Determine if this is a full or partial refund
       // const isPartialRefund = amount && amount < parseFloat(payment.amount);
       // const refundAmount = amount ? Math.round(amount * 100) : undefined;
-      // 
+      //
       // const refund = await stripe.refunds.create({
       //    payment_intent: payment.providerPaymentId,
       //    amount: refundAmount, // If undefined, refund the full amount
@@ -221,42 +234,43 @@ export class StripeProvider implements PaymentProviderInterface {
       //      isPartialRefund: isPartialRefund ? 'true' : 'false'
       //    }
       // });
-      // 
+      //
       // // Handle refund status
       // if (refund.status === 'succeeded') {
-      //   const refundStatus = isPartialRefund ? 
+      //   const refundStatus = isPartialRefund ?
       //     'PARTIALLY_REFUNDED' : // This would be converted to your app's enum
       //     PaymentStatus.REFUNDED;
-      //   
+      //
       //   return {
       //     success: true,
       //     paymentId: payment.id,
       //     orderId: payment.orderId,
       //     status: refundStatus,
-      //     message: isPartialRefund ? 
-      //       `Payment partially refunded (${amount})` : 
+      //     message: isPartialRefund ?
+      //       `Payment partially refunded (${amount})` :
       //       'Payment fully refunded',
       //     transactionId: refund.id,
       //   };
       // } else {
       //   throw new Error(`Refund failed with status: ${refund.status}`);
       // }
-      
+
       const processingTime = Date.now() - startTime;
       this.logger.log(`Stripe refund processing took ${processingTime}ms`);
-      
+
       // For the mock, determine if it's a partial refund
-      const isPartialRefund = amount && amount < parseFloat(payment.amount.toString());
-      
+      const isPartialRefund =
+        amount && amount < parseFloat(payment.amount.toString());
+
       // Simulate successful refund
       return {
         success: true,
         paymentId: payment.id,
         orderId: payment.orderId,
         status: PaymentStatus.REFUNDED, // In real impl, use PARTIALLY_REFUNDED for partial
-        message: isPartialRefund ? 
-          `Payment partially refunded (${amount})` : 
-          'Payment fully refunded',
+        message: isPartialRefund
+          ? `Payment partially refunded (${amount})`
+          : 'Payment fully refunded',
         transactionId: `re_${uuidv4().replace(/-/g, '')}`,
       };
     } catch (error) {
@@ -271,4 +285,4 @@ export class StripeProvider implements PaymentProviderInterface {
       };
     }
   }
-} 
+}

@@ -56,7 +56,7 @@ export class UpdateOrderDto {
   @ValidateNested()
   @Type(() => AddressDto)
   billingAddress?: AddressDto;
-  
+
   @ApiPropertyOptional({
     description: 'Tracking number for the shipment',
     example: '1Z999AA10123456784',
@@ -64,7 +64,7 @@ export class UpdateOrderDto {
   @IsOptional()
   @IsString()
   trackingNumber?: string;
-  
+
   @ApiPropertyOptional({
     description: 'URL to track the shipment',
     example: 'https://www.ups.com/track?tracknum=1Z999AA10123456784',
@@ -72,7 +72,7 @@ export class UpdateOrderDto {
   @IsOptional()
   @IsUrl()
   trackingUrl?: string;
-  
+
   @ApiPropertyOptional({
     description: 'Estimated delivery date',
     example: '2023-12-25',

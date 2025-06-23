@@ -54,7 +54,9 @@ export class SpecificationsController {
   })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async createSpecificationTemplate(@Body() dto: CreateSpecificationTemplateDto) {
+  async createSpecificationTemplate(
+    @Body() dto: CreateSpecificationTemplateDto,
+  ) {
     return this.specificationsService.createSpecificationTemplate(dto);
   }
 
@@ -70,7 +72,9 @@ export class SpecificationsController {
   async getSpecificationTemplatesByCategoryId(
     @Param('categoryId', ParseUUIDPipe) categoryId: string,
   ) {
-    return this.specificationsService.getSpecificationTemplatesByCategoryId(categoryId);
+    return this.specificationsService.getSpecificationTemplatesByCategoryId(
+      categoryId,
+    );
   }
 
   @Delete('templates/:id')
@@ -121,7 +125,9 @@ export class SpecificationsController {
   })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async createProductSpecificationsBulk(@Body() specifications: CreateProductSpecificationDto[]) {
+  async createProductSpecificationsBulk(
+    @Body() specifications: CreateProductSpecificationDto[],
+  ) {
     const bulkDto = { specifications };
     return this.specificationsService.createProductSpecificationsBulk(bulkDto);
   }
@@ -135,12 +141,16 @@ export class SpecificationsController {
     type: [ProductSpecificationResponseDto],
   })
   @ApiNotFoundResponse({ description: 'Product not found' })
-  async getProductSpecifications(@Param('productId', ParseUUIDPipe) productId: string) {
+  async getProductSpecifications(
+    @Param('productId', ParseUUIDPipe) productId: string,
+  ) {
     return this.specificationsService.getProductSpecifications(productId);
   }
 
   @Get('product/:productId/grouped')
-  @ApiOperation({ summary: 'Get specifications for a product grouped by specification group' })
+  @ApiOperation({
+    summary: 'Get specifications for a product grouped by specification group',
+  })
   @ApiParam({ name: 'productId', description: 'Product ID' })
   @ApiResponse({
     status: 200,
@@ -148,8 +158,12 @@ export class SpecificationsController {
     type: [GroupedProductSpecificationsResponseDto],
   })
   @ApiNotFoundResponse({ description: 'Product not found' })
-  async getGroupedProductSpecifications(@Param('productId', ParseUUIDPipe) productId: string) {
-    return this.specificationsService.getGroupedProductSpecifications(productId);
+  async getGroupedProductSpecifications(
+    @Param('productId', ParseUUIDPipe) productId: string,
+  ) {
+    return this.specificationsService.getGroupedProductSpecifications(
+      productId,
+    );
   }
 
   @Patch('product/:id')
@@ -202,7 +216,9 @@ export class SpecificationsController {
   })
   @ApiNotFoundResponse({ description: 'Product not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async deleteAllProductSpecifications(@Param('productId', ParseUUIDPipe) productId: string) {
+  async deleteAllProductSpecifications(
+    @Param('productId', ParseUUIDPipe) productId: string,
+  ) {
     return this.specificationsService.deleteAllProductSpecifications(productId);
   }
-} 
+}

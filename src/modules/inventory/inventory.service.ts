@@ -776,7 +776,6 @@ export class InventoryService {
   // Define types outside the method for proper visibility
   async getBatchAvailability(productIds: string[], variantIds: string[]) {
     try {
-      
       const results: {
         products: ProductAvailability[];
         variants: VariantAvailability[];
@@ -788,17 +787,25 @@ export class InventoryService {
       // Get product availability
       if (productIds.length > 0) {
         const productAvailability = await Promise.all(
-          productIds.map(id => this.getProductAvailability(id).catch(() => null))
+          productIds.map((id) =>
+            this.getProductAvailability(id).catch(() => null),
+          ),
         );
-        results.products = productAvailability.filter((item): item is ProductAvailability => item !== null);
+        results.products = productAvailability.filter(
+          (item): item is ProductAvailability => item !== null,
+        );
       }
 
       // Get variant availability
       if (variantIds.length > 0) {
         const variantAvailability = await Promise.all(
-          variantIds.map(id => this.getVariantAvailability(id).catch(() => null))
+          variantIds.map((id) =>
+            this.getVariantAvailability(id).catch(() => null),
+          ),
         );
-        results.variants = variantAvailability.filter((item): item is VariantAvailability => item !== null);
+        results.variants = variantAvailability.filter(
+          (item): item is VariantAvailability => item !== null,
+        );
       }
 
       return results;
@@ -813,8 +820,9 @@ export class InventoryService {
 
   async updateInventory(updateInventoryDto: any) {
     try {
-      const { productId, variantId, quantity, changeType, note } = updateInventoryDto;
-      
+      const { productId, variantId, quantity, changeType, note } =
+        updateInventoryDto;
+
       if (!productId) {
         throw new BadRequestException('Product ID is required');
       }
@@ -840,7 +848,9 @@ export class InventoryService {
             });
 
             if (!variant) {
-              throw new NotFoundException(`Variant with ID ${variantId} not found`);
+              throw new NotFoundException(
+                `Variant with ID ${variantId} not found`,
+              );
             }
 
             await prisma.inventory.create({
@@ -896,7 +906,9 @@ export class InventoryService {
             });
 
             if (!product) {
-              throw new NotFoundException(`Product with ID ${productId} not found`);
+              throw new NotFoundException(
+                `Product with ID ${productId} not found`,
+              );
             }
 
             await prisma.inventory.create({
@@ -971,15 +983,21 @@ export class InventoryService {
    * Creates inventory record if needed or updates existing inventory
    */
   async addStock(addStockDto: AddStockDto): Promise<InventoryResponseDto> {
-    const { productId, variantId, quantity, threshold = 5, note = 'Initial stock setup' } = addStockDto;
-    
+    const {
+      productId,
+      variantId,
+      quantity,
+      threshold = 5,
+      note = 'Initial stock setup',
+    } = addStockDto;
+
     try {
       // Check if product exists
       const product = await this.prismaService.product.findUnique({
         where: { id: productId },
-        include: { 
-          variants: variantId ? { where: { id: variantId } } : undefined 
-        }
+        include: {
+          variants: variantId ? { where: { id: variantId } } : undefined,
+        },
       });
 
       if (!product) {
@@ -988,9 +1006,11 @@ export class InventoryService {
 
       // If variantId is provided, check if it exists
       if (variantId) {
-        const variant = product.variants?.find(v => v.id === variantId);
+        const variant = product.variants?.find((v) => v.id === variantId);
         if (!variant) {
-          throw new NotFoundException(`Variant with ID ${variantId} not found for product ${productId}`);
+          throw new NotFoundException(
+            `Variant with ID ${variantId} not found for product ${productId}`,
+          );
         }
       }
 
@@ -1002,7 +1022,7 @@ export class InventoryService {
         if (variantId) {
           // Handle variant inventory
           inventory = await prisma.inventory.findUnique({
-            where: { variantId: variantId }
+            where: { variantId: variantId },
           });
 
           if (inventory) {
@@ -1025,13 +1045,13 @@ export class InventoryService {
                     },
                   },
                 },
-              }
+              },
             });
           } else {
             // Create new variant inventory
             inventory = await prisma.inventory.create({
               data: {
-                productId: productId, 
+                productId: productId,
                 variantId: variantId,
                 stockQuantity: quantity,
                 reservedQuantity: 0,
@@ -1050,13 +1070,13 @@ export class InventoryService {
                     },
                   },
                 },
-              }
+              },
             });
           }
         } else {
           // Handle product inventory (no variant)
           inventory = await prisma.inventory.findUnique({
-            where: { productId: productId }
+            where: { productId: productId },
           });
 
           if (inventory) {
@@ -1074,7 +1094,7 @@ export class InventoryService {
                     sku: true,
                   },
                 },
-              }
+              },
             });
           } else {
             // Create new product inventory
@@ -1093,7 +1113,7 @@ export class InventoryService {
                     sku: true,
                   },
                 },
-              }
+              },
             });
           }
         }
@@ -1106,7 +1126,7 @@ export class InventoryService {
             changeType: InventoryChangeType.RESTOCK,
             quantityChanged: quantity,
             note: note,
-          }
+          },
         });
 
         // Return transformed inventory

@@ -12,7 +12,12 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { CartsService } from './carts.service';
-import { AddToCartDto, UpdateCartItemDto, CartResponseDto, MergeAnonymousCartDto } from './dto';
+import {
+  AddToCartDto,
+  UpdateCartItemDto,
+  CartResponseDto,
+  MergeAnonymousCartDto,
+} from './dto';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiTags,
@@ -155,6 +160,9 @@ export class CartsController {
     @Body() mergeAnonymousCartDto: MergeAnonymousCartDto,
   ): Promise<CartResponseDto> {
     const userId = req.user.id;
-    return this.cartsService.mergeAnonymousCart(userId, mergeAnonymousCartDto.items);
+    return this.cartsService.mergeAnonymousCart(
+      userId,
+      mergeAnonymousCartDto.items,
+    );
   }
 }

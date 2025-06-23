@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
-import { 
-  CreateCouponDto, 
-  UpdateCouponDto, 
+import {
+  CreateCouponDto,
+  UpdateCouponDto,
   CouponResponseDto,
   ApplyCouponDto,
-  ValidateCouponDto
+  ValidateCouponDto,
 } from './dto';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -15,14 +21,16 @@ export class CouponsService {
 
   async create(createCouponDto: CreateCouponDto): Promise<CouponResponseDto> {
     const { categoryIds, productIds, ...couponData } = createCouponDto;
-    
+
     // Check if coupon code already exists
     const existingCoupon = await this.prisma.coupon.findUnique({
       where: { code: couponData.code },
     });
-    
+
     if (existingCoupon) {
-      throw new ConflictException(`Coupon with code ${couponData.code} already exists`);
+      throw new ConflictException(
+        `Coupon with code ${couponData.code} already exists`,
+      );
     }
 
     // Create the coupon with transactions to ensure data consistency
@@ -32,17 +40,19 @@ export class CouponsService {
         data: {
           ...couponData,
           value: new Decimal(couponData.value),
-          minimumPurchase: couponData.minimumPurchase ? new Decimal(couponData.minimumPurchase) : null,
+          minimumPurchase: couponData.minimumPurchase
+            ? new Decimal(couponData.minimumPurchase)
+            : null,
         },
       });
 
       // Add categories if provided
       if (categoryIds && categoryIds.length > 0) {
-        const categoryConnections = categoryIds.map(categoryId => ({
+        const categoryConnections = categoryIds.map((categoryId) => ({
           couponId: newCoupon.id,
           categoryId,
         }));
-        
+
         await tx.couponCategory.createMany({
           data: categoryConnections,
           skipDuplicates: true,
@@ -51,11 +61,11 @@ export class CouponsService {
 
       // Add products if provided
       if (productIds && productIds.length > 0) {
-        const productConnections = productIds.map(productId => ({
+        const productConnections = productIds.map((productId) => ({
           couponId: newCoupon.id,
           productId,
         }));
-        
+
         await tx.couponProduct.createMany({
           data: productConnections,
           skipDuplicates: true,
@@ -94,7 +104,7 @@ export class CouponsService {
       },
     });
 
-    return coupons.map(coupon => this.mapCouponToResponseDto(coupon));
+    return coupons.map((coupon) => this.mapCouponToResponseDto(coupon));
   }
 
   async findOne(id: string): Promise<CouponResponseDto> {
@@ -165,14 +175,17 @@ export class CouponsService {
     return this.mapCouponToResponseDto(coupon);
   }
 
-  async update(id: string, updateCouponDto: UpdateCouponDto): Promise<CouponResponseDto> {
+  async update(
+    id: string,
+    updateCouponDto: UpdateCouponDto,
+  ): Promise<CouponResponseDto> {
     const { categoryIds, productIds, ...couponData } = updateCouponDto;
-    
+
     // Check if coupon exists
     const existingCoupon = await this.prisma.coupon.findUnique({
       where: { id },
     });
-    
+
     if (!existingCoupon) {
       throw new NotFoundException(`Coupon with ID ${id} not found`);
     }
@@ -182,9 +195,11 @@ export class CouponsService {
       const codeExists = await this.prisma.coupon.findUnique({
         where: { code: couponData.code },
       });
-      
+
       if (codeExists) {
-        throw new ConflictException(`Coupon with code ${couponData.code} already exists`);
+        throw new ConflictException(
+          `Coupon with code ${couponData.code} already exists`,
+        );
       }
     }
 
@@ -195,10 +210,16 @@ export class CouponsService {
         where: { id },
         data: {
           ...couponData,
-          value: couponData.value !== undefined ? new Decimal(couponData.value) : undefined,
-          minimumPurchase: couponData.minimumPurchase !== undefined 
-            ? couponData.minimumPurchase === null ? null : new Decimal(couponData.minimumPurchase)
-            : undefined,
+          value:
+            couponData.value !== undefined
+              ? new Decimal(couponData.value)
+              : undefined,
+          minimumPurchase:
+            couponData.minimumPurchase !== undefined
+              ? couponData.minimumPurchase === null
+                ? null
+                : new Decimal(couponData.minimumPurchase)
+              : undefined,
         },
       });
 
@@ -211,11 +232,11 @@ export class CouponsService {
 
         // Add new categories
         if (categoryIds.length > 0) {
-          const categoryConnections = categoryIds.map(categoryId => ({
+          const categoryConnections = categoryIds.map((categoryId) => ({
             couponId: id,
             categoryId,
           }));
-          
+
           await tx.couponCategory.createMany({
             data: categoryConnections,
             skipDuplicates: true,
@@ -232,11 +253,11 @@ export class CouponsService {
 
         // Add new products
         if (productIds.length > 0) {
-          const productConnections = productIds.map(productId => ({
+          const productConnections = productIds.map((productId) => ({
             couponId: id,
             productId,
           }));
-          
+
           await tx.couponProduct.createMany({
             data: productConnections,
             skipDuplicates: true,
@@ -255,7 +276,7 @@ export class CouponsService {
     const existingCoupon = await this.prisma.coupon.findUnique({
       where: { id },
     });
-    
+
     if (!existingCoupon) {
       throw new NotFoundException(`Coupon with ID ${id} not found`);
     }
@@ -279,7 +300,9 @@ export class CouponsService {
     }
   }
 
-  async validate(validateCouponDto: ValidateCouponDto): Promise<{ valid: boolean; message?: string }> {
+  async validate(
+    validateCouponDto: ValidateCouponDto,
+  ): Promise<{ valid: boolean; message?: string }> {
     const { code, userId } = validateCouponDto;
 
     try {
@@ -305,13 +328,16 @@ export class CouponsService {
       if (now < coupon.startDate) {
         return { valid: false, message: 'Coupon is not yet active' };
       }
-      
+
       if (now > coupon.endDate) {
         return { valid: false, message: 'Coupon has expired' };
       }
 
       // Check if coupon has reached usage limit
-      if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) {
+      if (
+        coupon.usageLimit !== null &&
+        coupon.usageCount >= coupon.usageLimit
+      ) {
         return { valid: false, message: 'Coupon usage limit reached' };
       }
 
@@ -325,7 +351,10 @@ export class CouponsService {
         });
 
         if (userUsageCount >= coupon.perUserLimit) {
-          return { valid: false, message: 'You have reached the usage limit for this coupon' };
+          return {
+            valid: false,
+            message: 'You have reached the usage limit for this coupon',
+          };
         }
       }
 
@@ -335,7 +364,9 @@ export class CouponsService {
     }
   }
 
-  async applyCoupon(applyCouponDto: ApplyCouponDto): Promise<{ discountAmount: string; couponCode: string }> {
+  async applyCoupon(
+    applyCouponDto: ApplyCouponDto,
+  ): Promise<{ discountAmount: string; couponCode: string }> {
     const { code, userId, subtotal, cartItems } = applyCouponDto;
 
     // First validate the coupon
@@ -365,72 +396,93 @@ export class CouponsService {
     }
 
     // Check minimum purchase requirement
-    if (coupon.minimumPurchase && new Decimal(subtotal).lessThan(coupon.minimumPurchase)) {
-      throw new BadRequestException(`Minimum purchase of ${coupon.minimumPurchase} required`);
+    if (
+      coupon.minimumPurchase &&
+      new Decimal(subtotal).lessThan(coupon.minimumPurchase)
+    ) {
+      throw new BadRequestException(
+        `Minimum purchase of ${coupon.minimumPurchase} required`,
+      );
     }
 
     // Calculate discount amount based on coupon type
     let discountAmount = new Decimal(0);
-    
+
     if (coupon.type === 'PERCENTAGE') {
       // For percentage, calculate discount based on eligible items if there are product/category restrictions
-      if (cartItems && (coupon.products.length > 0 || coupon.categories.length > 0)) {
+      if (
+        cartItems &&
+        (coupon.products.length > 0 || coupon.categories.length > 0)
+      ) {
         let eligibleSubtotal = new Decimal(0);
-        
+
         // Fetch products for the cart items to get their categories
-        const productIds = cartItems.map(item => item.productId);
+        const productIds = cartItems.map((item) => item.productId);
         const products = await this.prisma.product.findMany({
           where: { id: { in: productIds } },
         });
-        
+
         // Create a map for easy lookup
-        const productMap = new Map(products.map(p => [p.id, p]));
-        
+        const productMap = new Map(products.map((p) => [p.id, p]));
+
         // Get sets of eligible product IDs and category IDs
-        const eligibleProductIds = new Set(coupon.products.map(p => p.productId));
-        const eligibleCategoryIds = new Set(coupon.categories.map(c => c.categoryId));
-        
+        const eligibleProductIds = new Set(
+          coupon.products.map((p) => p.productId),
+        );
+        const eligibleCategoryIds = new Set(
+          coupon.categories.map((c) => c.categoryId),
+        );
+
         // Calculate eligible subtotal
         for (const item of cartItems) {
           const product = productMap.get(item.productId);
-          
+
           if (!product) continue;
-          
+
           // Check if product is directly eligible
           if (eligibleProductIds.has(product.id)) {
             eligibleSubtotal = eligibleSubtotal.plus(
-              new Decimal(product.price).times(item.quantity)
+              new Decimal(product.price).times(item.quantity),
             );
             continue;
           }
-          
+
           // Check if product belongs to an eligible category
           if (eligibleCategoryIds.size > 0) {
             // Check if product's category or subcategory is eligible
-            if ((product.categoryId && eligibleCategoryIds.has(product.categoryId)) || 
-                (product.subCategoryId && eligibleCategoryIds.has(product.subCategoryId))) {
+            if (
+              (product.categoryId &&
+                eligibleCategoryIds.has(product.categoryId)) ||
+              (product.subCategoryId &&
+                eligibleCategoryIds.has(product.subCategoryId))
+            ) {
               eligibleSubtotal = eligibleSubtotal.plus(
-                new Decimal(product.price).times(item.quantity)
+                new Decimal(product.price).times(item.quantity),
               );
             }
           }
         }
-        
+
         // If no eligible items but there are restrictions, return zero discount
-        if (eligibleSubtotal.equals(0) && (eligibleProductIds.size > 0 || eligibleCategoryIds.size > 0)) {
+        if (
+          eligibleSubtotal.equals(0) &&
+          (eligibleProductIds.size > 0 || eligibleCategoryIds.size > 0)
+        ) {
           return { discountAmount: '0', couponCode: code };
         }
-        
+
         // Calculate percentage discount on eligible subtotal
         discountAmount = eligibleSubtotal.times(coupon.value).dividedBy(100);
       } else {
         // If no restrictions or no cart items provided, apply to entire subtotal
-        discountAmount = new Decimal(subtotal).times(coupon.value).dividedBy(100);
+        discountAmount = new Decimal(subtotal)
+          .times(coupon.value)
+          .dividedBy(100);
       }
     } else if (coupon.type === 'FIXED_AMOUNT') {
       // For fixed amount, just use the value
       discountAmount = coupon.value;
-      
+
       // Make sure discount doesn't exceed subtotal
       if (discountAmount.greaterThan(subtotal)) {
         discountAmount = new Decimal(subtotal);
@@ -449,21 +501,21 @@ export class CouponsService {
   }
 
   async recordCouponUsage(
-    orderId: string, 
-    userId: string, 
-    couponCode: string, 
-    discountAmount: string | number
+    orderId: string,
+    userId: string,
+    couponCode: string,
+    discountAmount: string | number,
   ): Promise<void> {
     try {
       // Find the coupon
       const coupon = await this.prisma.coupon.findUnique({
         where: { code: couponCode },
       });
-      
+
       if (!coupon) {
         throw new NotFoundException(`Coupon with code ${couponCode} not found`);
       }
-      
+
       // Record usage
       await this.prisma.$transaction([
         // Create usage record
@@ -475,7 +527,7 @@ export class CouponsService {
             discountAmount: new Decimal(discountAmount),
           },
         }),
-        
+
         // Increment usage count
         this.prisma.coupon.update({
           where: { id: coupon.id },
@@ -497,9 +549,14 @@ export class CouponsService {
       id: coupon.id,
       code: coupon.code,
       type: coupon.type,
-      value: typeof coupon.value === 'object' ? coupon.value.toString() : coupon.value,
+      value:
+        typeof coupon.value === 'object'
+          ? coupon.value.toString()
+          : coupon.value,
       description: coupon.description,
-      minimumPurchase: coupon.minimumPurchase ? coupon.minimumPurchase.toString() : null,
+      minimumPurchase: coupon.minimumPurchase
+        ? coupon.minimumPurchase.toString()
+        : null,
       usageLimit: coupon.usageLimit,
       usageCount: coupon.usageCount,
       perUserLimit: coupon.perUserLimit,
@@ -508,14 +565,14 @@ export class CouponsService {
       status: coupon.status,
       createdAt: coupon.createdAt.toISOString(),
       updatedAt: coupon.updatedAt.toISOString(),
-      categories: coupon.categories?.map(cat => ({
+      categories: coupon.categories?.map((cat) => ({
         id: cat.category.id,
         name: cat.category.name,
       })),
-      products: coupon.products?.map(prod => ({
+      products: coupon.products?.map((prod) => ({
         id: prod.product.id,
         title: prod.product.title,
       })),
     };
   }
-} 
+}

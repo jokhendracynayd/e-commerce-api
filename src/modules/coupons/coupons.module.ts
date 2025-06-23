@@ -8,6 +8,6 @@ import { CommonModule } from '../../common/common.module';
   imports: [CommonModule],
   controllers: [CouponsController],
   providers: [CouponsService, PrismaService],
-  exports: [CouponsService]
+  exports: [CouponsService],
 })
-export class CouponsModule {} 
+export class CouponsModule {}

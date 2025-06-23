@@ -24,7 +24,10 @@ export class TemplateService {
         this.logger.log(`Created templates directory: ${this.templatesDir}`);
       }
     } catch (error) {
-      this.logger.error(`Failed to create templates directory: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to create templates directory: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -53,24 +56,30 @@ export class TemplateService {
    * @param data Template data
    * @returns Rendered template HTML
    */
-  async renderTemplate(templateName: string, data: TemplateData): Promise<string> {
+  async renderTemplate(
+    templateName: string,
+    data: TemplateData,
+  ): Promise<string> {
     try {
       const templatePath = this.getTemplatePath(templateName);
-      
+
       if (!this.templateExists(templateName)) {
         this.logger.error(`Template not found: ${templateName}`);
         throw new Error(`Template not found: ${templateName}`);
       }
-      
+
       // In this implementation, we're using the NestJS Mailer module with Handlebars,
       // so we don't need to manually render templates - they'll be processed automatically
       // when emails are sent. This method is provided for extensibility.
-      
+
       this.logger.log(`Template found: ${templateName}`);
       return templatePath;
     } catch (error) {
-      this.logger.error(`Failed to render template: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to render template: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
-} 
+}

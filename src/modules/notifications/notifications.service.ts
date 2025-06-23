@@ -19,9 +19,7 @@ export class NotificationsService {
     userId: string,
     data: Record<string, any>,
   ): Promise<void> {
-    this.logger.log(
-      `Sending notification of type ${type} to user ${userId}`,
-    );
+    this.logger.log(`Sending notification of type ${type} to user ${userId}`);
 
     try {
       switch (type) {
@@ -60,4 +58,4 @@ export class NotificationsService {
       throw error;
     }
   }
-} 
+}

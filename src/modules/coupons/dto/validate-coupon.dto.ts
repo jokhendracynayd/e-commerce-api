@@ -10,4 +10,4 @@ export class ValidateCouponDto {
   @IsUUID('4')
   @IsOptional()
   userId?: string;
-} 
+}

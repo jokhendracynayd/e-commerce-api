@@ -60,7 +60,7 @@ export class SpecificationTemplateResponseDto {
   @ApiProperty({
     description: 'Predefined options for enum type',
     example: {
-      options: ['2GB', '4GB', '8GB', '16GB']
+      options: ['2GB', '4GB', '8GB', '16GB'],
     },
     nullable: true,
   })
@@ -147,4 +147,4 @@ export class GroupedProductSpecificationsResponseDto {
     type: [ProductSpecificationResponseDto],
   })
   specifications: ProductSpecificationResponseDto[];
-} 
+}

@@ -19,7 +19,7 @@ export class LoginDto {
   @ApiProperty({
     description: 'Remember user session',
     example: true,
-    required: false
+    required: false,
   })
   @IsBoolean()
   @IsOptional()

@@ -22,6 +22,8 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { RecommendationsModule } from './modules/recommendations/recommendations.module';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { AllExceptionsFilter } from './filters/http-exception.filter';
@@ -51,6 +53,8 @@ import { AppLogger } from './common/services/logger.service';
     NotificationsModule,
     WishlistModule,
     SchedulerModule,
+    AnalyticsModule,
+    RecommendationsModule,
   ],
   controllers: [AppController],
   providers: [

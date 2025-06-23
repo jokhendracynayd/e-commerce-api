@@ -83,4 +83,4 @@ export class DealListResponseDto {
     example: 2,
   })
   totalPages: number;
-} 
+}

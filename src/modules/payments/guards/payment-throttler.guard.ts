@@ -13,4 +13,4 @@ export class PaymentThrottlerGuard extends ThrottlerGuard {
   protected getTrackers(): string[] {
     return ['payment'];
   }
-} 
+}

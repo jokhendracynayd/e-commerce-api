@@ -18,80 +18,88 @@ export class ReservationCleanupService {
     try {
       this.logger.log('Starting cleanup of expired reservations');
       const now = new Date();
-      
-      // Define the type for expired items
-      interface ExpiredCartItem {
-        id: string;
-        productId: string;
-        variantId: string | null;
-        quantity: number;
-      }
 
-      // Find all cart items with expired reservations using raw SQL
-      // We use raw SQL here because of typing issues with Prisma's reservationExpires field
-      const expiredItems = await this.prismaService.$queryRaw<ExpiredCartItem[]>`
-        SELECT id, product_id as "productId", variant_id as "variantId", quantity
-        FROM cart_items
-        WHERE reservation_expires < ${now}
-        AND reservation_expires IS NOT NULL
-      `;
-      
+      // Find all cart items with expired reservations using Prisma's native operations
+      const expiredItems = await this.prismaService.cartItem.findMany({
+        where: {
+          reservationExpires: {
+            lt: now,
+            not: null,
+          },
+        },
+        select: {
+          id: true,
+          productId: true,
+          variantId: true,
+          quantity: true,
+        },
+      });
+
       if (expiredItems.length === 0) {
         this.logger.log('No expired reservations found');
         return;
       }
-      
-      this.logger.log(`Found ${expiredItems.length} expired reservations to release`);
-      
+
+      this.logger.log(
+        `Found ${expiredItems.length} expired reservations to release`,
+      );
+
       let releasedCount = 0;
-      
+
       // Process each expired item
       for (const item of expiredItems) {
         // Use transactions to ensure atomic operations
-        await this.prismaService.$transaction(async (prisma) => {
-          // Update the cart item to remove the reservation expiry
-          // We use raw SQL here because of typing issues with Prisma's reservationExpires field
-          await prisma.$executeRaw`
-            UPDATE "cart_items" 
-            SET "reservation_expires" = NULL,
-                "updated_at" = NOW()
-            WHERE "id" = ${item.id}
-          `;
-          
-          // Release inventory based on whether it's a variant or main product
-          // These operations work fine with Prisma client since they don't involve the problematic field
-          if (item.variantId) {
-            // Update variant inventory to release reservation
-            await prisma.inventory.update({
-              where: { variantId: item.variantId },
+        await this.prismaService.$transaction(
+          async (prisma) => {
+            // Update the cart item to remove the reservation expiry using Prisma's native operations
+            await prisma.cartItem.update({
+              where: { id: item.id },
               data: {
-                reservedQuantity: {
-                  decrement: item.quantity,
-                },
+                reservationExpires: null,
+                updatedAt: new Date(),
               },
             });
-          } else {
-            // Update product inventory to release reservation
-            await prisma.inventory.update({
-              where: { productId: item.productId },
-              data: {
-                reservedQuantity: {
-                  decrement: item.quantity,
+
+            // Release inventory based on whether it's a variant or main product
+            if (item.variantId) {
+              // Update variant inventory to release reservation
+              await prisma.inventory.update({
+                where: { variantId: item.variantId },
+                data: {
+                  reservedQuantity: {
+                    decrement: item.quantity,
+                  },
                 },
-              },
-            });
-          }
-          
-          releasedCount++;
-        }, {
-          // Use serializable isolation to prevent race conditions
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        });
+              });
+            } else {
+              // Update product inventory to release reservation
+              await prisma.inventory.update({
+                where: { productId: item.productId },
+                data: {
+                  reservedQuantity: {
+                    decrement: item.quantity,
+                  },
+                },
+              });
+            }
+
+            releasedCount++;
+          },
+          {
+            // Use serializable isolation to prevent race conditions
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          },
+        );
       }
-      
-      this.logger.log(`Successfully released ${releasedCount} expired reservations`);
+
+      this.logger.log(
+        `Successfully released ${releasedCount} expired reservations`,
+      );
     } catch (error) {
-      this.logger.error(`Error cleaning up expired reservations: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error cleaning up expired reservations: ${error.message}`,
+        error.stack,
+      );
     }
   }
-} 
+}

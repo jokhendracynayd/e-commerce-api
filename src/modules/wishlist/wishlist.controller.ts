@@ -115,4 +115,4 @@ export class WishlistController {
     const userId = req.user.id;
     return this.wishlistService.isProductInWishlist(userId, productId);
   }
-} 
+}

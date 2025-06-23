@@ -22,10 +22,10 @@ export class CodProvider implements PaymentProviderInterface {
   ): Promise<Record<string, any>> {
     try {
       const startTime = Date.now();
-      
+
       // Generate a reference ID for tracking
       const referenceId = `cod_${uuidv4().substring(0, 8)}`;
-      
+
       const processingTime = Date.now() - startTime;
       this.logger.log(`COD payment intent creation took ${processingTime}ms`);
 
@@ -37,7 +37,10 @@ export class CodProvider implements PaymentProviderInterface {
         message: 'Cash on delivery payment recorded',
       };
     } catch (error) {
-      this.logger.error(`Error creating COD payment intent: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error creating COD payment intent: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -52,10 +55,10 @@ export class CodProvider implements PaymentProviderInterface {
   ): Promise<PaymentResult> {
     try {
       const startTime = Date.now();
-      
+
       const processingTime = Date.now() - startTime;
       this.logger.log(`COD payment verification took ${processingTime}ms`);
-      
+
       // For COD, we just mark it as pending (to be collected)
       return {
         success: true,
@@ -65,7 +68,10 @@ export class CodProvider implements PaymentProviderInterface {
         message: 'Cash on delivery payment recorded',
       };
     } catch (error) {
-      this.logger.error(`COD payment verification failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `COD payment verification failed: ${error.message}`,
+        error.stack,
+      );
       return {
         success: false,
         paymentId: payment.id,
@@ -88,10 +94,10 @@ export class CodProvider implements PaymentProviderInterface {
   ): Promise<PaymentResult> {
     try {
       const startTime = Date.now();
-      
+
       const processingTime = Date.now() - startTime;
       this.logger.log(`COD refund processing took ${processingTime}ms`);
-      
+
       // For COD, just mark as refunded
       return {
         success: true,
@@ -112,4 +118,4 @@ export class CodProvider implements PaymentProviderInterface {
       };
     }
   }
-} 
+}

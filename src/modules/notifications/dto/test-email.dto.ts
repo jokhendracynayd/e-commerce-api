@@ -23,4 +23,4 @@ export class TestEmailDto {
   @IsObject()
   @IsNotEmpty()
   data: Record<string, any>;
-} 
+}

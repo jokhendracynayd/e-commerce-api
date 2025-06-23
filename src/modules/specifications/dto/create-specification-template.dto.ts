@@ -94,10 +94,10 @@ export class CreateSpecificationTemplateDto {
   @ApiPropertyOptional({
     description: 'Predefined options for enum type',
     example: {
-      options: ['2GB', '4GB', '8GB', '16GB']
-    }
+      options: ['2GB', '4GB', '8GB', '16GB'],
+    },
   })
   @IsOptional()
   @IsObject()
   options?: Record<string, any>;
-} 
+}

@@ -81,17 +81,21 @@ export class ProductsService {
         const category = await this.prismaService.category.findUnique({
           where: { slug: categorySlug },
         });
-        
+
         if (!category) {
-          throw new NotFoundException(`Category with slug "${categorySlug}" not found`);
+          throw new NotFoundException(
+            `Category with slug "${categorySlug}" not found`,
+          );
         }
-        
+
         if (recursive) {
           // Get all category IDs in the hierarchy
-          const categoryIds = await this.getCategoryAndDescendantsIds(category.id);
+          const categoryIds = await this.getCategoryAndDescendantsIds(
+            category.id,
+          );
           where.OR = [
             { categoryId: { in: categoryIds } },
-            { subCategoryId: { in: categoryIds } }
+            { subCategoryId: { in: categoryIds } },
           ];
         } else {
           // Just use the single category ID
@@ -101,10 +105,11 @@ export class ProductsService {
         // Direct categoryId filter
         if (recursive) {
           // Get all category IDs in the hierarchy
-          const categoryIds = await this.getCategoryAndDescendantsIds(categoryId);
+          const categoryIds =
+            await this.getCategoryAndDescendantsIds(categoryId);
           where.OR = [
             { categoryId: { in: categoryIds } },
-            { subCategoryId: { in: categoryIds } }
+            { subCategoryId: { in: categoryIds } },
           ];
         } else {
           // Just use the single category ID
@@ -161,7 +166,7 @@ export class ProductsService {
 
       // Build order by
       const orderBy: Prisma.ProductOrderByWithRelationInput = {};
-      
+
       // Handle special sort fields that need mapping
       if (sortBy === 'popularity') {
         // Map 'popularity' to 'averageRating' as the most appropriate field
@@ -350,7 +355,9 @@ export class ProductsService {
       });
 
       if (existingProduct) {
-        throw new ConflictException(`Product with slug '${slug}' already exists`);
+        throw new ConflictException(
+          `Product with slug '${slug}' already exists`,
+        );
       }
 
       // Generate SKU if not provided
@@ -370,7 +377,10 @@ export class ProductsService {
         weight: createProductDto.weight,
         dimensions: createProductDto.dimensions as any,
         currency: createProductDto.currency || 'INR',
-        isActive: createProductDto.isActive !== undefined ? createProductDto.isActive : true,
+        isActive:
+          createProductDto.isActive !== undefined
+            ? createProductDto.isActive
+            : true,
         isFeatured: createProductDto.isFeatured || false,
         visibility: createProductDto.visibility || 'PUBLIC',
         metaTitle: createProductDto.metaTitle,
@@ -457,9 +467,12 @@ export class ProductsService {
             ),
           );
         }
-        
+
         // Create inventory record for main product if stock quantity is provided
-        if (createProductDto.stockQuantity && createProductDto.stockQuantity > 0) {
+        if (
+          createProductDto.stockQuantity &&
+          createProductDto.stockQuantity > 0
+        ) {
           // Create inventory record
           await prisma.inventory.create({
             data: {
@@ -470,7 +483,7 @@ export class ProductsService {
               lastRestockedAt: new Date(),
             },
           });
-          
+
           // Create inventory log entry
           await prisma.inventoryLog.create({
             data: {
@@ -481,18 +494,20 @@ export class ProductsService {
             },
           });
         }
-        
+
         // Create inventory records for variants with stock
         if (createProductDto.variants && createProductDto.variants.length > 0) {
           // Get all created variants to get their IDs
           const createdVariants = await prisma.productVariant.findMany({
             where: { productId: newProduct.id },
           });
-          
+
           // Create inventory records for variants with stock
           for (const variant of createdVariants) {
-            const variantDto = createProductDto.variants.find(v => v.sku === variant.sku);
-            
+            const variantDto = createProductDto.variants.find(
+              (v) => v.sku === variant.sku,
+            );
+
             if (variantDto && variantDto.stockQuantity > 0) {
               // Create inventory record for variant
               await prisma.inventory.create({
@@ -505,7 +520,7 @@ export class ProductsService {
                   lastRestockedAt: new Date(),
                 },
               });
-              
+
               // Create inventory log entry for variant
               await prisma.inventoryLog.create({
                 data: {
@@ -546,12 +561,12 @@ export class ProductsService {
     try {
       // Verify product exists and get current state
       const existingProduct = await this.findOne(id);
-      
+
       // Track stock quantity change for inventory sync
       const oldStockQuantity = existingProduct.stockQuantity || 0;
       const newStockQuantity = updateProductDto.stockQuantity;
-      const stockQuantityChanged = 
-        updateProductDto.stockQuantity !== undefined && 
+      const stockQuantityChanged =
+        updateProductDto.stockQuantity !== undefined &&
         updateProductDto.stockQuantity !== oldStockQuantity;
 
       const updateData: Prisma.ProductUpdateInput = {};
@@ -648,24 +663,30 @@ export class ProductsService {
         newStock: number;
         change: number;
       }
-      
+
       const variantStockChanges: VariantStockChange[] = [];
       if (updateProductDto.variants !== undefined) {
         // If variants are provided, check for stock changes
         const existingVariants = existingProduct.variants || [];
-        
+
         if (updateProductDto.variants && updateProductDto.variants.length > 0) {
           for (const newVariant of updateProductDto.variants) {
             // Find matching existing variant by SKU
-            const existingVariant = existingVariants.find(v => v.sku === newVariant.sku);
-            
-            if (existingVariant && existingVariant.stockQuantity !== newVariant.stockQuantity) {
+            const existingVariant = existingVariants.find(
+              (v) => v.sku === newVariant.sku,
+            );
+
+            if (
+              existingVariant &&
+              existingVariant.stockQuantity !== newVariant.stockQuantity
+            ) {
               // Track stock change for this variant
               variantStockChanges.push({
                 variantId: existingVariant.id,
                 oldStock: existingVariant.stockQuantity,
                 newStock: newVariant.stockQuantity,
-                change: newVariant.stockQuantity - existingVariant.stockQuantity
+                change:
+                  newVariant.stockQuantity - existingVariant.stockQuantity,
               });
             }
           }
@@ -760,17 +781,17 @@ export class ProductsService {
             );
           }
         }
-        
+
         // Sync with inventory system if stock quantity changed
         if (stockQuantityChanged) {
           // Calculate the stock change
           const stockChange = newStockQuantity! - oldStockQuantity;
-          
+
           // Check if inventory record exists
           const inventory = await prisma.inventory.findUnique({
-            where: { productId: id }
+            where: { productId: id },
           });
-          
+
           if (inventory) {
             // Update existing inventory
             await prisma.inventory.update({
@@ -778,18 +799,18 @@ export class ProductsService {
               data: {
                 stockQuantity: newStockQuantity,
                 // Update lastRestockedAt if stock increased
-                ...(stockChange > 0 ? { lastRestockedAt: new Date() } : {})
-              }
+                ...(stockChange > 0 ? { lastRestockedAt: new Date() } : {}),
+              },
             });
-            
+
             // Create inventory log entry
             await prisma.inventoryLog.create({
               data: {
                 productId: id,
                 changeType: stockChange > 0 ? 'RESTOCK' : 'MANUAL',
                 quantityChanged: stockChange,
-                note: `Stock updated during product edit (${stockChange > 0 ? '+' : ''}${stockChange} units)`
-              }
+                note: `Stock updated during product edit (${stockChange > 0 ? '+' : ''}${stockChange} units)`,
+              },
             });
           } else {
             // Create new inventory record if it doesn't exist
@@ -799,29 +820,29 @@ export class ProductsService {
                 stockQuantity: newStockQuantity!,
                 reservedQuantity: 0,
                 threshold: 5, // Default threshold
-                lastRestockedAt: new Date()
-              }
+                lastRestockedAt: new Date(),
+              },
             });
-            
+
             // Create initial inventory log
             await prisma.inventoryLog.create({
               data: {
                 productId: id,
                 changeType: 'RESTOCK',
                 quantityChanged: newStockQuantity!,
-                note: 'Initial inventory setup during product edit'
-              }
+                note: 'Initial inventory setup during product edit',
+              },
             });
           }
         }
-        
+
         // Sync variant inventory changes
         for (const variantChange of variantStockChanges) {
           // Check if inventory record exists for this variant
           const variantInventory = await prisma.inventory.findUnique({
-            where: { variantId: variantChange.variantId }
+            where: { variantId: variantChange.variantId },
           });
-          
+
           if (variantInventory) {
             // Update existing variant inventory
             await prisma.inventory.update({
@@ -829,8 +850,10 @@ export class ProductsService {
               data: {
                 stockQuantity: variantChange.newStock,
                 // Update lastRestockedAt if stock increased
-                ...(variantChange.change > 0 ? { lastRestockedAt: new Date() } : {})
-              }
+                ...(variantChange.change > 0
+                  ? { lastRestockedAt: new Date() }
+                  : {}),
+              },
             });
           } else {
             // Create new inventory record for variant
@@ -841,11 +864,11 @@ export class ProductsService {
                 stockQuantity: variantChange.newStock,
                 reservedQuantity: 0,
                 threshold: 5, // Default threshold
-                lastRestockedAt: new Date()
-              }
+                lastRestockedAt: new Date(),
+              },
             });
           }
-          
+
           // Create inventory log for variant
           await prisma.inventoryLog.create({
             data: {
@@ -853,8 +876,8 @@ export class ProductsService {
               variantId: variantChange.variantId,
               changeType: variantChange.change > 0 ? 'RESTOCK' : 'MANUAL',
               quantityChanged: variantChange.change,
-              note: `Variant stock updated during product edit (${variantChange.change > 0 ? '+' : ''}${variantChange.change} units)`
-            }
+              note: `Variant stock updated during product edit (${variantChange.change > 0 ? '+' : ''}${variantChange.change} units)`,
+            },
           });
         }
       });
@@ -1327,10 +1350,7 @@ export class ProductsService {
   }
 
   // Update product tags
-  async updateTags(
-    id: string,
-    tagIds: string[],
-  ): Promise<ProductResponseDto> {
+  async updateTags(id: string, tagIds: string[]): Promise<ProductResponseDto> {
     try {
       // Verify product exists
       await this.findOne(id);
@@ -1376,7 +1396,9 @@ export class ProductsService {
   }
 
   // Filter generation methods
-  async getAvailableFilters(filterOptionsDto: FilterOptionsQueryDto): Promise<FilterOptionsResponseDto> {
+  async getAvailableFilters(
+    filterOptionsDto: FilterOptionsQueryDto,
+  ): Promise<FilterOptionsResponseDto> {
     try {
       // Build base where clause from query parameters
       const baseFilter: Prisma.ProductWhereInput = { isActive: true };
@@ -1384,7 +1406,7 @@ export class ProductsService {
       // Apply category filter
       if (filterOptionsDto.categoryId || filterOptionsDto.categorySlug) {
         let categoryIds: string[] = [];
-        
+
         if (filterOptionsDto.categoryId) {
           categoryIds.push(filterOptionsDto.categoryId);
         } else if (filterOptionsDto.categorySlug) {
@@ -1392,24 +1414,28 @@ export class ProductsService {
           const category = await this.prismaService.category.findUnique({
             where: { slug: filterOptionsDto.categorySlug },
           });
-          
+
           if (category) {
             categoryIds.push(category.id);
           } else {
-            throw new NotFoundException(`Category with slug ${filterOptionsDto.categorySlug} not found`);
+            throw new NotFoundException(
+              `Category with slug ${filterOptionsDto.categorySlug} not found`,
+            );
           }
         }
 
         // If recursive, include all child categories
         if (filterOptionsDto.recursive && categoryIds.length > 0) {
-          const allCategoryIds = await this.getCategoryAndDescendantsIds(categoryIds[0]);
+          const allCategoryIds = await this.getCategoryAndDescendantsIds(
+            categoryIds[0],
+          );
           categoryIds = allCategoryIds;
         }
 
         if (categoryIds.length > 0) {
           baseFilter.OR = [
             { categoryId: { in: categoryIds } },
-            { subCategoryId: { in: categoryIds } }
+            { subCategoryId: { in: categoryIds } },
           ];
         }
       }
@@ -1423,20 +1449,33 @@ export class ProductsService {
       if (filterOptionsDto.search) {
         baseFilter.OR = [
           { title: { contains: filterOptionsDto.search, mode: 'insensitive' } },
-          { description: { contains: filterOptionsDto.search, mode: 'insensitive' } },
-          { shortDescription: { contains: filterOptionsDto.search, mode: 'insensitive' } },
-          { sku: { contains: filterOptionsDto.search, mode: 'insensitive' } }
+          {
+            description: {
+              contains: filterOptionsDto.search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            shortDescription: {
+              contains: filterOptionsDto.search,
+              mode: 'insensitive',
+            },
+          },
+          { sku: { contains: filterOptionsDto.search, mode: 'insensitive' } },
         ];
       }
 
       // Apply price range if provided
-      if (filterOptionsDto.minPrice !== undefined || filterOptionsDto.maxPrice !== undefined) {
+      if (
+        filterOptionsDto.minPrice !== undefined ||
+        filterOptionsDto.maxPrice !== undefined
+      ) {
         baseFilter.price = {};
-        
+
         if (filterOptionsDto.minPrice !== undefined) {
           baseFilter.price.gte = filterOptionsDto.minPrice;
         }
-        
+
         if (filterOptionsDto.maxPrice !== undefined) {
           baseFilter.price.lte = filterOptionsDto.maxPrice;
         }
@@ -1486,20 +1525,22 @@ export class ProductsService {
         },
       });
 
-      this.logger.log(`Found ${products.length} products for filter generation`);
+      this.logger.log(
+        `Found ${products.length} products for filter generation`,
+      );
 
       // Generate price range
       const priceRange = this.generatePriceRange(products);
-      
+
       // Generate brand filters
       const brands = this.generateBrandFilters(products);
-      
+
       // Generate tag filters
       const tags = this.generateTagFilters(products);
-      
+
       // Generate rating filters
       const ratings = this.generateRatingFilters(products);
-      
+
       // Generate dynamic attribute filters based on product specifications
       const attributes = this.generateAttributeFilters(products);
 
@@ -1514,27 +1555,34 @@ export class ProductsService {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      this.logger.error(`Error getting available filters: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error getting available filters: ${error.message}`,
+        error.stack,
+      );
       throw new InternalServerErrorException('Failed to get available filters');
     }
   }
 
   // Helper methods for filter generation
-  private generatePriceRange(products: any[]): { min: number; max: number; step: number } {
+  private generatePriceRange(products: any[]): {
+    min: number;
+    max: number;
+    step: number;
+  } {
     if (products.length === 0) {
       return { min: 0, max: 1000, step: 50 };
     }
 
     // Consider both product base prices and variant prices
     const allPrices: number[] = [];
-    
+
     // Add base product prices
-    products.forEach(product => {
+    products.forEach((product) => {
       allPrices.push(Number(product.price));
-      
+
       // Add variant prices
       if (product.variants && product.variants.length > 0) {
-        product.variants.forEach(variant => {
+        product.variants.forEach((variant) => {
           allPrices.push(Number(variant.price));
         });
       }
@@ -1542,11 +1590,11 @@ export class ProductsService {
 
     const min = Math.floor(Math.min(...allPrices));
     const max = Math.ceil(Math.max(...allPrices));
-    
+
     // Calculate an appropriate step size based on the price range
     let step: number;
     const range = max - min;
-    
+
     if (range <= 100) step = 5;
     else if (range <= 500) step = 25;
     else if (range <= 1000) step = 50;
@@ -1558,12 +1606,15 @@ export class ProductsService {
   }
 
   private generateBrandFilters(products: any[]): FilterValueDto[] {
-    const brandMap = new Map<string, { id: string; name: string; count: number }>();
-    
-    products.forEach(product => {
+    const brandMap = new Map<
+      string,
+      { id: string; name: string; count: number }
+    >();
+
+    products.forEach((product) => {
       if (product.brand) {
         const brandId = product.brand.id;
-        
+
         if (brandMap.has(brandId)) {
           const brandData = brandMap.get(brandId);
           if (brandData) {
@@ -1578,21 +1629,23 @@ export class ProductsService {
         }
       }
     });
-    
+
     // Convert map to array and sort by count (descending)
-    return Array.from(brandMap.values())
-      .sort((a, b) => b.count - a.count);
+    return Array.from(brandMap.values()).sort((a, b) => b.count - a.count);
   }
 
   private generateTagFilters(products: any[]): FilterValueDto[] {
-    const tagMap = new Map<string, { id: string; name: string; count: number }>();
-    
-    products.forEach(product => {
+    const tagMap = new Map<
+      string,
+      { id: string; name: string; count: number }
+    >();
+
+    products.forEach((product) => {
       if (product.tags && product.tags.length > 0) {
-        product.tags.forEach(tagRelation => {
+        product.tags.forEach((tagRelation) => {
           const tag = tagRelation.tag;
           const tagId = tag.id;
-          
+
           if (tagMap.has(tagId)) {
             const tagData = tagMap.get(tagId);
             if (tagData) {
@@ -1608,15 +1661,17 @@ export class ProductsService {
         });
       }
     });
-    
+
     // Convert map to array and sort by count (descending)
-    return Array.from(tagMap.values())
-      .sort((a, b) => b.count - a.count);
+    return Array.from(tagMap.values()).sort((a, b) => b.count - a.count);
   }
 
   private generateRatingFilters(products: any[]): FilterValueDto[] {
-    const ratingMap = new Map<number, { id: string; name: string; count: number }>();
-    
+    const ratingMap = new Map<
+      number,
+      { id: string; name: string; count: number }
+    >();
+
     // Initialize ratings from 1-5
     for (let i = 1; i <= 5; i++) {
       ratingMap.set(i, {
@@ -1625,13 +1680,13 @@ export class ProductsService {
         count: 0,
       });
     }
-    
+
     // Count products for each rating level
-    products.forEach(product => {
+    products.forEach((product) => {
       if (product.averageRating > 0) {
         // Round to nearest 0.5
         const rating = Math.floor(product.averageRating);
-        
+
         // Increment count for this rating and all ratings below it
         for (let i = 1; i <= rating; i++) {
           if (ratingMap.has(i)) {
@@ -1643,10 +1698,11 @@ export class ProductsService {
         }
       }
     });
-    
+
     // Convert map to array and sort by rating (descending)
-    return Array.from(ratingMap.values())
-      .sort((a, b) => parseInt(b.id) - parseInt(a.id));
+    return Array.from(ratingMap.values()).sort(
+      (a, b) => parseInt(b.id) - parseInt(a.id),
+    );
   }
 
   private generateAttributeFilters(products: any[]): AttributeFilterDto[] {
@@ -1654,24 +1710,24 @@ export class ProductsService {
     // Key format: "{specGroup}:{specKey}"
     const specMap = new Map<string, Map<string, number>>();
     const specGroupNames = new Map<string, string>();
-    
+
     // Process all product specifications
-    products.forEach(product => {
+    products.forEach((product) => {
       if (product.specifications && product.specifications.length > 0) {
-        product.specifications.forEach(spec => {
+        product.specifications.forEach((spec) => {
           // Only consider filterable specifications
           if (spec.isFilterable) {
             const mapKey = `${spec.specGroup}:${spec.specKey}`;
             const valueKey = spec.specValue;
-            
+
             // Store the spec group display name
             specGroupNames.set(spec.specGroup, spec.specGroup);
-            
+
             // Initialize the map for this specification if needed
             if (!specMap.has(mapKey)) {
               specMap.set(mapKey, new Map<string, number>());
             }
-            
+
             // Increment the count for this specification value
             const valueMap = specMap.get(mapKey);
             if (valueMap) {
@@ -1681,17 +1737,17 @@ export class ProductsService {
         });
       }
     });
-    
+
     // Transform the map into AttributeFilterDto objects
     const attributes: AttributeFilterDto[] = [];
     let priority = 10; // Start with priority 10 and increment
-    
+
     for (const [mapKey, valueMap] of specMap.entries()) {
       // Skip if the specification only has 1 value (not useful for filtering)
       if (valueMap.size <= 1) continue;
-      
+
       const [specGroup, specKey] = mapKey.split(':');
-      
+
       // Create an array of filter values from the value map
       const values: FilterValueDto[] = Array.from(valueMap.entries())
         .map(([value, count]) => ({
@@ -1700,7 +1756,7 @@ export class ProductsService {
           count,
         }))
         .sort((a, b) => b.count - a.count);
-      
+
       // Add the attribute filter
       attributes.push({
         name: this.formatSpecKey(specKey),
@@ -1710,7 +1766,7 @@ export class ProductsService {
         values,
       });
     }
-    
+
     return attributes.sort((a, b) => a.priority - b.priority);
   }
 
@@ -1719,7 +1775,7 @@ export class ProductsService {
     return key
       .replace(/([A-Z])/g, ' $1') // Insert space before capital letters
       .replace(/_/g, ' ') // Replace underscores with spaces
-      .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+      .replace(/^./, (str) => str.toUpperCase()); // Capitalize first letter
   }
 
   // Helper method to transform a product to DTO format
@@ -1766,7 +1822,9 @@ export class ProductsService {
   }
 
   // Helper method to get a category and all its descendants
-  private async getCategoryAndDescendantsIds(categoryId: string): Promise<string[]> {
+  private async getCategoryAndDescendantsIds(
+    categoryId: string,
+  ): Promise<string[]> {
     try {
       const category = await this.prismaService.category.findUnique({
         where: { id: categoryId },
@@ -1789,12 +1847,14 @@ export class ProductsService {
           select: { id: true },
         });
 
-        const childIds = children.map(child => child.id);
-        
+        const childIds = children.map((child) => child.id);
+
         // Recursively get descendants for each child
-        const descendantPromises = children.map(child => getChildIds(child.id));
+        const descendantPromises = children.map((child) =>
+          getChildIds(child.id),
+        );
         const descendantIds = await Promise.all(descendantPromises);
-        
+
         // Flatten and return all IDs
         return [...childIds, ...descendantIds.flat()];
       };

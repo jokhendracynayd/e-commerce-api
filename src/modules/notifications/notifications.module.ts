@@ -41,12 +41,12 @@ import { CommonModule } from '../../common/common.module';
       name: 'email',
     }),
     BullBoardModule.forRoot({
-      route: '/admin/queues', 
-      adapter: ExpressAdapter
+      route: '/admin/queues',
+      adapter: ExpressAdapter,
     }),
     BullBoardModule.forFeature({
       name: 'email',
-      adapter: BullAdapter
+      adapter: BullAdapter,
     }),
     MailerModule.forRootAsync({
       imports: [ConfigModule],
@@ -78,7 +78,12 @@ import { CommonModule } from '../../common/common.module';
     }),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService, EmailService, TemplateService, EmailConsumer],
+  providers: [
+    NotificationsService,
+    EmailService,
+    TemplateService,
+    EmailConsumer,
+  ],
   exports: [NotificationsService, EmailService],
 })
-export class NotificationsModule {} 
+export class NotificationsModule {}

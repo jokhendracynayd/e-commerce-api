@@ -11,7 +11,8 @@ export class VerifyPaymentDto {
   paymentId: string;
 
   @ApiProperty({
-    description: 'Provider-specific payment ID (e.g., Stripe payment_intent ID)',
+    description:
+      'Provider-specific payment ID (e.g., Stripe payment_intent ID)',
     example: 'pi_3O9mDn2eZvKYlo2C1KrtBUMM',
   })
   @IsString()
@@ -19,10 +20,11 @@ export class VerifyPaymentDto {
   providerPaymentId: string;
 
   @ApiPropertyOptional({
-    description: 'Signature for payment verification (required for certain providers like Razorpay)',
+    description:
+      'Signature for payment verification (required for certain providers like Razorpay)',
     example: '5caf5a0e17af4c51d131a37e87c9df616c3c5dc9c0337a2ed3a2aa46739fdb93',
   })
   @IsOptional()
   @IsString()
   signature?: string;
-} 
+}

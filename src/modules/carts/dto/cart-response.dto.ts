@@ -35,7 +35,7 @@ export class CartProductResponseDto {
   @ApiProperty({
     description: 'Currency code',
     example: 'USD',
-    default: 'USD'
+    default: 'USD',
   })
   currency: string;
 

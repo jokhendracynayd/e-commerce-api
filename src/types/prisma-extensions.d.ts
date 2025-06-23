@@ -2,7 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 
 /**
  * This declaration file extends the PrismaClient type to include
- * the Payment model that exists at runtime but might not be 
+ * the Payment model that exists at runtime but might not be
  * properly exposed in TypeScript typing due to generation issues.
  */
 declare module '@prisma/client' {
@@ -11,4 +11,4 @@ declare module '@prisma/client' {
       Prisma.RejectOnNotFound | Prisma.RejectPerOperation | undefined
     >;
   }
-} 
+}

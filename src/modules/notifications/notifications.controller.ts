@@ -1,5 +1,21 @@
-import { Controller, Post, Body, UseGuards, Req, Get, Param, HttpStatus, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  Get,
+  Param,
+  HttpStatus,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { NotificationType } from './interfaces/notification.interface';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -36,7 +52,9 @@ export class NotificationsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get all available notification types (Admin only)' })
+  @ApiOperation({
+    summary: 'Get all available notification types (Admin only)',
+  })
   getNotificationTypes() {
     return Object.values(NotificationType);
   }

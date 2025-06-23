@@ -376,7 +376,8 @@ export class InventoryController {
   @ApiParam({ name: 'variantId', description: 'Product Variant ID' })
   @ApiResponse({
     status: 200,
-    description: 'Returns real-time availability information for a product variant',
+    description:
+      'Returns real-time availability information for a product variant',
   })
   async getVariantAvailability(@Param('variantId') variantId: string) {
     return this.inventoryService.getVariantAvailability(variantId);
@@ -384,20 +385,24 @@ export class InventoryController {
 
   @Get('availability/batch')
   @Public()
-  @ApiOperation({ summary: 'Get real-time availability for multiple products or variants (GET method)' })
-  @ApiQuery({ 
-    name: 'productIds', 
-    description: 'Comma-separated list of product IDs', 
-    required: false 
+  @ApiOperation({
+    summary:
+      'Get real-time availability for multiple products or variants (GET method)',
   })
-  @ApiQuery({ 
-    name: 'variantIds', 
-    description: 'Comma-separated list of variant IDs', 
-    required: false 
+  @ApiQuery({
+    name: 'productIds',
+    description: 'Comma-separated list of product IDs',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'variantIds',
+    description: 'Comma-separated list of variant IDs',
+    required: false,
   })
   @ApiResponse({
     status: 200,
-    description: 'Returns real-time availability information for multiple products/variants',
+    description:
+      'Returns real-time availability information for multiple products/variants',
   })
   async getBatchAvailability(
     @Query('productIds') productIds?: string,
@@ -405,12 +410,18 @@ export class InventoryController {
   ) {
     const productIdArray = productIds ? productIds.split(',') : [];
     const variantIdArray = variantIds ? variantIds.split(',') : [];
-    return this.inventoryService.getBatchAvailability(productIdArray, variantIdArray);
+    return this.inventoryService.getBatchAvailability(
+      productIdArray,
+      variantIdArray,
+    );
   }
 
   @Post('availability/batch')
   @Public()
-  @ApiOperation({ summary: 'Get real-time availability for multiple products or variants (POST method)' })
+  @ApiOperation({
+    summary:
+      'Get real-time availability for multiple products or variants (POST method)',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -430,7 +441,8 @@ export class InventoryController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Returns real-time availability information for multiple products/variants',
+    description:
+      'Returns real-time availability information for multiple products/variants',
   })
   async postBatchAvailability(
     @Body('productIds') productIds?: string[],
@@ -438,7 +450,7 @@ export class InventoryController {
   ) {
     return this.inventoryService.getBatchAvailability(
       productIds || [],
-      variantIds || []
+      variantIds || [],
     );
   }
 
@@ -458,9 +470,10 @@ export class InventoryController {
   // Add this new endpoint for adding initial stock
   @Post('add')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Add initial stock for a product or variant',
-    description: 'Creates or updates inventory for a product/variant with initial stock' 
+    description:
+      'Creates or updates inventory for a product/variant with initial stock',
   })
   @ApiBody({ type: AddStockDto })
   @ApiCreatedResponse({
@@ -469,7 +482,9 @@ export class InventoryController {
   })
   @ApiNotFoundResponse({ description: 'Product or variant not found' })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
-  async addStock(@Body() addStockDto: AddStockDto): Promise<InventoryResponseDto> {
+  async addStock(
+    @Body() addStockDto: AddStockDto,
+  ): Promise<InventoryResponseDto> {
     return this.inventoryService.addStock(addStockDto);
   }
 }

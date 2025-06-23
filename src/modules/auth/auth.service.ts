@@ -34,7 +34,10 @@ const REFRESH_TOKEN_COOKIE_NAME = 'refresh_token';
 const REFRESH_TOKEN_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'strict' as const : 'lax' as const,
+  sameSite:
+    process.env.NODE_ENV === 'production'
+      ? ('strict' as const)
+      : ('lax' as const),
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
   path: '/api/v1/auth/refresh', // Use the correct API path with v1 prefix
 };
@@ -176,7 +179,11 @@ export class AuthService {
     }
   }
 
-  async login(user: UserDto, res?: Response, rememberMe?: boolean): Promise<AuthResponseDto> {
+  async login(
+    user: UserDto,
+    res?: Response,
+    rememberMe?: boolean,
+  ): Promise<AuthResponseDto> {
     const payload = { email: user.email, sub: user.id, role: user.role };
 
     const accessToken = this.jwtService.sign(payload, {
@@ -205,14 +212,10 @@ export class AuthService {
         ...REFRESH_TOKEN_COOKIE_OPTIONS,
         maxAge: rememberMe
           ? 7 * 24 * 60 * 60 * 1000 // 7 days if rememberMe is true
-          : 24 * 60 * 60 * 1000,    // 24 hours if rememberMe is false/undefined
+          : 24 * 60 * 60 * 1000, // 24 hours if rememberMe is false/undefined
       };
-      
-      res.cookie(
-        REFRESH_TOKEN_COOKIE_NAME,
-        refreshToken,
-        cookieOptions
-      );
+
+      res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, cookieOptions);
     }
 
     return {
@@ -236,7 +239,7 @@ export class AuthService {
   async refreshToken(
     userId: string,
     refreshToken: string,
-    res?: Response
+    res?: Response,
   ): Promise<TokenResponseDto> {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
@@ -282,11 +285,11 @@ export class AuthService {
 
     // Generate new tokens
     const payload = { email: user.email, sub: user.id, role: user.role };
-    
+
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN', '15m'),
     });
-    
+
     // Also generate a new refresh token (rotating refresh tokens)
     const newRefreshToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN', '7d'),
@@ -302,13 +305,13 @@ export class AuthService {
     });
 
     this.logger.log(`Token refreshed for user: ${user.email}`);
-    
+
     // Set the new refresh token as HTTP-only cookie if response object is provided
     if (res && typeof res.cookie === 'function') {
       res.cookie(
         REFRESH_TOKEN_COOKIE_NAME,
         newRefreshToken,
-        REFRESH_TOKEN_COOKIE_OPTIONS
+        REFRESH_TOKEN_COOKIE_OPTIONS,
       );
     }
 
@@ -322,7 +325,7 @@ export class AuthService {
       where: { id: userId },
       data: { refreshToken: null },
     });
-    
+
     // Clear the refresh token cookie if response object is provided
     if (res && typeof res.cookie === 'function') {
       res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
@@ -433,7 +436,11 @@ export class AuthService {
     }
   }
 
-  async adminLogin(email: string, password: string, res?: Response): Promise<AuthResponseDto> {
+  async adminLogin(
+    email: string,
+    password: string,
+    res?: Response,
+  ): Promise<AuthResponseDto> {
     // Add additional admin login attempt logging
     this.logger.log(`Admin login attempt for email: ${email}`);
 

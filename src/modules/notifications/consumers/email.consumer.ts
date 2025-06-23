@@ -12,8 +12,10 @@ export class EmailConsumer {
 
   @Process()
   async processEmailJob(job: Job<EmailJob>) {
-    this.logger.log(`Processing email job ${job.id} : ${job.data.subject} to ${job.data.to}`);
-    
+    this.logger.log(
+      `Processing email job ${job.id} : ${job.data.subject} to ${job.data.to}`,
+    );
+
     try {
       const result = await this.mailerService.sendMail({
         to: job.data.to,
@@ -24,7 +26,7 @@ export class EmailConsumer {
         bcc: job.data.bcc,
         attachments: job.data.attachments,
       });
-      
+
       this.logger.log(`Email job ${job.id} completed successfully`);
       return result;
     } catch (error) {
@@ -32,9 +34,9 @@ export class EmailConsumer {
         `Failed to process email job ${job.id}: ${error.message}`,
         error.stack,
       );
-      
+
       // Rethrow the error to trigger the retry mechanism
       throw error;
     }
   }
-} 
+}

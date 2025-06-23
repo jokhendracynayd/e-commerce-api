@@ -65,21 +65,92 @@ export class ProductsController {
     description: 'Returns paginated list of products',
     type: PaginatedProductResponseDto,
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
-  @ApiQuery({ name: 'search', required: false, description: 'Search term for product title or description' })
-  @ApiQuery({ name: 'categoryId', required: false, description: 'Category ID to filter products' })
-  @ApiQuery({ name: 'categorySlug', required: false, description: 'Category slug to filter products (alternative to categoryId)' })
-  @ApiQuery({ name: 'recursive', required: false, type: Boolean, description: 'Whether to include products from all subcategories recursively' })
-  @ApiQuery({ name: 'subCategoryId', required: false, description: 'Subcategory ID to filter products' })
-  @ApiQuery({ name: 'brandId', required: false, description: 'Brand ID to filter products' })
-  @ApiQuery({ name: 'tagIds', required: false, description: 'Comma-separated list of tag IDs' })
-  @ApiQuery({ name: 'minPrice', required: false, type: Number, description: 'Minimum price filter' })
-  @ApiQuery({ name: 'maxPrice', required: false, type: Number, description: 'Maximum price filter' })
-  @ApiQuery({ name: 'inStock', required: false, type: Boolean, description: 'Filter for products in stock' })
-  @ApiQuery({ name: 'isFeatured', required: false, type: Boolean, description: 'Filter for featured products' })
-  @ApiQuery({ name: 'sortBy', required: false, description: 'Field to sort by', default: 'createdAt' })
-  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'], description: 'Sort direction', default: 'desc' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search term for product title or description',
+  })
+  @ApiQuery({
+    name: 'categoryId',
+    required: false,
+    description: 'Category ID to filter products',
+  })
+  @ApiQuery({
+    name: 'categorySlug',
+    required: false,
+    description: 'Category slug to filter products (alternative to categoryId)',
+  })
+  @ApiQuery({
+    name: 'recursive',
+    required: false,
+    type: Boolean,
+    description:
+      'Whether to include products from all subcategories recursively',
+  })
+  @ApiQuery({
+    name: 'subCategoryId',
+    required: false,
+    description: 'Subcategory ID to filter products',
+  })
+  @ApiQuery({
+    name: 'brandId',
+    required: false,
+    description: 'Brand ID to filter products',
+  })
+  @ApiQuery({
+    name: 'tagIds',
+    required: false,
+    description: 'Comma-separated list of tag IDs',
+  })
+  @ApiQuery({
+    name: 'minPrice',
+    required: false,
+    type: Number,
+    description: 'Minimum price filter',
+  })
+  @ApiQuery({
+    name: 'maxPrice',
+    required: false,
+    type: Number,
+    description: 'Maximum price filter',
+  })
+  @ApiQuery({
+    name: 'inStock',
+    required: false,
+    type: Boolean,
+    description: 'Filter for products in stock',
+  })
+  @ApiQuery({
+    name: 'isFeatured',
+    required: false,
+    type: Boolean,
+    description: 'Filter for featured products',
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    description: 'Field to sort by',
+    default: 'createdAt',
+  })
+  @ApiQuery({
+    name: 'sortOrder',
+    required: false,
+    enum: ['asc', 'desc'],
+    description: 'Sort direction',
+    default: 'desc',
+  })
   findAll(
     @Query() filterDto: ProductFilterDto,
   ): Promise<PaginatedProductResponseDto> {
@@ -96,8 +167,18 @@ export class ProductsController {
     description: 'Returns products matching the search query',
     type: [ProductResponseDto],
   })
-  @ApiQuery({ name: 'q', required: true, type: String, description: 'Search query' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of results to return' })
+  @ApiQuery({
+    name: 'q',
+    required: true,
+    type: String,
+    description: 'Search query',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of results to return',
+  })
   async searchProducts(
     @Query('q') query: string,
     @Query('limit') limit?: number,
@@ -107,7 +188,7 @@ export class ProductsController {
       limit: limit ? +limit : 10, // Convert to number and default to 10
       page: 1,
     };
-    
+
     const result = await this.productsService.findAll(filterDto);
     return result.data;
   }
@@ -116,21 +197,60 @@ export class ProductsController {
   @Get('filters')
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(300) // Cache for 5 minutes
-  @ApiOperation({ summary: 'Get available filter options based on various criteria' })
+  @ApiOperation({
+    summary: 'Get available filter options based on various criteria',
+  })
   @ApiResponse({
     status: 200,
     description: 'Returns available filter options',
     type: FilterOptionsResponseDto,
   })
-  @ApiQuery({ name: 'categoryId', required: false, type: String, description: 'Category ID to filter by' })
-  @ApiQuery({ name: 'categorySlug', required: false, type: String, description: 'Category slug to filter by (alternative to categoryId)' })
-  @ApiQuery({ name: 'brandId', required: false, type: String, description: 'Brand ID to filter by' })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search term to filter by' })
-  @ApiQuery({ name: 'recursive', required: false, type: Boolean, description: 'Whether to include subcategories recursively' })
-  @ApiQuery({ name: 'minPrice', required: false, type: Number, description: 'Minimum price to consider' })
-  @ApiQuery({ name: 'maxPrice', required: false, type: Number, description: 'Maximum price to consider' })
+  @ApiQuery({
+    name: 'categoryId',
+    required: false,
+    type: String,
+    description: 'Category ID to filter by',
+  })
+  @ApiQuery({
+    name: 'categorySlug',
+    required: false,
+    type: String,
+    description: 'Category slug to filter by (alternative to categoryId)',
+  })
+  @ApiQuery({
+    name: 'brandId',
+    required: false,
+    type: String,
+    description: 'Brand ID to filter by',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search term to filter by',
+  })
+  @ApiQuery({
+    name: 'recursive',
+    required: false,
+    type: Boolean,
+    description: 'Whether to include subcategories recursively',
+  })
+  @ApiQuery({
+    name: 'minPrice',
+    required: false,
+    type: Number,
+    description: 'Minimum price to consider',
+  })
+  @ApiQuery({
+    name: 'maxPrice',
+    required: false,
+    type: Number,
+    description: 'Maximum price to consider',
+  })
   @ApiNotFoundResponse({ description: 'Category not found' })
-  getFilters(@Query() filterOptionsDto: FilterOptionsQueryDto): Promise<FilterOptionsResponseDto> {
+  getFilters(
+    @Query() filterOptionsDto: FilterOptionsQueryDto,
+  ): Promise<FilterOptionsResponseDto> {
     return this.productsService.getAvailableFilters(filterOptionsDto);
   }
 
@@ -415,7 +535,7 @@ export class ProductsController {
     } catch (error) {
       console.error(`Error adding deal to product ${id}:`, {
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
       });
       throw error;
     }
@@ -451,10 +571,13 @@ export class ProductsController {
     try {
       return this.productsService.removeDeal(productId, dealId);
     } catch (error) {
-      console.error(`Error removing deal ${dealId} from product ${productId}:`, {
-        message: error.message,
-        stack: error.stack
-      });
+      console.error(
+        `Error removing deal ${dealId} from product ${productId}:`,
+        {
+          message: error.message,
+          stack: error.stack,
+        },
+      );
       throw error;
     }
   }
