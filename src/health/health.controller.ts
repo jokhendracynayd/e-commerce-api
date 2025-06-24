@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Public } from '../common/guards/jwt-auth.guard';
 import { PrismaService } from '../common/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { CoreElasticsearchService } from '../modules/search/services/elasticsearch.service';
 
 @ApiTags('Health')
 @Controller('health')
@@ -11,6 +12,7 @@ export class HealthController {
   constructor(
     private prismaService: PrismaService,
     private configService: ConfigService,
+    private coreElasticsearchService: CoreElasticsearchService,
   ) {}
 
   @Get()
@@ -38,10 +40,20 @@ export class HealthController {
       const heapUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
       const rssUsedMB = Math.round(memoryUsage.rss / 1024 / 1024);
 
+      // Check Elasticsearch health
+      let elasticsearchHealth;
+      try {
+        const esHealth = await this.coreElasticsearchService.checkHealth();
+        elasticsearchHealth = { status: esHealth.status };
+      } catch (error) {
+        elasticsearchHealth = { status: 'down', message: error.message };
+      }
+
       return {
         status: 'ok',
         info: {
           database: { status: 'up' },
+          elasticsearch: elasticsearchHealth,
           memory: {
             heapUsed: `${heapUsedMB}MB`,
             rss: `${rssUsedMB}MB`,

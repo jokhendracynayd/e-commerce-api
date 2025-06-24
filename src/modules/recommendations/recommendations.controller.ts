@@ -10,10 +10,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { RecommendationsService } from './recommendations.service';
-import {
-  RecommendationQueryDto,
-  RecommendationResponseDto,
-} from './dto';
+import { RecommendationQueryDto, RecommendationResponseDto } from './dto';
 import {
   ApiTags,
   ApiOperation,
@@ -31,7 +28,9 @@ import { RecommendationType } from '@prisma/client';
 @ApiTags('recommendations')
 @Controller('recommendations')
 export class RecommendationsController {
-  constructor(private readonly recommendationsService: RecommendationsService) {}
+  constructor(
+    private readonly recommendationsService: RecommendationsService,
+  ) {}
 
   @Get()
   @Public()
@@ -49,7 +48,9 @@ export class RecommendationsController {
     type: [RecommendationResponseDto],
   })
   @ApiBadRequestResponse({ description: 'Invalid query parameters' })
-  @ApiInternalServerErrorResponse({ description: 'Failed to get recommendations' })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to get recommendations',
+  })
   @ApiQuery({
     name: 'type',
     required: true,
@@ -95,7 +96,8 @@ export class RecommendationsController {
     example: true,
   })
   async getRecommendations(
-    @Query(new ValidationPipe({ transform: true })) queryDto: RecommendationQueryDto,
+    @Query(new ValidationPipe({ transform: true }))
+    queryDto: RecommendationQueryDto,
   ): Promise<RecommendationResponseDto[]> {
     return this.recommendationsService.getRecommendations(queryDto);
   }
@@ -107,7 +109,8 @@ export class RecommendationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get similar products',
-    description: 'Get products similar to the specified product based on category, brand, and other attributes.',
+    description:
+      'Get products similar to the specified product based on category, brand, and other attributes.',
   })
   @ApiResponse({
     status: 200,
@@ -116,7 +119,9 @@ export class RecommendationsController {
   })
   @ApiNotFoundResponse({ description: 'Product not found' })
   @ApiBadRequestResponse({ description: 'Invalid product ID' })
-  @ApiInternalServerErrorResponse({ description: 'Failed to get similar products' })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to get similar products',
+  })
   @ApiParam({
     name: 'productId',
     type: String,
@@ -155,7 +160,8 @@ export class RecommendationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get frequently bought together products',
-    description: 'Get products frequently bought together with the specified product based on order history analysis.',
+    description:
+      'Get products frequently bought together with the specified product based on order history analysis.',
   })
   @ApiResponse({
     status: 200,
@@ -164,7 +170,9 @@ export class RecommendationsController {
   })
   @ApiNotFoundResponse({ description: 'Product not found' })
   @ApiBadRequestResponse({ description: 'Invalid product ID' })
-  @ApiInternalServerErrorResponse({ description: 'Failed to get frequently bought together products' })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to get frequently bought together products',
+  })
   @ApiParam({
     name: 'productId',
     type: String,
@@ -203,7 +211,8 @@ export class RecommendationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get personalized recommendations',
-    description: 'Get personalized product recommendations based on user behavior and preferences.',
+    description:
+      'Get personalized product recommendations based on user behavior and preferences.',
   })
   @ApiResponse({
     status: 200,
@@ -211,7 +220,9 @@ export class RecommendationsController {
     type: [RecommendationResponseDto],
   })
   @ApiBadRequestResponse({ description: 'User ID or session ID required' })
-  @ApiInternalServerErrorResponse({ description: 'Failed to get personalized recommendations' })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to get personalized recommendations',
+  })
   @ApiQuery({
     name: 'userId',
     required: false,
@@ -259,14 +270,17 @@ export class RecommendationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get trending products',
-    description: 'Get currently trending products based on recent user activity and velocity metrics.',
+    description:
+      'Get currently trending products based on recent user activity and velocity metrics.',
   })
   @ApiResponse({
     status: 200,
     description: 'Returns trending products',
     type: [RecommendationResponseDto],
   })
-  @ApiInternalServerErrorResponse({ description: 'Failed to get trending products' })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to get trending products',
+  })
   @ApiQuery({
     name: 'categoryId',
     required: false,
@@ -306,7 +320,8 @@ export class RecommendationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get recently viewed products',
-    description: 'Get products recently viewed by the user or session, filtered by availability.',
+    description:
+      'Get products recently viewed by the user or session, filtered by availability.',
   })
   @ApiResponse({
     status: 200,
@@ -314,7 +329,9 @@ export class RecommendationsController {
     type: [RecommendationResponseDto],
   })
   @ApiBadRequestResponse({ description: 'User ID or session ID required' })
-  @ApiInternalServerErrorResponse({ description: 'Failed to get recently viewed products' })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to get recently viewed products',
+  })
   @ApiQuery({
     name: 'userId',
     required: false,
@@ -362,14 +379,17 @@ export class RecommendationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get top rated products',
-    description: 'Get highest rated products with minimum rating and review thresholds.',
+    description:
+      'Get highest rated products with minimum rating and review thresholds.',
   })
   @ApiResponse({
     status: 200,
     description: 'Returns top rated products',
     type: [RecommendationResponseDto],
   })
-  @ApiInternalServerErrorResponse({ description: 'Failed to get top rated products' })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to get top rated products',
+  })
   @ApiQuery({
     name: 'categoryId',
     required: false,
@@ -409,14 +429,17 @@ export class RecommendationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get bestseller products',
-    description: 'Get bestselling products based on recent sales data and order history.',
+    description:
+      'Get bestselling products based on recent sales data and order history.',
   })
   @ApiResponse({
     status: 200,
     description: 'Returns bestseller products',
     type: [RecommendationResponseDto],
   })
-  @ApiInternalServerErrorResponse({ description: 'Failed to get bestseller products' })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to get bestseller products',
+  })
   @ApiQuery({
     name: 'categoryId',
     required: false,
@@ -495,4 +518,4 @@ export class RecommendationsController {
       includeProduct !== false,
     );
   }
-} 
+}

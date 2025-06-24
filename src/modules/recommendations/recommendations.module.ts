@@ -23,17 +23,14 @@ import { CommonModule } from '../../common/common.module';
       },
     }),
   ],
-  controllers: [
-    RecommendationsController,
-    QueueBoardController,
-  ],
+  controllers: [RecommendationsController, QueueBoardController],
   providers: [
     // Phase 1 Services
     RecommendationsService,
-    
+
     // Phase 2.1: Enhanced Background Processing
     RecommendationJobService,
-    
+
     // Phase 2.2: Advanced Analytics & ML Processing
     RealTimeAnalyticsService,
     MLTrendDetectionService,
@@ -47,4 +44,4 @@ import { CommonModule } from '../../common/common.module';
     UserProfilingService,
   ],
 })
-export class RecommendationsModule {} 
+export class RecommendationsModule {}

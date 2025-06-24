@@ -1,0 +1,160 @@
+# ======================== Elasticsearch Configuration =========================
+#
+# NOTE: Elasticsearch comes with reasonable defaults for most settings.
+#       Before you set out to tweak and tune the configuration, make sure you
+#       understand what are you trying to accomplish and the consequences.
+#
+# The primary way of configuring a node is via this file. This template lists
+# the most important settings you may want to configure for a production cluster.
+#
+# Please consult the documentation for further information on configuration options:
+# https://www.elastic.co/guide/en/elasticsearch/reference/index.html
+#
+# ---------------------------------- Cluster -----------------------------------
+#
+# Use a descriptive name for your cluster:
+#
+cluster.name: ecommerce-cluster
+#
+# ------------------------------------ Node ------------------------------------
+#
+# Use a descriptive name for the node:
+#
+node.name: es-node-1
+#
+# Add custom attributes to the node:
+#
+#node.attr.rack: r1
+#
+# ----------------------------------- Paths ------------------------------------
+#
+# Path to directory where to store the data (separate multiple locations by comma):
+#
+path.data: /usr/share/elasticsearch/data
+#
+# Path to log files:
+#
+path.logs: /usr/share/elasticsearch/logs
+#
+# ----------------------------------- Memory -----------------------------------
+#
+# Lock the memory on startup:
+#
+bootstrap.memory_lock: true
+#
+# Make sure that the heap size is set to about half the memory available
+# on the system and that the owner of the process is allowed to use this
+# limit.
+#
+# Elasticsearch performs poorly when the system is swapping the memory.
+#
+# ---------------------------------- Network -----------------------------------
+#
+# By default Elasticsearch is only accessible on localhost. Set a different
+# address here to expose this node on the network:
+#
+network.host: 0.0.0.0
+#
+# By default Elasticsearch listens for HTTP traffic on the first free port it
+# finds starting at 9200. Set a specific HTTP port here:
+#
+http.port: 9200
+#
+# For more information, consult the network module documentation.
+#
+# --------------------------------- Discovery ----------------------------------
+#
+# Pass an initial list of hosts to perform discovery when this node is started:
+# The default list of hosts is ["127.0.0.1", "[::1]"]
+#
+#discovery.seed_hosts: ["host1", "host2"]
+#
+# Bootstrap the cluster using an initial set of master-eligible nodes:
+#
+#cluster.initial_master_nodes: ["node-1", "node-2"]
+#
+# For more information, consult the discovery and cluster formation module documentation.
+#
+# Single-node discovery (for development)
+discovery.type: single-node
+#
+# ---------------------------------- Various -----------------------------------
+#
+# Require explicit names when deleting indices:
+#
+action.destructive_requires_name: true
+
+# ================================ Search Performance ================================
+#
+# Maximum number of clauses in a boolean query
+indices.query.bool.max_clause_count: 10000
+
+# Disable disk-based shard allocation decisions (for development)
+cluster.routing.allocation.disk.threshold_enabled: false
+
+# ================================ Thread Pools ================================
+#
+# Configure thread pools for better performance
+thread_pool:
+  search:
+    queue_size: 10000
+  index:
+    queue_size: 10000
+  get:
+    queue_size: 1000
+  bulk:
+    queue_size: 200
+
+# ================================ Circuit Breakers ================================
+#
+# Configure circuit breakers to prevent out of memory errors
+indices.breaker.total.limit: 70%
+indices.breaker.fielddata.limit: 40%
+indices.breaker.request.limit: 40%
+
+# ================================ Index Settings ================================
+#
+# Default index settings
+index:
+  number_of_shards: 1
+  number_of_replicas: 0
+  refresh_interval: 30s
+  max_result_window: 50000
+
+# ================================ Monitoring ================================
+#
+# Enable monitoring collection
+xpack.monitoring.collection.enabled: true
+
+# ================================ Security ================================
+#
+# Security is disabled for development (enable in production)
+xpack.security.enabled: false
+
+# ================================ Logging ================================
+#
+# Configure logging levels
+logger:
+  root: INFO
+  org.elasticsearch.discovery: DEBUG
+  org.elasticsearch.cluster.service: DEBUG
+
+# ================================ E-commerce Specific ================================
+#
+# Optimizations for e-commerce search workloads
+
+# Enable compression for better network performance
+http.compression: true
+
+# Configure HTTP settings
+http.max_content_length: 100mb
+http.max_initial_line_length: 4kb
+http.max_header_size: 8kb
+
+# Optimize for search-heavy workloads
+indices.memory.index_buffer_size: 20%
+indices.memory.min_index_buffer_size: 96mb
+
+# Configure translog for better durability
+index.translog.flush_threshold_size: 1gb
+index.translog.sync_interval: 30s 

@@ -31,21 +31,79 @@ services:
     networks:
       - ecommerce_network
 
-  # Elasticsearch for search
+  # Enhanced Elasticsearch for search
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
     container_name: ecommerce_elasticsearch
     restart: unless-stopped
     environment:
+      - cluster.name=ecommerce-cluster
+      - node.name=es-node-1
       - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
+      - xpack.security.enabled=false  # Disabled for development - will enable in production
+      - xpack.monitoring.collection.enabled=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"  # Increased memory allocation
+      - network.host=0.0.0.0
+      - http.port=9200
+      - indices.query.bool.max_clause_count=10000
+      - action.destructive_requires_name=true
+      - cluster.routing.allocation.disk.threshold_enabled=false
+      # Performance optimizations
+      - bootstrap.memory_lock=true
+      - thread_pool.search.queue_size=10000
+      - thread_pool.index.queue_size=10000
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./config/elasticsearch:/usr/share/elasticsearch/config/custom
+    ports:
+      - "9200:9200"
+      - "9300:9300"
     networks:
       - ecommerce_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Kibana for Elasticsearch monitoring and development
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: ecommerce_kibana
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=5601
+      - LOGGING_ROOT_LEVEL=warn
+      - XPACK_SECURITY_ENABLED=false
+      - XPACK_MONITORING_ENABLED=true
+      - XPACK_MONITORING_COLLECTION_ENABLED=true
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - kibana_data:/usr/share/kibana/data
+      - ./config/kibana:/usr/share/kibana/config/custom
+    networks:
+      - ecommerce_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # E-commerce API
   api:
@@ -61,7 +119,29 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ecommerce_dev
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # Enhanced Elasticsearch Configuration
       ELASTICSEARCH_NODE: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: ""
+      ELASTICSEARCH_PASSWORD: ""
+      ELASTICSEARCH_MAX_RETRIES: 3
+      ELASTICSEARCH_REQUEST_TIMEOUT: 30000
+      ELASTICSEARCH_PING_TIMEOUT: 3000
+      ELASTICSEARCH_SNIFF_INTERVAL: 300000
+      # Search Configuration
+      SEARCH_CACHE_TTL: 300
+      SEARCH_MAX_RESULTS: 100
+      SEARCH_DEFAULT_SIZE: 20
+      SEARCH_ENABLE_HIGHLIGHTING: true
+      SEARCH_ENABLE_SUGGESTIONS: true
+      # Performance Configuration
+      SEARCH_BULK_SIZE: 1000
+      SEARCH_BULK_TIMEOUT: 30s
+      SEARCH_REFRESH_INTERVAL: 30s
+      SEARCH_MAX_CONCURRENT_SEARCHES: 100
+      # Analytics Configuration
+      ANALYTICS_ENABLED: true
+      ANALYTICS_SAMPLING_RATE: 0.1
+      ANALYTICS_RETENTION_DAYS: 90
       JWT_SECRET: development-secret-key-change-in-production
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: your-aws-access-key
@@ -70,9 +150,12 @@ services:
     ports:
       - "3001:3001"
     depends_on:
-      - postgres
-      - redis
-      - elasticsearch
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
     volumes:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
@@ -100,6 +183,7 @@ volumes:
   postgres_data:
   redis_data:
   elasticsearch_data:
+  kibana_data:
   pgadmin_data:
 
 networks:

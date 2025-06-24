@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import { UserActivity, UserActivityType, RecommendationType } from '@prisma/client';
+import {
+  UserActivity,
+  UserActivityType,
+  RecommendationType,
+} from '@prisma/client';
 
 // Interfaces for real-time analytics
 interface UserPreferenceVector {
@@ -34,11 +38,11 @@ interface AnomalyDetection {
 @Injectable()
 export class RealTimeAnalyticsService {
   private readonly logger = new Logger(RealTimeAnalyticsService.name);
-  
+
   // In-memory cache for hot data (should be replaced with Redis in production)
   private userPreferenceCache = new Map<string, UserPreferenceVector>();
   private trendingCache = new Map<string, TrendingMetrics>();
-  
+
   constructor(
     private readonly prismaService: PrismaService,
     @InjectQueue('recommendation-jobs') private readonly jobQueue: Queue,
@@ -52,78 +56,85 @@ export class RealTimeAnalyticsService {
    * Process user activity in real-time and trigger immediate updates
    */
   async processUserActivity(activity: UserActivity): Promise<void> {
-    this.logger.debug(`Processing real-time activity: ${activity.activityType} for user ${activity.userId || activity.sessionId}`);
-    
+    this.logger.debug(
+      `Processing real-time activity: ${activity.activityType} for user ${activity.userId || activity.sessionId}`,
+    );
+
     try {
       // 1. Update user preference vectors in real-time
       await this.updateUserPreferenceVector(activity);
-      
+
       // 2. Update trending product scores
       await this.updateTrendingScores(activity);
-      
+
       // 3. Trigger hot recommendation updates for high-value activities
       await this.triggerHotRecommendationUpdates(activity);
-      
+
       // 4. Detect anomalies and opportunities
       await this.detectAnomaliesAndOpportunities(activity);
-      
+
       // 5. Update real-time personalization
       await this.updateRealTimePersonalization(activity);
-      
     } catch (error) {
-      this.logger.error(`Error processing user activity: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error processing user activity: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
   /**
    * Update user preference vectors based on real-time activity
    */
-  private async updateUserPreferenceVector(activity: UserActivity): Promise<void> {
+  private async updateUserPreferenceVector(
+    activity: UserActivity,
+  ): Promise<void> {
     if (!activity.userId) return;
 
     try {
       // Get current preference vector from cache or database
       let preferences = this.userPreferenceCache.get(activity.userId);
-      
+
       if (!preferences) {
         preferences = await this.loadUserPreferences(activity.userId);
       }
 
       // Update preferences based on activity type
       const weightings = this.getActivityWeightings(activity.activityType);
-      
+
       if (activity.entityType === 'product' && activity.entityId) {
         const product = await this.getProductWithDetails(activity.entityId);
         if (product) {
           // Update category preferences
           if (product.categoryId) {
-            preferences.categories[product.categoryId] = 
-              (preferences.categories[product.categoryId] || 0) + weightings.category;
+            preferences.categories[product.categoryId] =
+              (preferences.categories[product.categoryId] || 0) +
+              weightings.category;
           }
-          
+
           // Update brand preferences
           if (product.brandId) {
-            preferences.brands[product.brandId] = 
+            preferences.brands[product.brandId] =
               (preferences.brands[product.brandId] || 0) + weightings.brand;
           }
-          
+
           // Update price range preferences
           const priceRange = this.getPriceRange(product.price);
-          preferences.priceRanges[priceRange] = 
+          preferences.priceRanges[priceRange] =
             (preferences.priceRanges[priceRange] || 0) + weightings.price;
         }
       }
 
       preferences.lastUpdated = new Date();
-      
+
       // Cache the updated preferences
       this.userPreferenceCache.set(activity.userId, preferences);
-      
+
       // Persist to database every few updates (batch optimization)
-      if (Math.random() < 0.3) { // 30% chance to persist
+      if (Math.random() < 0.3) {
+        // 30% chance to persist
         await this.persistUserPreferences(preferences);
       }
-      
     } catch (error) {
       this.logger.error(`Error updating user preferences: ${error.message}`);
     }
@@ -138,7 +149,7 @@ export class RealTimeAnalyticsService {
     try {
       const productId = activity.entityId;
       let trending = this.trendingCache.get(productId);
-      
+
       if (!trending) {
         trending = {
           productId,
@@ -163,18 +174,17 @@ export class RealTimeAnalyticsService {
       // Calculate velocity (change rate)
       const timeWeight = this.getTimeWeight(activity.timestamp);
       trending.velocity += timeWeight;
-      
+
       // Calculate trending score
       trending.score = this.calculateTrendingScore(trending);
-      
+
       // Cache the updated trending data
       this.trendingCache.set(productId, trending);
-      
+
       // If score is high enough, trigger trending recommendations update
       if (trending.score > 0.8) {
         await this.triggerTrendingUpdate(productId, trending.score);
       }
-      
     } catch (error) {
       this.logger.error(`Error updating trending scores: ${error.message}`);
     }
@@ -183,7 +193,9 @@ export class RealTimeAnalyticsService {
   /**
    * Trigger hot recommendation updates for high-value activities
    */
-  private async triggerHotRecommendationUpdates(activity: UserActivity): Promise<void> {
+  private async triggerHotRecommendationUpdates(
+    activity: UserActivity,
+  ): Promise<void> {
     const highValueActivities: UserActivityType[] = [
       UserActivityType.PRODUCT_VIEW,
       UserActivityType.ADD_TO_CART,
@@ -196,7 +208,7 @@ export class RealTimeAnalyticsService {
     try {
       // Determine priority based on activity type
       let priority: 'high' | 'medium' | 'low' = 'medium';
-      
+
       if (activity.activityType === UserActivityType.ADD_TO_CART) {
         priority = 'high';
       } else if (activity.activityType === UserActivityType.PRODUCT_VIEW) {
@@ -204,21 +216,24 @@ export class RealTimeAnalyticsService {
       }
 
       // Queue real-time recommendation update
-      await this.jobQueue.add('real-time-update', {
-        userId: activity.userId,
-        sessionId: activity.sessionId,
-        activityType: activity.activityType,
-        entityId: activity.entityId,
-        priority,
-      }, {
-        priority: priority === 'high' ? 10 : priority === 'medium' ? 5 : 1,
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
+      await this.jobQueue.add(
+        'real-time-update',
+        {
+          userId: activity.userId,
+          sessionId: activity.sessionId,
+          activityType: activity.activityType,
+          entityId: activity.entityId,
+          priority,
         },
-      });
-      
+        {
+          priority: priority === 'high' ? 10 : priority === 'medium' ? 5 : 1,
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
+      );
     } catch (error) {
       this.logger.error(`Error triggering hot updates: ${error.message}`);
     }
@@ -227,16 +242,25 @@ export class RealTimeAnalyticsService {
   /**
    * Detect anomalies and opportunities in real-time
    */
-  private async detectAnomaliesAndOpportunities(activity: UserActivity): Promise<void> {
+  private async detectAnomaliesAndOpportunities(
+    activity: UserActivity,
+  ): Promise<void> {
     try {
       const anomalies: AnomalyDetection[] = [];
 
       // Detect unusual spikes in product views
-      if (activity.activityType === UserActivityType.PRODUCT_VIEW && activity.entityId) {
-        const recentViews = await this.getRecentProductViews(activity.entityId, 60); // Last 60 minutes
+      if (
+        activity.activityType === UserActivityType.PRODUCT_VIEW &&
+        activity.entityId
+      ) {
+        const recentViews = await this.getRecentProductViews(
+          activity.entityId,
+          60,
+        ); // Last 60 minutes
         const avgViews = await this.getAverageProductViews(activity.entityId);
-        
-        if (recentViews > avgViews * 3) { // 3x spike
+
+        if (recentViews > avgViews * 3) {
+          // 3x spike
           anomalies.push({
             type: 'spike',
             entityId: activity.entityId,
@@ -249,9 +273,14 @@ export class RealTimeAnalyticsService {
       }
 
       // Detect cart abandonment patterns
-      if (activity.activityType === UserActivityType.ADD_TO_CART && activity.userId) {
-        const cartAbandonmentRisk = await this.calculateCartAbandonmentRisk(activity.userId);
-        
+      if (
+        activity.activityType === UserActivityType.ADD_TO_CART &&
+        activity.userId
+      ) {
+        const cartAbandonmentRisk = await this.calculateCartAbandonmentRisk(
+          activity.userId,
+        );
+
         if (cartAbandonmentRisk > 0.7) {
           anomalies.push({
             type: 'unusual_pattern',
@@ -268,7 +297,6 @@ export class RealTimeAnalyticsService {
       for (const anomaly of anomalies) {
         await this.processAnomaly(anomaly);
       }
-      
     } catch (error) {
       this.logger.error(`Error in anomaly detection: ${error.message}`);
     }
@@ -277,21 +305,27 @@ export class RealTimeAnalyticsService {
   /**
    * Update real-time personalization data
    */
-  private async updateRealTimePersonalization(activity: UserActivity): Promise<void> {
+  private async updateRealTimePersonalization(
+    activity: UserActivity,
+  ): Promise<void> {
     if (!activity.userId) return;
 
     try {
       // Update user engagement score
-      await this.updateUserEngagementScore(activity.userId, activity.activityType);
-      
+      await this.updateUserEngagementScore(
+        activity.userId,
+        activity.activityType,
+      );
+
       // Update session-based preferences
       await this.updateSessionPreferences(activity);
-      
+
       // Update real-time recommendation weights
       await this.updateRecommendationWeights(activity.userId, activity);
-      
     } catch (error) {
-      this.logger.error(`Error updating real-time personalization: ${error.message}`);
+      this.logger.error(
+        `Error updating real-time personalization: ${error.message}`,
+      );
     }
   }
 
@@ -299,7 +333,9 @@ export class RealTimeAnalyticsService {
   // HELPER METHODS
   // =====================================
 
-  private async loadUserPreferences(userId: string): Promise<UserPreferenceVector> {
+  private async loadUserPreferences(
+    userId: string,
+  ): Promise<UserPreferenceVector> {
     // Load from database or create default
     return {
       userId,
@@ -310,7 +346,11 @@ export class RealTimeAnalyticsService {
     };
   }
 
-  private getActivityWeightings(activityType: UserActivityType): { category: number; brand: number; price: number } {
+  private getActivityWeightings(activityType: UserActivityType): {
+    category: number;
+    brand: number;
+    price: number;
+  } {
     const weightings = {
       [UserActivityType.PRODUCT_VIEW]: { category: 1, brand: 1, price: 0.5 },
       [UserActivityType.ADD_TO_CART]: { category: 3, brand: 2, price: 2 },
@@ -318,8 +358,10 @@ export class RealTimeAnalyticsService {
       [UserActivityType.CHECKOUT_COMPLETE]: { category: 5, brand: 3, price: 3 },
       [UserActivityType.SEARCH]: { category: 0.5, brand: 0.5, price: 0.2 },
     };
-    
-    return weightings[activityType] || { category: 0.1, brand: 0.1, price: 0.1 };
+
+    return (
+      weightings[activityType] || { category: 0.1, brand: 0.1, price: 0.1 }
+    );
   }
 
   private async getProductWithDetails(productId: string): Promise<any> {
@@ -341,7 +383,9 @@ export class RealTimeAnalyticsService {
     return 'premium';
   }
 
-  private async persistUserPreferences(preferences: UserPreferenceVector): Promise<void> {
+  private async persistUserPreferences(
+    preferences: UserPreferenceVector,
+  ): Promise<void> {
     // Persist preferences to database
     this.logger.debug(`Persisting preferences for user ${preferences.userId}`);
   }
@@ -357,18 +401,26 @@ export class RealTimeAnalyticsService {
     const viewScore = Math.min(trending.views / 100, 1);
     const purchaseScore = Math.min(trending.purchases / 10, 1);
     const velocityScore = Math.min(trending.velocity, 1);
-    
-    return (viewScore * 0.4 + purchaseScore * 0.4 + velocityScore * 0.2);
+
+    return viewScore * 0.4 + purchaseScore * 0.4 + velocityScore * 0.2;
   }
 
-  private async triggerTrendingUpdate(productId: string, score: number): Promise<void> {
-    this.logger.log(`Triggering trending update for product ${productId} with score ${score}`);
+  private async triggerTrendingUpdate(
+    productId: string,
+    score: number,
+  ): Promise<void> {
+    this.logger.log(
+      `Triggering trending update for product ${productId} with score ${score}`,
+    );
     // Could trigger immediate trending recommendations update
   }
 
-  private async getRecentProductViews(productId: string, minutes: number): Promise<number> {
+  private async getRecentProductViews(
+    productId: string,
+    minutes: number,
+  ): Promise<number> {
     const timeThreshold = new Date(Date.now() - minutes * 60 * 1000);
-    
+
     const count = await this.prismaService.userActivity.count({
       where: {
         entityId: productId,
@@ -376,14 +428,14 @@ export class RealTimeAnalyticsService {
         createdAt: { gte: timeThreshold },
       },
     });
-    
+
     return count;
   }
 
   private async getAverageProductViews(productId: string): Promise<number> {
     // Calculate average views over the last 7 days
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    
+
     const count = await this.prismaService.userActivity.count({
       where: {
         entityId: productId,
@@ -391,7 +443,7 @@ export class RealTimeAnalyticsService {
         createdAt: { gte: sevenDaysAgo },
       },
     });
-    
+
     return count / 7; // Daily average
   }
 
@@ -404,7 +456,7 @@ export class RealTimeAnalyticsService {
         createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
     });
-    
+
     const recentPurchases = await this.prismaService.userActivity.count({
       where: {
         userId,
@@ -412,14 +464,16 @@ export class RealTimeAnalyticsService {
         createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
     });
-    
+
     if (recentCartAdds === 0) return 0;
     return Math.max(0, 1 - recentPurchases / recentCartAdds);
   }
 
   private async processAnomaly(anomaly: AnomalyDetection): Promise<void> {
-    this.logger.warn(`Anomaly detected: ${anomaly.type} - ${anomaly.description}`);
-    
+    this.logger.warn(
+      `Anomaly detected: ${anomaly.type} - ${anomaly.description}`,
+    );
+
     // Could trigger alerts, special promotions, or inventory checks
     if (anomaly.severity === 'high') {
       // Send alert to admin
@@ -427,17 +481,29 @@ export class RealTimeAnalyticsService {
     }
   }
 
-  private async updateUserEngagementScore(userId: string, activityType: UserActivityType): Promise<void> {
+  private async updateUserEngagementScore(
+    userId: string,
+    activityType: UserActivityType,
+  ): Promise<void> {
     // Update user engagement metrics
-    this.logger.debug(`Updating engagement score for user ${userId} - ${activityType}`);
+    this.logger.debug(
+      `Updating engagement score for user ${userId} - ${activityType}`,
+    );
   }
 
-  private async updateSessionPreferences(activity: UserActivity): Promise<void> {
+  private async updateSessionPreferences(
+    activity: UserActivity,
+  ): Promise<void> {
     // Update session-based preference learning
-    this.logger.debug(`Updating session preferences for session ${activity.sessionId}`);
+    this.logger.debug(
+      `Updating session preferences for session ${activity.sessionId}`,
+    );
   }
 
-  private async updateRecommendationWeights(userId: string, activity: UserActivity): Promise<void> {
+  private async updateRecommendationWeights(
+    userId: string,
+    activity: UserActivity,
+  ): Promise<void> {
     // Update recommendation algorithm weights based on user behavior
     this.logger.debug(`Updating recommendation weights for user ${userId}`);
   }
@@ -449,8 +515,13 @@ export class RealTimeAnalyticsService {
   /**
    * Get real-time user preferences
    */
-  async getUserPreferences(userId: string): Promise<UserPreferenceVector | null> {
-    return this.userPreferenceCache.get(userId) || await this.loadUserPreferences(userId);
+  async getUserPreferences(
+    userId: string,
+  ): Promise<UserPreferenceVector | null> {
+    return (
+      this.userPreferenceCache.get(userId) ||
+      (await this.loadUserPreferences(userId))
+    );
   }
 
   /**
@@ -460,7 +531,7 @@ export class RealTimeAnalyticsService {
     const trending = Array.from(this.trendingCache.values())
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
-    
+
     return trending;
   }
 
@@ -482,4 +553,4 @@ export class RealTimeAnalyticsService {
       lastUpdate: new Date(),
     };
   }
-} 
+}

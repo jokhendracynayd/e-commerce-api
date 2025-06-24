@@ -6,10 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { Prisma, RecommendationType } from '@prisma/client';
-import {
-  RecommendationQueryDto,
-  RecommendationResponseDto,
-} from './dto';
+import { RecommendationQueryDto, RecommendationResponseDto } from './dto';
 import { AppLogger } from '../../common/services/logger.service';
 
 @Injectable()
@@ -122,14 +119,103 @@ export class RecommendationsService {
 
       // For authenticated users, get existing personalized recommendations
       if (userId) {
-        const existingRecommendations = await this.prismaService.productRecommendation.findMany({
+        const existingRecommendations =
+          await this.prismaService.productRecommendation.findMany({
+            where: {
+              userId,
+              recommendationType: RecommendationType.PERSONALIZED,
+              OR: [{ expiresAt: { gt: new Date() } }, { expiresAt: null }],
+            },
+            orderBy: { score: 'desc' },
+            take: limit,
+            include: includeProduct
+              ? {
+                  recommendedProduct: {
+                    select: {
+                      id: true,
+                      title: true,
+                      slug: true,
+                      price: true,
+                      discountPrice: true,
+                      averageRating: true,
+                      reviewCount: true,
+                      images: {
+                        select: {
+                          imageUrl: true,
+                          altText: true,
+                        },
+                        orderBy: { position: 'asc' },
+                        take: 1,
+                      },
+                      brand: {
+                        select: {
+                          id: true,
+                          name: true,
+                          logo: true,
+                        },
+                      },
+                      category: {
+                        select: {
+                          id: true,
+                          name: true,
+                        },
+                      },
+                    },
+                  },
+                }
+              : undefined,
+          });
+
+        if (existingRecommendations.length > 0) {
+          return this.mapToRecommendationResponse(
+            existingRecommendations,
+            includeProduct,
+          );
+        }
+      }
+
+      // Fallback to trending products for new users or when no personalized recommendations exist
+      this.logger.log(
+        `No personalized recommendations found for user ${userId || sessionId}, falling back to trending`,
+      );
+      return this.getTrendingProducts(undefined, limit, includeProduct);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(
+        `Error getting personalized recommendations: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Failed to get personalized recommendations',
+      );
+    }
+  }
+
+  async getSimilarProducts(
+    productId: string,
+    limit = 10,
+    includeProduct = true,
+  ): Promise<RecommendationResponseDto[]> {
+    try {
+      // First check if product exists
+      const product = await this.prismaService.product.findUnique({
+        where: { id: productId },
+        select: { id: true, categoryId: true, brandId: true },
+      });
+
+      if (!product) {
+        throw new NotFoundException(`Product with ID ${productId} not found`);
+      }
+
+      // Get existing similar product recommendations
+      const existingRecommendations =
+        await this.prismaService.productRecommendation.findMany({
           where: {
-            userId,
-            recommendationType: RecommendationType.PERSONALIZED,
-            OR: [
-              { expiresAt: { gt: new Date() } },
-              { expiresAt: null },
-            ],
+            productId,
+            recommendationType: RecommendationType.SIMILAR_PRODUCTS,
+            OR: [{ expiresAt: { gt: new Date() } }, { expiresAt: null }],
           },
           orderBy: { score: 'desc' },
           take: limit,
@@ -171,98 +257,11 @@ export class RecommendationsService {
             : undefined,
         });
 
-        if (existingRecommendations.length > 0) {
-          return this.mapToRecommendationResponse(existingRecommendations, includeProduct);
-        }
-      }
-
-      // Fallback to trending products for new users or when no personalized recommendations exist
-      this.logger.log(
-        `No personalized recommendations found for user ${userId || sessionId}, falling back to trending`,
-      );
-      return this.getTrendingProducts(undefined, limit, includeProduct);
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      this.logger.error(
-        `Error getting personalized recommendations: ${error.message}`,
-        error.stack,
-      );
-      throw new InternalServerErrorException(
-        'Failed to get personalized recommendations',
-      );
-    }
-  }
-
-  async getSimilarProducts(
-    productId: string,
-    limit = 10,
-    includeProduct = true,
-  ): Promise<RecommendationResponseDto[]> {
-    try {
-      // First check if product exists
-      const product = await this.prismaService.product.findUnique({
-        where: { id: productId },
-        select: { id: true, categoryId: true, brandId: true },
-      });
-
-      if (!product) {
-        throw new NotFoundException(`Product with ID ${productId} not found`);
-      }
-
-      // Get existing similar product recommendations
-      const existingRecommendations = await this.prismaService.productRecommendation.findMany({
-        where: {
-          productId,
-          recommendationType: RecommendationType.SIMILAR_PRODUCTS,
-          OR: [
-            { expiresAt: { gt: new Date() } },
-            { expiresAt: null },
-          ],
-        },
-        orderBy: { score: 'desc' },
-        take: limit,
-        include: includeProduct
-          ? {
-              recommendedProduct: {
-                select: {
-                  id: true,
-                  title: true,
-                  slug: true,
-                  price: true,
-                  discountPrice: true,
-                  averageRating: true,
-                  reviewCount: true,
-                  images: {
-                    select: {
-                      imageUrl: true,
-                      altText: true,
-                    },
-                    orderBy: { position: 'asc' },
-                    take: 1,
-                  },
-                  brand: {
-                    select: {
-                      id: true,
-                      name: true,
-                      logo: true,
-                    },
-                  },
-                  category: {
-                    select: {
-                      id: true,
-                      name: true,
-                    },
-                  },
-                },
-              },
-            }
-          : undefined,
-      });
-
       if (existingRecommendations.length > 0) {
-        return this.mapToRecommendationResponse(existingRecommendations, includeProduct);
+        return this.mapToRecommendationResponse(
+          existingRecommendations,
+          includeProduct,
+        );
       }
 
       // Fallback: generate similar products based on category and brand
@@ -280,10 +279,7 @@ export class RecommendationsService {
             },
           ],
         },
-        orderBy: [
-          { averageRating: 'desc' },
-          { reviewCount: 'desc' },
-        ],
+        orderBy: [{ averageRating: 'desc' }, { reviewCount: 'desc' }],
         take: limit,
         include: includeProduct
           ? {
@@ -320,7 +316,7 @@ export class RecommendationsService {
         productId,
         recommendedProductId: prod.id,
         recommendationType: RecommendationType.SIMILAR_PRODUCTS,
-        score: 0.8 - (index * 0.05), // Decreasing score based on position
+        score: 0.8 - index * 0.05, // Decreasing score based on position
         position: index + 1,
         algorithmVersion: 'fallback-v1.0',
         metadata: {
@@ -333,21 +329,28 @@ export class RecommendationsService {
         expiresAt: undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
-        recommendedProduct: includeProduct ? {
-          id: prod.id,
-          title: prod.title,
-          slug: prod.slug,
-          price: Number(prod.price),
-          discountPrice: prod.discountPrice ? Number(prod.discountPrice) : undefined,
-          averageRating: prod.averageRating,
-          reviewCount: prod.reviewCount,
-          images: (prod as any).images || [],
-          brand: (prod as any).brand || undefined,
-          category: (prod as any).category || undefined,
-        } : undefined,
+        recommendedProduct: includeProduct
+          ? {
+              id: prod.id,
+              title: prod.title,
+              slug: prod.slug,
+              price: Number(prod.price),
+              discountPrice: prod.discountPrice
+                ? Number(prod.discountPrice)
+                : undefined,
+              averageRating: prod.averageRating,
+              reviewCount: prod.reviewCount,
+              images: (prod as any).images || [],
+              brand: (prod as any).brand || undefined,
+              category: (prod as any).category || undefined,
+            }
+          : undefined,
       }));
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       this.logger.error(
@@ -375,57 +378,58 @@ export class RecommendationsService {
       }
 
       // Get existing frequently bought together recommendations
-      const existingRecommendations = await this.prismaService.productRecommendation.findMany({
-        where: {
-          productId,
-          recommendationType: RecommendationType.FREQUENTLY_BOUGHT_TOGETHER,
-          OR: [
-            { expiresAt: { gt: new Date() } },
-            { expiresAt: null },
-          ],
-        },
-        orderBy: { score: 'desc' },
-        take: limit,
-        include: includeProduct
-          ? {
-              recommendedProduct: {
-                select: {
-                  id: true,
-                  title: true,
-                  slug: true,
-                  price: true,
-                  discountPrice: true,
-                  averageRating: true,
-                  reviewCount: true,
-                  images: {
-                    select: {
-                      imageUrl: true,
-                      altText: true,
+      const existingRecommendations =
+        await this.prismaService.productRecommendation.findMany({
+          where: {
+            productId,
+            recommendationType: RecommendationType.FREQUENTLY_BOUGHT_TOGETHER,
+            OR: [{ expiresAt: { gt: new Date() } }, { expiresAt: null }],
+          },
+          orderBy: { score: 'desc' },
+          take: limit,
+          include: includeProduct
+            ? {
+                recommendedProduct: {
+                  select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    price: true,
+                    discountPrice: true,
+                    averageRating: true,
+                    reviewCount: true,
+                    images: {
+                      select: {
+                        imageUrl: true,
+                        altText: true,
+                      },
+                      orderBy: { position: 'asc' },
+                      take: 1,
                     },
-                    orderBy: { position: 'asc' },
-                    take: 1,
-                  },
-                  brand: {
-                    select: {
-                      id: true,
-                      name: true,
-                      logo: true,
+                    brand: {
+                      select: {
+                        id: true,
+                        name: true,
+                        logo: true,
+                      },
                     },
-                  },
-                  category: {
-                    select: {
-                      id: true,
-                      name: true,
+                    category: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
                     },
                   },
                 },
-              },
-            }
-          : undefined,
-      });
+              }
+            : undefined,
+        });
 
       if (existingRecommendations.length > 0) {
-        return this.mapToRecommendationResponse(existingRecommendations, includeProduct);
+        return this.mapToRecommendationResponse(
+          existingRecommendations,
+          includeProduct,
+        );
       }
 
       // Fallback: analyze order history to find frequently bought together items
@@ -451,11 +455,11 @@ export class RecommendationsService {
         LIMIT $2
       `;
 
-      const frequentItems = await this.prismaService.$queryRawUnsafe(
+      const frequentItems = (await this.prismaService.$queryRawUnsafe(
         coOccurrenceQuery,
         productId,
         limit,
-      ) as any[];
+      )) as any[];
 
       if (frequentItems.length === 0) {
         // Fallback to similar products if no frequently bought together items found
@@ -463,7 +467,9 @@ export class RecommendationsService {
       }
 
       // Get product details for frequently bought together items
-      const productIds = frequentItems.map(item => item.recommended_product_id);
+      const productIds = frequentItems.map(
+        (item) => item.recommended_product_id,
+      );
       const products = await this.prismaService.product.findMany({
         where: {
           id: { in: productIds },
@@ -498,47 +504,58 @@ export class RecommendationsService {
       });
 
       // Create recommendation responses with frequency-based scoring
-      return frequentItems.map((item, index) => {
-        const prod = products.find(p => p.id === item.recommended_product_id);
-        if (!prod) return null;
+      return frequentItems
+        .map((item, index) => {
+          const prod = products.find(
+            (p) => p.id === item.recommended_product_id,
+          );
+          if (!prod) return null;
 
-        return {
-          id: `temp-${prod.id}`,
-          userId: undefined,
-          sessionId: undefined,
-          productId,
-          recommendedProductId: prod.id,
-          recommendationType: RecommendationType.FREQUENTLY_BOUGHT_TOGETHER,
-          score: Math.min(Number(item.confidence), 1.0),
-          position: index + 1,
-          algorithmVersion: 'market-basket-v1.0',
-          metadata: {
-            frequency: Number(item.frequency),
-            confidence: Number(item.confidence),
-            algorithm: 'market_basket_analysis',
-          },
-          viewed: false,
-          clicked: false,
-          converted: false,
-          expiresAt: undefined,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          recommendedProduct: includeProduct ? {
-            id: prod.id,
-            title: prod.title,
-            slug: prod.slug,
-            price: Number(prod.price),
-            discountPrice: prod.discountPrice ? Number(prod.discountPrice) : undefined,
-            averageRating: prod.averageRating,
-            reviewCount: prod.reviewCount,
-            images: (prod as any).images || [],
-            brand: (prod as any).brand || undefined,
-            category: (prod as any).category || undefined,
-          } : undefined,
-        };
-      }).filter(Boolean) as RecommendationResponseDto[];
+          return {
+            id: `temp-${prod.id}`,
+            userId: undefined,
+            sessionId: undefined,
+            productId,
+            recommendedProductId: prod.id,
+            recommendationType: RecommendationType.FREQUENTLY_BOUGHT_TOGETHER,
+            score: Math.min(Number(item.confidence), 1.0),
+            position: index + 1,
+            algorithmVersion: 'market-basket-v1.0',
+            metadata: {
+              frequency: Number(item.frequency),
+              confidence: Number(item.confidence),
+              algorithm: 'market_basket_analysis',
+            },
+            viewed: false,
+            clicked: false,
+            converted: false,
+            expiresAt: undefined,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            recommendedProduct: includeProduct
+              ? {
+                  id: prod.id,
+                  title: prod.title,
+                  slug: prod.slug,
+                  price: Number(prod.price),
+                  discountPrice: prod.discountPrice
+                    ? Number(prod.discountPrice)
+                    : undefined,
+                  averageRating: prod.averageRating,
+                  reviewCount: prod.reviewCount,
+                  images: (prod as any).images || [],
+                  brand: (prod as any).brand || undefined,
+                  category: (prod as any).category || undefined,
+                }
+              : undefined,
+          };
+        })
+        .filter(Boolean) as RecommendationResponseDto[];
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       this.logger.error(
@@ -581,12 +598,12 @@ export class RecommendationsService {
         LIMIT $2
       `;
 
-      const trendingItems = await this.prismaService.$queryRawUnsafe(
+      const trendingItems = (await this.prismaService.$queryRawUnsafe(
         trendingQuery,
         sevenDaysAgo,
         limit,
         ...(categoryId ? [categoryId] : []),
-      ) as any[];
+      )) as any[];
 
       if (trendingItems.length === 0) {
         // Fallback to best-selling products if no trending data
@@ -594,7 +611,7 @@ export class RecommendationsService {
       }
 
       // Get product details
-      const productIds = trendingItems.map(item => item.product_id);
+      const productIds = trendingItems.map((item) => item.product_id);
       const products = await this.prismaService.product.findMany({
         where: {
           id: { in: productIds },
@@ -629,46 +646,52 @@ export class RecommendationsService {
       });
 
       // Create recommendation responses with trending scores
-      return trendingItems.map((item, index) => {
-        const prod = products.find(p => p.id === item.product_id);
-        if (!prod) return null;
+      return trendingItems
+        .map((item, index) => {
+          const prod = products.find((p) => p.id === item.product_id);
+          if (!prod) return null;
 
-        return {
-          id: `temp-${prod.id}`,
-          userId: undefined,
-          sessionId: undefined,
-          productId: undefined,
-          recommendedProductId: prod.id,
-          recommendationType: RecommendationType.TRENDING,
-          score: Math.min(Number(item.velocity) / 10, 1.0), // Normalize velocity
-          position: index + 1,
-          algorithmVersion: 'velocity-v1.0',
-          metadata: {
-            activity_count: Number(item.activity_count),
-            unique_users: Number(item.unique_users),
-            velocity: Number(item.velocity),
-            algorithm: 'velocity_based_trending',
-          },
-          viewed: false,
-          clicked: false,
-          converted: false,
-          expiresAt: undefined,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          recommendedProduct: includeProduct ? {
-            id: prod.id,
-            title: prod.title,
-            slug: prod.slug,
-            price: Number(prod.price),
-            discountPrice: prod.discountPrice ? Number(prod.discountPrice) : undefined,
-            averageRating: prod.averageRating,
-            reviewCount: prod.reviewCount,
-            images: (prod as any).images || [],
-            brand: (prod as any).brand || undefined,
-            category: (prod as any).category || undefined,
-          } : undefined,
-        };
-      }).filter(Boolean) as RecommendationResponseDto[];
+          return {
+            id: `temp-${prod.id}`,
+            userId: undefined,
+            sessionId: undefined,
+            productId: undefined,
+            recommendedProductId: prod.id,
+            recommendationType: RecommendationType.TRENDING,
+            score: Math.min(Number(item.velocity) / 10, 1.0), // Normalize velocity
+            position: index + 1,
+            algorithmVersion: 'velocity-v1.0',
+            metadata: {
+              activity_count: Number(item.activity_count),
+              unique_users: Number(item.unique_users),
+              velocity: Number(item.velocity),
+              algorithm: 'velocity_based_trending',
+            },
+            viewed: false,
+            clicked: false,
+            converted: false,
+            expiresAt: undefined,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            recommendedProduct: includeProduct
+              ? {
+                  id: prod.id,
+                  title: prod.title,
+                  slug: prod.slug,
+                  price: Number(prod.price),
+                  discountPrice: prod.discountPrice
+                    ? Number(prod.discountPrice)
+                    : undefined,
+                  averageRating: prod.averageRating,
+                  reviewCount: prod.reviewCount,
+                  images: (prod as any).images || [],
+                  brand: (prod as any).brand || undefined,
+                  category: (prod as any).category || undefined,
+                }
+              : undefined,
+          };
+        })
+        .filter(Boolean) as RecommendationResponseDto[];
     } catch (error) {
       this.logger.error(
         `Error getting trending products: ${error.message}`,
@@ -695,56 +718,62 @@ export class RecommendationsService {
         ? { userId }
         : { sessionId };
 
-      const browsingHistory = await this.prismaService.browsingHistory.findMany({
-        where: whereClause,
-        orderBy: { lastViewedAt: 'desc' },
-        take: limit,
-        include: includeProduct
-          ? {
-              product: {
-                select: {
-                  id: true,
-                  title: true,
-                  slug: true,
-                  price: true,
-                  discountPrice: true,
-                  averageRating: true,
-                  reviewCount: true,
-                  visibility: true,
-                  isActive: true,
-                  images: {
-                    select: {
-                      imageUrl: true,
-                      altText: true,
+      const browsingHistory = await this.prismaService.browsingHistory.findMany(
+        {
+          where: whereClause,
+          orderBy: { lastViewedAt: 'desc' },
+          take: limit,
+          include: includeProduct
+            ? {
+                product: {
+                  select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    price: true,
+                    discountPrice: true,
+                    averageRating: true,
+                    reviewCount: true,
+                    visibility: true,
+                    isActive: true,
+                    images: {
+                      select: {
+                        imageUrl: true,
+                        altText: true,
+                      },
+                      orderBy: { position: 'asc' },
+                      take: 1,
                     },
-                    orderBy: { position: 'asc' },
-                    take: 1,
-                  },
-                  brand: {
-                    select: {
-                      id: true,
-                      name: true,
-                      logo: true,
+                    brand: {
+                      select: {
+                        id: true,
+                        name: true,
+                        logo: true,
+                      },
                     },
-                  },
-                  category: {
-                    select: {
-                      id: true,
-                      name: true,
+                    category: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
                     },
                   },
                 },
-              },
-            }
-          : undefined,
-      });
+              }
+            : undefined,
+        },
+      );
 
       // Filter out inactive/private products and convert to recommendation format
       return browsingHistory
-        .filter(item => {
+        .filter((item) => {
           if (!includeProduct) return true;
           const product = (item as any).product;
-          return product && product.visibility === 'PUBLIC' && product.isActive === true;
+          return (
+            product &&
+            product.visibility === 'PUBLIC' &&
+            product.isActive === true
+          );
         })
         .map((item, index) => ({
           id: `temp-${item.productId}`,
@@ -753,7 +782,7 @@ export class RecommendationsService {
           productId: undefined,
           recommendedProductId: item.productId,
           recommendationType: RecommendationType.RECENTLY_VIEWED,
-          score: 1.0 - (index * 0.05), // Decreasing score based on recency
+          score: 1.0 - index * 0.05, // Decreasing score based on recency
           position: index + 1,
           algorithmVersion: 'recency-v1.0',
           metadata: {
@@ -768,18 +797,22 @@ export class RecommendationsService {
           expiresAt: undefined,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
-          recommendedProduct: includeProduct ? {
-            id: (item as any).product.id,
-            title: (item as any).product.title,
-            slug: (item as any).product.slug,
-            price: Number((item as any).product.price),
-            discountPrice: (item as any).product.discountPrice ? Number((item as any).product.discountPrice) : undefined,
-            averageRating: (item as any).product.averageRating,
-            reviewCount: (item as any).product.reviewCount,
-            images: (item as any).product.images || [],
-            brand: (item as any).product.brand || undefined,
-            category: (item as any).product.category || undefined,
-          } : undefined,
+          recommendedProduct: includeProduct
+            ? {
+                id: (item as any).product.id,
+                title: (item as any).product.title,
+                slug: (item as any).product.slug,
+                price: Number((item as any).product.price),
+                discountPrice: (item as any).product.discountPrice
+                  ? Number((item as any).product.discountPrice)
+                  : undefined,
+                averageRating: (item as any).product.averageRating,
+                reviewCount: (item as any).product.reviewCount,
+                images: (item as any).product.images || [],
+                brand: (item as any).product.brand || undefined,
+                category: (item as any).product.category || undefined,
+              }
+            : undefined,
         }));
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -809,10 +842,7 @@ export class RecommendationsService {
           reviewCount: { gte: 5 },
           ...(categoryId && { categoryId }),
         },
-        orderBy: [
-          { averageRating: 'desc' },
-          { reviewCount: 'desc' },
-        ],
+        orderBy: [{ averageRating: 'desc' }, { reviewCount: 'desc' }],
         take: limit,
         include: includeProduct
           ? {
@@ -862,25 +892,31 @@ export class RecommendationsService {
         expiresAt: undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
-        recommendedProduct: includeProduct ? {
-          id: prod.id,
-          title: prod.title,
-          slug: prod.slug,
-          price: Number(prod.price),
-          discountPrice: prod.discountPrice ? Number(prod.discountPrice) : undefined,
-          averageRating: prod.averageRating,
-          reviewCount: prod.reviewCount,
-          images: (prod as any).images || [],
-          brand: (prod as any).brand || undefined,
-          category: (prod as any).category || undefined,
-        } : undefined,
+        recommendedProduct: includeProduct
+          ? {
+              id: prod.id,
+              title: prod.title,
+              slug: prod.slug,
+              price: Number(prod.price),
+              discountPrice: prod.discountPrice
+                ? Number(prod.discountPrice)
+                : undefined,
+              averageRating: prod.averageRating,
+              reviewCount: prod.reviewCount,
+              images: (prod as any).images || [],
+              brand: (prod as any).brand || undefined,
+              category: (prod as any).category || undefined,
+            }
+          : undefined,
       }));
     } catch (error) {
       this.logger.error(
         `Error getting top rated products: ${error.message}`,
         error.stack,
       );
-      throw new InternalServerErrorException('Failed to get top rated products');
+      throw new InternalServerErrorException(
+        'Failed to get top rated products',
+      );
     }
   }
 
@@ -914,12 +950,12 @@ export class RecommendationsService {
         LIMIT $2
       `;
 
-      const bestsellerItems = await this.prismaService.$queryRawUnsafe(
+      const bestsellerItems = (await this.prismaService.$queryRawUnsafe(
         bestsellerQuery,
         thirtyDaysAgo,
         limit,
         ...(categoryId ? [categoryId] : []),
-      ) as any[];
+      )) as any[];
 
       if (bestsellerItems.length === 0) {
         // Fallback to top-rated products if no sales data
@@ -927,7 +963,7 @@ export class RecommendationsService {
       }
 
       // Get product details
-      const productIds = bestsellerItems.map(item => item.product_id);
+      const productIds = bestsellerItems.map((item) => item.product_id);
       const products = await this.prismaService.product.findMany({
         where: {
           id: { in: productIds },
@@ -962,54 +998,64 @@ export class RecommendationsService {
       });
 
       // Calculate max sales for normalization
-      const maxSales = Math.max(...bestsellerItems.map(item => Number(item.total_sold)));
+      const maxSales = Math.max(
+        ...bestsellerItems.map((item) => Number(item.total_sold)),
+      );
 
-      return bestsellerItems.map((item, index) => {
-        const prod = products.find(p => p.id === item.product_id);
-        if (!prod) return null;
+      return bestsellerItems
+        .map((item, index) => {
+          const prod = products.find((p) => p.id === item.product_id);
+          if (!prod) return null;
 
-        return {
-          id: `temp-${prod.id}`,
-          userId: undefined,
-          sessionId: undefined,
-          productId: undefined,
-          recommendedProductId: prod.id,
-          recommendationType: RecommendationType.BESTSELLERS,
-          score: Number(item.total_sold) / maxSales, // Normalize sales
-          position: index + 1,
-          algorithmVersion: 'sales-v1.0',
-          metadata: {
-            total_sold: Number(item.total_sold),
-            order_count: Number(item.order_count),
-            total_revenue: Number(item.total_revenue),
-            algorithm: 'sales_based',
-          },
-          viewed: false,
-          clicked: false,
-          converted: false,
-          expiresAt: undefined,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          recommendedProduct: includeProduct ? {
-            id: prod.id,
-            title: prod.title,
-            slug: prod.slug,
-            price: Number(prod.price),
-            discountPrice: prod.discountPrice ? Number(prod.discountPrice) : undefined,
-            averageRating: prod.averageRating,
-            reviewCount: prod.reviewCount,
-            images: (prod as any).images || [],
-            brand: (prod as any).brand || undefined,
-            category: (prod as any).category || undefined,
-          } : undefined,
-        };
-      }).filter(Boolean) as RecommendationResponseDto[];
+          return {
+            id: `temp-${prod.id}`,
+            userId: undefined,
+            sessionId: undefined,
+            productId: undefined,
+            recommendedProductId: prod.id,
+            recommendationType: RecommendationType.BESTSELLERS,
+            score: Number(item.total_sold) / maxSales, // Normalize sales
+            position: index + 1,
+            algorithmVersion: 'sales-v1.0',
+            metadata: {
+              total_sold: Number(item.total_sold),
+              order_count: Number(item.order_count),
+              total_revenue: Number(item.total_revenue),
+              algorithm: 'sales_based',
+            },
+            viewed: false,
+            clicked: false,
+            converted: false,
+            expiresAt: undefined,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            recommendedProduct: includeProduct
+              ? {
+                  id: prod.id,
+                  title: prod.title,
+                  slug: prod.slug,
+                  price: Number(prod.price),
+                  discountPrice: prod.discountPrice
+                    ? Number(prod.discountPrice)
+                    : undefined,
+                  averageRating: prod.averageRating,
+                  reviewCount: prod.reviewCount,
+                  images: (prod as any).images || [],
+                  brand: (prod as any).brand || undefined,
+                  category: (prod as any).category || undefined,
+                }
+              : undefined,
+          };
+        })
+        .filter(Boolean) as RecommendationResponseDto[];
     } catch (error) {
       this.logger.error(
         `Error getting bestseller products: ${error.message}`,
         error.stack,
       );
-      throw new InternalServerErrorException('Failed to get bestseller products');
+      throw new InternalServerErrorException(
+        'Failed to get bestseller products',
+      );
     }
   }
 
@@ -1061,7 +1107,7 @@ export class RecommendationsService {
         productId: undefined,
         recommendedProductId: prod.id,
         recommendationType: RecommendationType.NEW_ARRIVALS,
-        score: 1.0 - (index * 0.05), // Decreasing score based on creation date
+        score: 1.0 - index * 0.05, // Decreasing score based on creation date
         position: index + 1,
         algorithmVersion: 'newness-v1.0',
         metadata: {
@@ -1074,18 +1120,22 @@ export class RecommendationsService {
         expiresAt: undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
-        recommendedProduct: includeProduct ? {
-          id: prod.id,
-          title: prod.title,
-          slug: prod.slug,
-          price: Number(prod.price),
-          discountPrice: prod.discountPrice ? Number(prod.discountPrice) : undefined,
-          averageRating: prod.averageRating,
-          reviewCount: prod.reviewCount,
-          images: (prod as any).images || [],
-          brand: (prod as any).brand || undefined,
-          category: (prod as any).category || undefined,
-        } : undefined,
+        recommendedProduct: includeProduct
+          ? {
+              id: prod.id,
+              title: prod.title,
+              slug: prod.slug,
+              price: Number(prod.price),
+              discountPrice: prod.discountPrice
+                ? Number(prod.discountPrice)
+                : undefined,
+              averageRating: prod.averageRating,
+              reviewCount: prod.reviewCount,
+              images: (prod as any).images || [],
+              brand: (prod as any).brand || undefined,
+              category: (prod as any).category || undefined,
+            }
+          : undefined,
       }));
     } catch (error) {
       this.logger.error(
@@ -1100,28 +1150,36 @@ export class RecommendationsService {
     recommendations: any[],
     includeProduct: boolean,
   ): RecommendationResponseDto[] {
-    return recommendations.map(rec => ({
+    return recommendations.map((rec) => ({
       ...rec,
       userId: rec.userId || undefined,
       sessionId: rec.sessionId || undefined,
       productId: rec.productId || undefined,
       algorithmVersion: rec.algorithmVersion || undefined,
-      metadata: rec.metadata && typeof rec.metadata === 'object' && rec.metadata !== null
-        ? rec.metadata as Record<string, any>
-        : undefined,
+      metadata:
+        rec.metadata &&
+        typeof rec.metadata === 'object' &&
+        rec.metadata !== null
+          ? (rec.metadata as Record<string, any>)
+          : undefined,
       expiresAt: rec.expiresAt || undefined,
-      recommendedProduct: includeProduct && rec.recommendedProduct ? {
-        id: rec.recommendedProduct.id,
-        title: rec.recommendedProduct.title,
-        slug: rec.recommendedProduct.slug,
-        price: Number(rec.recommendedProduct.price),
-        discountPrice: rec.recommendedProduct.discountPrice ? Number(rec.recommendedProduct.discountPrice) : undefined,
-        averageRating: rec.recommendedProduct.averageRating,
-        reviewCount: rec.recommendedProduct.reviewCount,
-        images: rec.recommendedProduct.images || [],
-        brand: rec.recommendedProduct.brand || undefined,
-        category: rec.recommendedProduct.category || undefined,
-      } : undefined,
+      recommendedProduct:
+        includeProduct && rec.recommendedProduct
+          ? {
+              id: rec.recommendedProduct.id,
+              title: rec.recommendedProduct.title,
+              slug: rec.recommendedProduct.slug,
+              price: Number(rec.recommendedProduct.price),
+              discountPrice: rec.recommendedProduct.discountPrice
+                ? Number(rec.recommendedProduct.discountPrice)
+                : undefined,
+              averageRating: rec.recommendedProduct.averageRating,
+              reviewCount: rec.recommendedProduct.reviewCount,
+              images: rec.recommendedProduct.images || [],
+              brand: rec.recommendedProduct.brand || undefined,
+              category: rec.recommendedProduct.category || undefined,
+            }
+          : undefined,
     }));
   }
-} 
+}

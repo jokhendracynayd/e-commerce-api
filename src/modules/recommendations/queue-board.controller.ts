@@ -11,21 +11,24 @@ export class QueueBoardController {
   private serverAdapter: ExpressAdapter;
 
   constructor(
-    @InjectQueue('recommendation-jobs') private readonly recommendationQueue: Queue,
+    @InjectQueue('recommendation-jobs')
+    private readonly recommendationQueue: Queue,
   ) {
     this.serverAdapter = new ExpressAdapter();
     this.serverAdapter.setBasePath('/admin/queue');
 
     createBullBoard({
-      queues: [
-        new BullAdapter(this.recommendationQueue),
-      ],
+      queues: [new BullAdapter(this.recommendationQueue)],
       serverAdapter: this.serverAdapter,
     });
   }
 
   @Get('*')
-  getBoard(@Req() req: Request, @Res() res: Response, @Next() next: NextFunction): void {
+  getBoard(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Next() next: NextFunction,
+  ): void {
     this.serverAdapter.getRouter()(req, res, next);
   }
-} 
+}
