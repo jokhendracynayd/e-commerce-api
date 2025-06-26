@@ -151,18 +151,18 @@ export class SuggestionService {
     try {
       const searchParams = {
         index: 'products',
-        suggest: {
-          product_suggest: {
-            prefix: query.q,
-            completion: {
-              field: 'suggest',
-              size: query.limit,
-              skip_duplicates: true,
-              fuzzy: query.fuzzy ? {
-                fuzziness: query.fuzziness,
-                prefix_length: 1,
-                unicode_aware: true,
-              } : undefined,
+          suggest: {
+            product_suggest: {
+              prefix: query.q,
+              completion: {
+                field: 'suggest',
+                size: query.limit,
+                skip_duplicates: true,
+                fuzzy: query.fuzzy ? {
+                  fuzziness: query.fuzziness,
+                  prefix_length: 1,
+                  unicode_aware: true,
+                } : undefined,
             },
           },
         },
@@ -215,17 +215,17 @@ export class SuggestionService {
     try {
       const searchParams = {
         index: 'categories',
-        suggest: {
-          category_suggest: {
-            prefix: query.q,
-            completion: {
-              field: 'suggest',
-              size: query.limit,
-              skip_duplicates: true,
-              fuzzy: query.fuzzy ? {
-                fuzziness: query.fuzziness,
-                prefix_length: 1,
-              } : undefined,
+          suggest: {
+            category_suggest: {
+              prefix: query.q,
+              completion: {
+                field: 'suggest',
+                size: query.limit,
+                skip_duplicates: true,
+                fuzzy: query.fuzzy ? {
+                  fuzziness: query.fuzziness,
+                  prefix_length: 1,
+                } : undefined,
             },
           },
         },
@@ -271,27 +271,27 @@ export class SuggestionService {
     try {
       const searchParams = {
         index: 'brands',
-        suggest: {
-          brand_suggest: {
-            prefix: query.q,
-            completion: {
-              field: 'suggest',
-              size: query.limit,
-              skip_duplicates: true,
-              fuzzy: query.fuzzy ? {
-                fuzziness: query.fuzziness,
-                prefix_length: 1,
-              } : undefined,
+          suggest: {
+            brand_suggest: {
+              prefix: query.q,
+              completion: {
+                field: 'suggest',
+                size: query.limit,
+                skip_duplicates: true,
+                fuzzy: query.fuzzy ? {
+                  fuzziness: query.fuzziness,
+                  prefix_length: 1,
+                } : undefined,
+              },
             },
           },
-        },
-        _source: [
-          'id',
-          'name',
-          'logo',
-          'product_count',
-          'is_featured',
-        ],
+          _source: [
+            'id',
+            'name',
+            'logo',
+            'product_count',
+            'is_featured',
+          ],
       };
 
       const response = await this.elasticsearchService.search(searchParams);
@@ -322,32 +322,32 @@ export class SuggestionService {
     try {
       const searchParams = {
         index: 'search_queries',
-        query: {
-          bool: {
-            should: [
-              {
-                prefix: {
-                  'query.keyword': {
-                    value: query.q,
-                    boost: 2.0,
+          query: {
+            bool: {
+              should: [
+                {
+                  prefix: {
+                    'query.keyword': {
+                      value: query.q,
+                      boost: 2.0,
+                    },
                   },
                 },
-              },
-              {
-                match: {
-                  query: query.q,
+                {
+                  match: {
+                      query: query.q,
+                  },
                 },
-              },
-            ],
-            minimum_should_match: 1,
+              ],
+              minimum_should_match: 1,
+            },
           },
-        },
-        sort: [
+          sort: [
           { frequency: 'desc' },
           { last_searched: 'desc' },
-        ],
-        size: query.limit,
-        _source: ['query', 'frequency', 'result_count', 'last_searched'],
+          ],
+          size: query.limit,
+          _source: ['query', 'frequency', 'result_count', 'last_searched'],
       };
 
       const response = await this.elasticsearchService.search(searchParams as any);
@@ -373,21 +373,21 @@ export class SuggestionService {
     try {
       const searchParams = {
         index: 'products',
-        suggest: {
-          spell_suggest: {
-            text: query.q,
-            term: {
-              field: 'title',
-              size: 3,
-              sort: 'frequency',
-              suggest_mode: 'popular',
-              min_word_length: 3,
-              prefix_length: 1,
-              min_doc_freq: 1,
+          suggest: {
+            spell_suggest: {
+              text: query.q,
+              term: {
+                field: 'title',
+                size: 3,
+                sort: 'frequency',
+                suggest_mode: 'popular',
+                min_word_length: 3,
+                prefix_length: 1,
+                min_doc_freq: 1,
+              },
             },
           },
-        },
-        size: 0, // We only want suggestions, not search results
+          size: 0, // We only want suggestions, not search results
       };
 
       const response = await this.elasticsearchService.search(searchParams as any);
@@ -440,24 +440,24 @@ export class SuggestionService {
     try {
       const searchParams = {
         index: 'products',
-        suggest: {
-          autocomplete: {
-            prefix: query.text,
-            completion: {
-              field: 'autocomplete',
-              size: query.size,
-              skip_duplicates: true,
-              fuzzy: {
-                fuzziness: 'AUTO',
-                prefix_length: 1,
+          suggest: {
+            autocomplete: {
+              prefix: query.text,
+              completion: {
+                field: 'autocomplete',
+                size: query.size,
+                skip_duplicates: true,
+                fuzzy: {
+                  fuzziness: 'AUTO',
+                  prefix_length: 1,
+                },
+                contexts: query.context_aware && query.category_context ? {
+                  category: [query.category_context],
+                } : undefined,
               },
-              contexts: query.context_aware && query.category_context ? {
-                category: [query.category_context],
-              } : undefined,
             },
           },
-        },
-        size: 0,
+          size: 0,
       };
 
       const response = await this.elasticsearchService.search(searchParams);
@@ -524,9 +524,9 @@ export class SuggestionService {
         source: 'suggestion_api',
       };
 
-      await this.elasticsearchService.index({
-        index: 'suggestion_analytics',
-        body: analyticsDoc,
+              await this.elasticsearchService.index({
+          index: 'suggestion_analytics',
+          body: analyticsDoc,
       });
 
     } catch (error) {

@@ -128,6 +128,18 @@ async function bootstrap() {
         '/inventory/availability/product',
         '/inventory/availability/variant',
         '/inventory/add',
+
+        // Analytics operations
+        '/analytics/',
+
+        // Deals operations
+        '/deals/',
+
+        // Uploads operations
+        '/uploads/',
+
+        // Tags operations
+        '/tags/',
       ];
 
       // Log the path being checked (for debugging)

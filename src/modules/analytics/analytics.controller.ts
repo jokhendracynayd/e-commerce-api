@@ -60,18 +60,42 @@ export class AnalyticsController {
     description: 'Session ID for anonymous users',
     required: false,
   })
+  @ApiHeader({
+    name: 'X-User-ID',
+    description: 'User ID when available',
+    required: false,
+  })
   async trackActivity(
     @Body() createActivityDto: CreateUserActivityDto,
     @Req() request: Request,
     @Headers('x-session-id') sessionIdHeader?: string,
+    @Headers('x-user-id') userIdHeader?: string,
   ): Promise<UserActivityResponseDto> {
-    const userId = (request as any).user?.id;
+    // Try to get userId from multiple sources in order of preference:
+    // 1. JWT authentication (most reliable)
+    // 2. X-User-ID header (fallback)
+    // 3. metadata userId (fallback)
+    let userId = (request as any).user?.id || userIdHeader || createActivityDto.metadata?.userId;
+    
     const ipAddress = request.ip || request.connection.remoteAddress;
     const userAgent = request.get('User-Agent');
 
     // Use session ID from header if provided, otherwise use from DTO
     const sessionId = sessionIdHeader || createActivityDto.sessionId;
     const activityDto = { ...createActivityDto, sessionId };
+
+    // Enhanced logging for debugging
+    console.log('Analytics Controller - trackActivity:', {
+      authUserId: (request as any).user?.id || 'null',
+      headerUserId: userIdHeader || 'null',
+      metadataUserId: createActivityDto.metadata?.userId || 'null',
+      finalUserId: userId || 'null',
+      entityId: createActivityDto.entityId || 'null',
+      entityType: createActivityDto.entityType || 'null',
+      activityType: createActivityDto.activityType,
+      hasAuthHeader: !!request.headers.authorization,
+      sessionId: sessionId
+    });
 
     return this.analyticsService.trackActivity(
       activityDto,
@@ -111,14 +135,44 @@ export class AnalyticsController {
     description: 'Session ID for anonymous users',
     required: false,
   })
+  @ApiHeader({
+    name: 'X-User-ID',
+    description: 'User ID when available',
+    required: false,
+  })
   async trackBatchActivities(
     @Body() createBatchDto: CreateBatchActivityDto,
     @Req() request: Request,
     @Headers('x-session-id') sessionIdHeader?: string,
+    @Headers('x-user-id') userIdHeader?: string,
   ): Promise<{ success: boolean; count: number; message: string }> {
-    const userId = (request as any).user?.id;
+    // Try to get userId from multiple sources in order of preference:
+    // 1. JWT authentication (most reliable)
+    // 2. X-User-ID header (fallback)
+    // 3. First activity's metadata userId (fallback)
+    let userId = (request as any).user?.id || userIdHeader;
+    
+    if (!userId && createBatchDto.activities.length > 0) {
+      const firstActivityUserId = createBatchDto.activities[0].metadata?.userId;
+      if (firstActivityUserId) {
+        userId = firstActivityUserId;
+      }
+    }
+    
     const ipAddress = request.ip || request.connection.remoteAddress;
     const userAgent = request.get('User-Agent');
+
+    // Enhanced logging for debugging
+    console.log('Analytics Controller - trackBatchActivities:', {
+      authUserId: (request as any).user?.id || 'null',
+      headerUserId: userIdHeader || 'null',
+      metadataUserId: createBatchDto.activities[0]?.metadata?.userId || 'null',
+      finalUserId: userId || 'null',
+      hasAuthHeader: !!request.headers.authorization,
+      activitiesCount: createBatchDto.activities.length,
+      sampleEntityId: createBatchDto.activities[0]?.entityId || 'null',
+      sampleEntityType: createBatchDto.activities[0]?.entityType || 'null'
+    });
 
     // Apply session ID to all activities if provided in header
     if (sessionIdHeader) {
