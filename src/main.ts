@@ -67,7 +67,7 @@ async function bootstrap() {
 
     // Configure CORS with credentials support
     const corsOrigin =
-      nodeEnv === 'production' ? 'https://yourdomain.com' : true;
+      nodeEnv === 'production' ? ['https://allmart.fashion', 'https://admin.allmart.fashion'] : true;
     app.enableCors({
       origin: corsOrigin,
       credentials: true,
@@ -120,7 +120,16 @@ async function bootstrap() {
         // Wishlist operations
         '/wishlist/',
 
+        // brand operations
+        '/brands',
+        '/brands/',
+
+        // Category operations
+        '/categories',
+        '/categories/',
+
         // Coupon operations
+        '/coupons',
         '/coupons/',
 
         // Inventory operations
@@ -139,7 +148,16 @@ async function bootstrap() {
         '/uploads/',
 
         // Tags operations
+        '/tags',
         '/tags/',
+
+        // User management operations
+        '/users',
+        '/users/',
+
+        // Specification operations
+        '/specifications',
+        '/specifications/',
       ];
 
       // Log the path being checked (for debugging)

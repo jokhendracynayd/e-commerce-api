@@ -25,14 +25,61 @@ import {
   ApiResponse,
   ApiParam,
 } from '@nestjs/swagger';
+import { IsOptional, IsString, Length, Matches } from 'class-validator';
 
 class UploadFileDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  @Matches(/^[a-zA-Z0-9_\/-]*$/, {
+    message: 'folder can only contain letters, numbers, dash, underscore, and slash',
+  })
+  folder?: string;
+}
+
+class UploadFromUrlDto {
+  @IsString()
+  @Length(1, 2048)
+  @Matches(/^https?:\/\/.*$/, {
+    message: 'url must be a valid HTTP or HTTPS URL',
+  })
+  url: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 128)
+  @Matches(/^[a-zA-Z0-9_.\-]+$/, {
+    message: 'fileName can only contain letters, numbers, dot, dash, and underscore',
+  })
+  fileName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  @Matches(/^[a-zA-Z0-9_\/-]*$/, {
+    message: 'folder can only contain letters, numbers, dash, underscore, and slash',
+  })
   folder?: string;
 }
 
 class PresignedUrlDto {
+  @IsString()
+  @Length(1, 128)
+  @Matches(/^[a-zA-Z0-9_.\-]+$/, {
+    message: 'fileName can only contain letters, numbers, dot, dash, and underscore',
+  })
   fileName: string;
+
+  @IsString()
+  @Length(3, 64)
   contentType: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  @Matches(/^[a-zA-Z0-9_\/-]*$/, {
+    message: 'folder can only contain letters, numbers, dash, underscore, and slash',
+  })
   folder?: string;
 }
 
@@ -148,6 +195,45 @@ export class UploadsController {
     return this.uploadsService.uploadMultipleFiles(
       files,
       uploadFileDto.folder || 'general',
+    );
+  }
+
+  @Post('from-url')
+  @ApiOperation({ summary: 'Upload a file from URL' })
+  @ApiBody({
+    type: UploadFromUrlDto,
+    description: 'URL and optional details for the file to upload',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'File uploaded from URL successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string' },
+        url: { type: 'string' },
+        originalName: { type: 'string' },
+        mimetype: { type: 'string' },
+        size: { type: 'number' },
+      },
+    },
+  })
+  async uploadFromUrl(
+    @Body() uploadFromUrlDto: UploadFromUrlDto,
+  ): Promise<UploadedFileInfo> {
+    const { url, fileName, folder } = uploadFromUrlDto;
+
+    if (!url) {
+      throw new BadRequestException(
+        'URL is required',
+        ErrorCode.INVALID_INPUT,
+      );
+    }
+
+    return this.uploadsService.uploadFromUrl(
+      url,
+      fileName,
+      folder || 'general',
     );
   }
 

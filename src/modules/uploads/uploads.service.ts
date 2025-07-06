@@ -194,6 +194,97 @@ export class UploadsService {
   }
 
   /**
+   * Upload a file from URL to S3
+   */
+  async uploadFromUrl(
+    url: string,
+    fileName?: string,
+    folder: string = 'general',
+  ): Promise<UploadedFileInfo> {
+    try {
+      // Fetch the file from URL
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new BadRequestException(
+          `Failed to fetch file from URL: ${response.status} ${response.statusText}`,
+          ErrorCode.INVALID_INPUT,
+        );
+      }
+
+      // Get the buffer and content info
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const contentType = response.headers.get('content-type') || 'application/octet-stream';
+      const contentLength = buffer.length;
+
+      // Determine filename
+      let finalFileName = fileName;
+      if (!finalFileName) {
+        // Try to extract filename from URL
+        const urlPath = new URL(url).pathname;
+        finalFileName = urlPath.split('/').pop() || 'downloaded-file';
+      }
+
+      // Create a mock Express.Multer.File object
+      const mockFile: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: finalFileName,
+        encoding: '7bit',
+        mimetype: contentType,
+        size: contentLength,
+        buffer: buffer,
+        destination: '',
+        filename: finalFileName,
+        path: '',
+        stream: undefined as any,
+      };
+
+      // Validate the mock file
+      this.validateFile(mockFile);
+
+      const key = this.generateFileKey(mockFile, folder);
+
+      // Upload file to S3
+      await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: buffer,
+          ContentType: contentType,
+          ContentDisposition: 'inline',
+          // Add metadata for easier management
+          Metadata: {
+            originalname: sanitizeFilename(finalFileName),
+            mimetype: contentType,
+            sourceUrl: url,
+          },
+        }),
+      );
+
+      const s3Url = `${this.baseUrl}/${key}`;
+
+      this.logger.log(`File uploaded from URL successfully: ${key}`);
+
+      return {
+        key,
+        url: s3Url,
+        originalName: finalFileName,
+        mimetype: contentType,
+        size: contentLength,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      this.logger.error(`Failed to upload file from URL: ${error.message}`, error);
+      throw new InternalServerErrorException(
+        'Failed to upload file from URL to storage',
+        ErrorCode.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
    * Delete a file from S3
    */
   async deleteFile(key: string): Promise<boolean> {
