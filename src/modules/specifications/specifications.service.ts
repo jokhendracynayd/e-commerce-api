@@ -247,9 +247,9 @@ export class SpecificationsService {
     );
 
     // Transform to response format
-    return Object.entries(grouped).map(([groupName, specifications]) => ({
-      groupName,
-      specifications,
+    return Object.entries(grouped).map(([title, specs]) => ({
+      title,
+      specs,
     }));
   }
 

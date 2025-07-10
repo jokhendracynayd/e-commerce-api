@@ -140,11 +140,11 @@ export class GroupedProductSpecificationsResponseDto {
     description: 'Specification group name',
     example: 'Technical Specifications',
   })
-  groupName: string;
+  title: string;
 
   @ApiProperty({
     description: 'Specifications in this group',
     type: [ProductSpecificationResponseDto],
   })
-  specifications: ProductSpecificationResponseDto[];
+  specs: ProductSpecificationResponseDto[];
 }

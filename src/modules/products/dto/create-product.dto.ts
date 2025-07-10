@@ -83,6 +83,41 @@ export class CreateProductVariantDto {
   variantName: string;
 
   @ApiPropertyOptional({
+    description: 'Color name',
+    example: 'Blue',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  color?: string;
+
+  @ApiPropertyOptional({
+    description: 'Hex color code',
+    example: '#0000FF',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(7)
+  colorHex?: string;
+
+  @ApiPropertyOptional({
+    description: 'Size information',
+    example: 'Large',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  size?: string;
+
+  @ApiPropertyOptional({
+    description: 'Variant-specific image URL',
+    example: 'https://example.com/product-blue.jpg',
+  })
+  @IsOptional()
+  @IsUrl()
+  variantImage?: string;
+
+  @ApiPropertyOptional({
     description:
       'SKU for this variant (will be auto-generated if not provided)',
     example: 'IPHONE13-BLK-256',
@@ -156,6 +191,15 @@ export class CreateProductDto {
   @IsString()
   @MaxLength(200)
   shortDescription?: string;
+
+  @ApiPropertyOptional({
+    description: 'Product subtitle with additional info (color, size, etc.)',
+    example: 'Blue Strap, Free Size',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  subtitle?: string;
 
   @ApiProperty({
     description: 'Product price',
@@ -249,6 +293,58 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isFeatured?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Whether the product is marked as new',
+    example: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isNew?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Whether the product is a best seller',
+    example: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isBestSeller?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Whether the product is sponsored',
+    example: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isSponsored?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Bank offer details',
+    example: {
+      available: true,
+      discount: 10,
+      bankName: 'HDFC Bank',
+      terms: 'Valid on orders above ₹5000'
+    },
+  })
+  @IsOptional()
+  @IsObject()
+  bankOffer?: Record<string, any>;
+
+  @ApiPropertyOptional({
+    description: 'Exchange offer details',
+    example: {
+      available: true,
+      maxDiscount: 15000,
+      terms: 'Exchange your old device'
+    },
+  })
+  @IsOptional()
+  @IsObject()
+  exchangeOffer?: Record<string, any>;
 
   @ApiPropertyOptional({
     description: 'Product visibility status',

@@ -34,6 +34,7 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
+import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('specifications')
 @Controller('specifications')
@@ -133,6 +134,7 @@ export class SpecificationsController {
   }
 
   @Get('product/:productId')
+  @Public()
   @ApiOperation({ summary: 'Get all specifications for a product' })
   @ApiParam({ name: 'productId', description: 'Product ID' })
   @ApiResponse({
@@ -148,6 +150,7 @@ export class SpecificationsController {
   }
 
   @Get('product/:productId/grouped')
+  @Public()
   @ApiOperation({
     summary: 'Get specifications for a product grouped by specification group',
   })

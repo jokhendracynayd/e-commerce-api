@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ProductVisibility, DealType } from '@prisma/client';
 import { CategoryResponseDto } from '../../categories/dto/category-response.dto';
 import { BrandResponseDto } from '../../brands/dto/brand-response.dto';
+import { GroupedProductSpecificationsResponseDto } from '../../specifications/dto/spec-response.dto';
 
 export class ProductImageResponseDto {
   @ApiProperty({
@@ -54,6 +55,34 @@ export class ProductVariantResponseDto {
     example: 'Black, 256GB',
   })
   variantName: string;
+
+  @ApiPropertyOptional({
+    description: 'Color name',
+    example: 'Blue',
+    nullable: true,
+  })
+  color: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Hex color code',
+    example: '#0000FF',
+    nullable: true,
+  })
+  colorHex: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Size information',
+    example: 'Large',
+    nullable: true,
+  })
+  size: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Variant-specific image URL',
+    example: 'https://example.com/product-blue.jpg',
+    nullable: true,
+  })
+  variantImage: string | null;
 
   @ApiProperty({
     description: 'SKU for this variant',
@@ -238,6 +267,13 @@ export class ProductResponseDto {
   })
   shortDescription: string | null;
 
+  @ApiPropertyOptional({
+    description: 'Product subtitle with additional info (color, size, etc.)',
+    example: 'Blue Strap, Free Size',
+    nullable: true,
+  })
+  subtitle: string | null;
+
   @ApiProperty({
     description: 'Product price',
     example: 999.99,
@@ -302,6 +338,47 @@ export class ProductResponseDto {
     example: false,
   })
   isFeatured: boolean;
+
+  @ApiProperty({
+    description: 'Whether the product is marked as new',
+    example: false,
+  })
+  isNew: boolean;
+
+  @ApiProperty({
+    description: 'Whether the product is a best seller',
+    example: false,
+  })
+  isBestSeller: boolean;
+
+  @ApiProperty({
+    description: 'Whether the product is sponsored',
+    example: false,
+  })
+  isSponsored: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Bank offer details',
+    example: {
+      available: true,
+      discount: 10,
+      bankName: 'HDFC Bank',
+      terms: 'Valid on orders above ₹5000'
+    },
+    nullable: true,
+  })
+  bankOffer: Record<string, any> | null;
+
+  @ApiPropertyOptional({
+    description: 'Exchange offer details',
+    example: {
+      available: true,
+      maxDiscount: 15000,
+      terms: 'Exchange your old device'
+    },
+    nullable: true,
+  })
+  exchangeOffer: Record<string, any> | null;
 
   @ApiProperty({
     description: 'Product visibility status',
@@ -411,4 +488,11 @@ export class ProductResponseDto {
     nullable: true,
   })
   deals?: ProductDealResponseDto[];
+
+  @ApiPropertyOptional({
+    description: 'Product specifications grouped by group name',
+    type: [GroupedProductSpecificationsResponseDto],
+    nullable: true,
+  })
+  specificationGroups?: GroupedProductSpecificationsResponseDto[];
 }

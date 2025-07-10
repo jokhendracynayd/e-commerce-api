@@ -19,6 +19,8 @@ import {
   FilterValueDto,
   AttributeFilterDto,
 } from './dto';
+import { SpecificationsService } from '../specifications/specifications.service';
+import { GroupedProductSpecificationsResponseDto } from '../specifications/dto/spec-response.dto';
 import {
   ProductImageDto,
   CreateProductVariantDto,
@@ -31,6 +33,7 @@ export class ProductsService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly logger: AppLogger,
+    private readonly specificationsService: SpecificationsService,
   ) {
     this.logger.setContext('ProductsService');
   }
@@ -272,8 +275,11 @@ export class ProductsService {
       if (!product) {
         throw new NotFoundException(`Product with ID ${id} not found`);
       }
-
-      return this.transformProductToDto(product);
+      // Transform product and include specification groups
+      const dto = this.transformProductToDto(product);
+      const specGroups = (await this.specificationsService.getGroupedProductSpecifications(id)) as GroupedProductSpecificationsResponseDto[];
+      dto.specificationGroups = specGroups;
+      return dto;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -325,8 +331,11 @@ export class ProductsService {
       if (!product) {
         throw new NotFoundException(`Product with slug '${slug}' not found`);
       }
-
-      return this.transformProductToDto(product);
+      // Transform product and include specification groups
+      const dto = this.transformProductToDto(product);
+      const specGroups = (await this.specificationsService.getGroupedProductSpecifications(product.id)) as GroupedProductSpecificationsResponseDto[];
+      dto.specificationGroups = specGroups;
+      return dto;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -370,6 +379,7 @@ export class ProductsService {
         sku,
         description: createProductDto.description,
         shortDescription: createProductDto.shortDescription,
+        subtitle: createProductDto.subtitle,
         price: createProductDto.price,
         discountPrice: createProductDto.discountPrice,
         stockQuantity: createProductDto.stockQuantity || 0,
@@ -382,6 +392,11 @@ export class ProductsService {
             ? createProductDto.isActive
             : true,
         isFeatured: createProductDto.isFeatured || false,
+        isNew: createProductDto.isNew || false,
+        isBestSeller: createProductDto.isBestSeller || false,
+        isSponsored: createProductDto.isSponsored || false,
+        bankOffer: createProductDto.bankOffer as any,
+        exchangeOffer: createProductDto.exchangeOffer as any,
         visibility: createProductDto.visibility || 'PUBLIC',
         metaTitle: createProductDto.metaTitle,
         metaDescription: createProductDto.metaDescription,
@@ -442,6 +457,10 @@ export class ProductsService {
                 data: {
                   productId: newProduct.id,
                   variantName: variant.variantName,
+                  color: variant.color,
+                  colorHex: variant.colorHex,
+                  size: variant.size,
+                  variantImage: variant.variantImage,
                   sku:
                     variant.sku ||
                     this.generateVariantSku(sku, variant.variantName),
@@ -598,6 +617,8 @@ export class ProductsService {
         updateData.description = updateProductDto.description;
       if (updateProductDto.shortDescription !== undefined)
         updateData.shortDescription = updateProductDto.shortDescription;
+      if (updateProductDto.subtitle !== undefined)
+        updateData.subtitle = updateProductDto.subtitle;
       if (updateProductDto.price !== undefined)
         updateData.price = updateProductDto.price;
       if (updateProductDto.discountPrice !== undefined)
@@ -618,6 +639,16 @@ export class ProductsService {
         updateData.isActive = updateProductDto.isActive;
       if (updateProductDto.isFeatured !== undefined)
         updateData.isFeatured = updateProductDto.isFeatured;
+      if (updateProductDto.isNew !== undefined)
+        updateData.isNew = updateProductDto.isNew;
+      if (updateProductDto.isBestSeller !== undefined)
+        updateData.isBestSeller = updateProductDto.isBestSeller;
+      if (updateProductDto.isSponsored !== undefined)
+        updateData.isSponsored = updateProductDto.isSponsored;
+      if (updateProductDto.bankOffer !== undefined)
+        updateData.bankOffer = updateProductDto.bankOffer as any;
+      if (updateProductDto.exchangeOffer !== undefined)
+        updateData.exchangeOffer = updateProductDto.exchangeOffer as any;
       if (updateProductDto.visibility !== undefined)
         updateData.visibility = updateProductDto.visibility;
       if (updateProductDto.metaTitle !== undefined)
@@ -744,6 +775,10 @@ export class ProductsService {
                   data: {
                     productId: id,
                     variantName: variant.variantName,
+                    color: variant.color,
+                    colorHex: variant.colorHex,
+                    size: variant.size,
+                    variantImage: variant.variantImage,
                     sku:
                       variant.sku ||
                       this.generateVariantSku(

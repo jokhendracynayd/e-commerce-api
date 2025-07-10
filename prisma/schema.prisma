@@ -98,6 +98,7 @@ model Product {
   slug             String                 @unique
   description      String?
   shortDescription String?                @map("short_description")
+  subtitle         String?                // Added: For color/size info like "Blue Strap, Free Size"
   brandId          String?                @map("brand_id")
   categoryId       String?                @map("category_id")
   subCategoryId    String?                @map("sub_category_id")
@@ -111,9 +112,17 @@ model Product {
   dimensions       Json?
   isActive         Boolean                @default(true) @map("is_active")
   isFeatured       Boolean                @default(false) @map("is_featured")
+  isNew            Boolean                @default(false) @map("is_new") // Added: For new product badge
+  isBestSeller     Boolean                @default(false) @map("is_best_seller") // Added: For best seller badge
+  isSponsored      Boolean                @default(false) @map("is_sponsored") // Added: For sponsored tag
   visibility       ProductVisibility      @default(PUBLIC)
   averageRating    Float                  @default(0) @map("average_rating")
   reviewCount      Int                    @default(0) @map("review_count")
+  
+  // Bank offer fields - using JSON for flexibility
+  bankOffer        Json?                  @map("bank_offer") // Added: Bank offer details
+  exchangeOffer    Json?                  @map("exchange_offer") // Added: Exchange offer details
+  
   metaTitle        String?                @map("meta_title")
   metaDescription  String?                @map("meta_description")
   metaKeywords     String?                @map("meta_keywords")
@@ -164,6 +173,10 @@ model ProductVariant {
   id              String         @id @default(uuid())
   productId       String         @map("product_id")
   variantName     String         @map("variant_name")
+  color           String?        // Added: Color name (e.g., "Blue", "Red")
+  colorHex        String?        @map("color_hex") // Added: Hex color code (e.g., "#0000FF")
+  size            String?        // Added: Size information (e.g., "M", "Large", "128GB")
+  variantImage    String?        @map("variant_image") // Added: Specific image for this variant
   sku             String         @unique
   price           Decimal        @db.Decimal(10, 2)
   stockQuantity   Int            @default(0) @map("stock_quantity")
