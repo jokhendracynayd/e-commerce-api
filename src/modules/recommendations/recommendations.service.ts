@@ -8,6 +8,8 @@ import { PrismaService } from '../../common/prisma.service';
 import { Prisma, RecommendationType } from '@prisma/client';
 import { RecommendationQueryDto, RecommendationResponseDto } from './dto';
 import { AppLogger } from '../../common/services/logger.service';
+import { UserActivityType } from '@prisma/client';
+import { OrderStatus } from '@prisma/client';
 
 @Injectable()
 export class RecommendationsService {
@@ -578,79 +580,66 @@ export class RecommendationsService {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const trendingQuery = `
-        SELECT 
-          entity_id as product_id,
-          COUNT(*) as activity_count,
-          COUNT(DISTINCT user_id) as unique_users,
-          COUNT(*) * 1.0 / GREATEST(1, EXTRACT(days FROM NOW() - MIN(created_at))) as velocity
-        FROM user_activities ua
-        JOIN products p ON ua.entity_id = p.id
-        WHERE ua.activity_type IN ('PRODUCT_VIEW', 'PRODUCT_CLICK', 'ADD_TO_CART')
-          AND ua.entity_type = 'product'
-          AND ua.created_at >= $1
-          AND p.visibility = 'PUBLIC'
-          AND p.is_active = true
-          ${categoryId ? 'AND p.category_id = $3' : ''}
-        GROUP BY entity_id
-        HAVING COUNT(*) >= 5
-        ORDER BY velocity DESC, activity_count DESC
-        LIMIT $2
-      `;
-
-      const trendingItems = (await this.prismaService.$queryRawUnsafe(
-        trendingQuery,
-        sevenDaysAgo,
-        limit,
-        ...(categoryId ? [categoryId] : []),
-      )) as any[];
-
-      if (trendingItems.length === 0) {
-        // Fallback to best-selling products if no trending data
+      // Use Prisma groupBy to aggregate user activity for trending products
+      const stats = await this.prismaService.userActivity.groupBy({
+        by: ['entityId'],
+        where: {
+          activityType: {
+            in: [
+              UserActivityType.PRODUCT_VIEW,
+              UserActivityType.PRODUCT_CLICK,
+              UserActivityType.ADD_TO_CART,
+            ],
+          },
+          entityType: 'product',
+          createdAt: { gte: sevenDaysAgo },
+        },
+        _count: { entityId: true },
+        _min: { createdAt: true },
+      });
+      if (stats.length === 0) {
         return this.getBestsellerProducts(categoryId, limit, includeProduct);
       }
-
-      // Get product details
-      const productIds = trendingItems.map((item) => item.product_id);
+      // Compute velocity and sort by velocity then count
+      const trendingStats = stats.map((s) => {
+        const first = s._min.createdAt!;
+        const days = Math.floor((Date.now() - first.getTime()) / (1000 * 60 * 60 * 24));
+        const interval = Math.max(1, days);
+        return {
+          productId: s.entityId!,
+          activityCount: s._count.entityId,
+          velocity: s._count.entityId / interval,
+        };
+      });
+      trendingStats.sort(
+        (a, b) => b.velocity - a.velocity || b.activityCount - a.activityCount,
+      );
+      const topStats = trendingStats.slice(0, limit);
+      // Extract product IDs (force as string[])
+      const productIds = (topStats.map((s) => s.productId!)) as string[];
       const products = await this.prismaService.product.findMany({
         where: {
           id: { in: productIds },
           visibility: 'PUBLIC',
           isActive: true,
+          ...(categoryId && { categoryId }),
         },
         include: includeProduct
           ? {
               images: {
-                select: {
-                  imageUrl: true,
-                  altText: true,
-                },
+                select: { imageUrl: true, altText: true },
                 orderBy: { position: 'asc' },
                 take: 1,
               },
-              brand: {
-                select: {
-                  id: true,
-                  name: true,
-                  logo: true,
-                },
-              },
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
+              brand: { select: { id: true, name: true, logo: true } },
+              category: { select: { id: true, name: true } },
             }
           : undefined,
       });
-
-      // Create recommendation responses with trending scores
-      return trendingItems
-        .map((item, index) => {
-          const prod = products.find((p) => p.id === item.product_id);
+      return topStats
+        .map((stat, index) => {
+          const prod = products.find((p) => p.id === stat.productId);
           if (!prod) return null;
-
           return {
             id: `temp-${prod.id}`,
             userId: undefined,
@@ -658,13 +647,12 @@ export class RecommendationsService {
             productId: undefined,
             recommendedProductId: prod.id,
             recommendationType: RecommendationType.TRENDING,
-            score: Math.min(Number(item.velocity) / 10, 1.0), // Normalize velocity
+            score: Math.min(stat.velocity, 1.0),
             position: index + 1,
             algorithmVersion: 'velocity-v1.0',
             metadata: {
-              activity_count: Number(item.activity_count),
-              unique_users: Number(item.unique_users),
-              velocity: Number(item.velocity),
+              activity_count: stat.activityCount,
+              velocity: stat.velocity,
               algorithm: 'velocity_based_trending',
             },
             viewed: false,
@@ -764,56 +752,66 @@ export class RecommendationsService {
         },
       );
 
-      // Filter out inactive/private products and convert to recommendation format
-      return browsingHistory
-        .filter((item) => {
-          if (!includeProduct) return true;
-          const product = (item as any).product;
-          return (
-            product &&
-            product.visibility === 'PUBLIC' &&
-            product.isActive === true
-          );
-        })
-        .map((item, index) => ({
-          id: `temp-${item.productId}`,
-          userId: item.userId || undefined,
-          sessionId: item.sessionId,
-          productId: undefined,
-          recommendedProductId: item.productId,
-          recommendationType: RecommendationType.RECENTLY_VIEWED,
-          score: 1.0 - index * 0.05, // Decreasing score based on recency
-          position: index + 1,
-          algorithmVersion: 'recency-v1.0',
-          metadata: {
-            last_viewed: item.lastViewedAt,
-            view_count: item.viewCount,
-            time_spent: item.timeSpent,
-            source: item.source,
-          },
-          viewed: true,
-          clicked: true,
-          converted: item.conversion,
-          expiresAt: undefined,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-          recommendedProduct: includeProduct
-            ? {
-                id: (item as any).product.id,
-                title: (item as any).product.title,
-                slug: (item as any).product.slug,
-                price: Number((item as any).product.price),
-                discountPrice: (item as any).product.discountPrice
-                  ? Number((item as any).product.discountPrice)
-                  : undefined,
-                averageRating: (item as any).product.averageRating,
-                reviewCount: (item as any).product.reviewCount,
-                images: (item as any).product.images || [],
-                brand: (item as any).product.brand || undefined,
-                category: (item as any).product.category || undefined,
-              }
-            : undefined,
-        }));
+      // Filter out inactive/private products
+      const filtered = browsingHistory.filter((item) => {
+        if (!includeProduct) return true;
+        const product = (item as any).product;
+        return (
+          product &&
+          product.visibility === 'PUBLIC' &&
+          product.isActive === true
+        );
+      });
+      // Deduplicate products by productId
+      const uniqueHistory: typeof filtered = [];
+      const seen = new Set<string>();
+      for (const item of filtered) {
+        const pid = item.productId.toString();
+        if (!seen.has(pid)) {
+          seen.add(pid);
+          uniqueHistory.push(item);
+        }
+      }
+      // Convert to recommendation format for unique products
+      return uniqueHistory.map((item, index) => ({
+        id: `temp-${item.productId}`,
+        userId: item.userId || undefined,
+        sessionId: item.sessionId,
+        productId: undefined,
+        recommendedProductId: item.productId,
+        recommendationType: RecommendationType.RECENTLY_VIEWED,
+        score: 1.0 - index * 0.05,
+        position: index + 1,
+        algorithmVersion: 'recency-v1.0',
+        metadata: {
+          last_viewed: item.lastViewedAt,
+          view_count: item.viewCount,
+          time_spent: item.timeSpent,
+          source: item.source,
+        },
+        viewed: true,
+        clicked: true,
+        converted: item.conversion,
+        expiresAt: undefined,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        recommendedProduct: includeProduct
+          ? {
+              id: (item as any).product.id,
+              title: (item as any).product.title,
+              slug: (item as any).product.slug,
+              price: Number((item as any).product.price),
+              discountPrice: (item as any).product.discountPrice
+                ? Number((item as any).product.discountPrice)
+                : undefined,
+              averageRating: (item as any).product.averageRating,
+              reviewCount: (item as any).product.reviewCount,
+              images: (item as any).product.images || [],
+              brand: (item as any).product.brand || undefined,
+              category: (item as any).product.category || undefined,
+            }
+          : undefined,
+      }));
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
@@ -930,45 +928,42 @@ export class RecommendationsService {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const bestsellerQuery = `
-        SELECT 
-          oi.product_id,
-          SUM(oi.quantity) as total_sold,
-          COUNT(DISTINCT oi.order_id) as order_count,
-          SUM(oi.total_price) as total_revenue
-        FROM order_items oi
-        JOIN orders o ON oi.order_id = o.id
-        JOIN products p ON oi.product_id = p.id
-        WHERE o.placed_at >= $1
-          AND o.status NOT IN ('CANCELLED', 'REFUNDED')
-          AND p.visibility = 'PUBLIC'
-          AND p.is_active = true
-          ${categoryId ? 'AND p.category_id = $3' : ''}
-        GROUP BY oi.product_id
-        HAVING SUM(oi.quantity) >= 2
-        ORDER BY total_sold DESC, order_count DESC
-        LIMIT $2
-      `;
-
-      const bestsellerItems = (await this.prismaService.$queryRawUnsafe(
-        bestsellerQuery,
-        thirtyDaysAgo,
-        limit,
-        ...(categoryId ? [categoryId] : []),
-      )) as any[];
-
-      if (bestsellerItems.length === 0) {
-        // Fallback to top-rated products if no sales data
+      // Aggregate order items by product to compute sales
+      const stats = await this.prismaService.orderItem.groupBy({
+        by: ['productId'],
+        where: {
+          order: {
+            placedAt: { gte: thirtyDaysAgo },
+            status: { notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED] },
+          },
+          product: {
+            visibility: 'PUBLIC',
+            isActive: true,
+            ...(categoryId && { categoryId }),
+          },
+        },
+        _sum: { quantity: true, totalPrice: true },
+        _count: { orderId: true },
+      });
+      const filteredStats = stats.filter(s => (s._sum.quantity ?? 0) >= 2);
+      if (!filteredStats.length) {
         return this.getTopRatedProducts(categoryId, limit, includeProduct);
       }
-
+      // Sort by total sold desc, then order count desc
+      filteredStats.sort((a, b) =>
+        (b._sum.quantity! - a._sum.quantity!) ||
+        (b._count.orderId - a._count.orderId)
+      );
+      const topStats = filteredStats.slice(0, limit);
       // Get product details
-      const productIds = bestsellerItems.map((item) => item.product_id);
+      // Extract and assert non-null product IDs for Prisma
+      const productIds = (topStats.map((s) => s.productId!)).filter(Boolean) as string[];
       const products = await this.prismaService.product.findMany({
         where: {
           id: { in: productIds },
           visibility: 'PUBLIC',
           isActive: true,
+          ...(categoryId && { categoryId }),
         },
         include: includeProduct
           ? {
@@ -997,16 +992,12 @@ export class RecommendationsService {
           : undefined,
       });
 
-      // Calculate max sales for normalization
-      const maxSales = Math.max(
-        ...bestsellerItems.map((item) => Number(item.total_sold)),
-      );
-
-      return bestsellerItems
-        .map((item, index) => {
-          const prod = products.find((p) => p.id === item.product_id);
+      // Normalize sales scores and assemble recommendations
+      const maxSales = Math.max(...topStats.map(s => s._sum.quantity!));
+      return topStats
+        .map((stat, index) => {
+          const prod = products.find(p => p.id === stat.productId);
           if (!prod) return null;
-
           return {
             id: `temp-${prod.id}`,
             userId: undefined,
@@ -1014,13 +1005,13 @@ export class RecommendationsService {
             productId: undefined,
             recommendedProductId: prod.id,
             recommendationType: RecommendationType.BESTSELLERS,
-            score: Number(item.total_sold) / maxSales, // Normalize sales
+            score: stat._sum.quantity! / maxSales,
             position: index + 1,
             algorithmVersion: 'sales-v1.0',
             metadata: {
-              total_sold: Number(item.total_sold),
-              order_count: Number(item.order_count),
-              total_revenue: Number(item.total_revenue),
+              total_sold: stat._sum.quantity!,
+              order_count: stat._count.orderId,
+              total_revenue: Number(stat._sum.totalPrice!),
               algorithm: 'sales_based',
             },
             viewed: false,

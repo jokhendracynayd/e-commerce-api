@@ -30,6 +30,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { AllExceptionsFilter } from './filters/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 import { AppLogger } from './common/services/logger.service';
+import { CacheModule } from './config/cache.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { AppLogger } from './common/services/logger.service';
     SchedulerModule,
     AnalyticsModule,
     RecommendationsModule,
+    CacheModule,
     // SearchModule,
   ],
   controllers: [AppController],
