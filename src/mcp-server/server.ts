@@ -14,11 +14,15 @@ import { APIClientService } from './services/api-client.service';
 import { MCPCacheService } from './services/cache.service';
 import { ProductTools } from './tools/product-tools';
 import { MCPToolResult } from './types/api-types';
+import { MCPRateLimiter } from './utils/rate-limiter';
+import { MCPErrorHandler } from './utils/error-handler';
 
 @Injectable()
 export class ECommerceMCPServer implements OnModuleInit {
   private readonly logger = new Logger(ECommerceMCPServer.name);
   private server: Server;
+  private readonly rateLimiter: MCPRateLimiter;
+  private readonly errorHandler: MCPErrorHandler;
 
   constructor(
     private readonly configService: MCPConfigService,
@@ -26,7 +30,10 @@ export class ECommerceMCPServer implements OnModuleInit {
     private readonly apiClient: APIClientService,
     private readonly cacheService: MCPCacheService,
     private readonly productTools: ProductTools,
-  ) {}
+  ) {
+    this.rateLimiter = new MCPRateLimiter(configService);
+    this.errorHandler = new MCPErrorHandler();
+  }
 
   async onModuleInit(): Promise<void> {
     await this.initializeMCPServer();
@@ -82,14 +89,33 @@ export class ECommerceMCPServer implements OnModuleInit {
       // Call tool handler
       this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args = {} } = request.params;
+        const startTime = Date.now();
         
         // Extract authentication headers
         const apiKey = this.extractApiKey(request);
         const userToken = this.extractUserToken(request);
+        const clientId = apiKey || 'anonymous';
         
-        this.logger.log(`Tool called: ${name} by client ${apiKey ? apiKey.substring(0, 8) + '...' : 'unknown'}`);
+        this.logger.log(`Tool called: ${name} by client ${clientId.substring(0, 8)}...`);
         
         try {
+          // Check rate limiting
+          const rateLimitResult = this.rateLimiter.checkLimit(clientId);
+          if (!rateLimitResult.allowed) {
+            const errorResult = this.errorHandler.handleRateLimitError(rateLimitResult.resetTime);
+            return {
+              content: errorResult.content
+            };
+          }
+
+          // Validate API key
+          if (!await this.authService.validateMCPClient(apiKey)) {
+            const errorResult = this.errorHandler.handleAuthError('Invalid API key');
+            return {
+              content: errorResult.content
+            };
+          }
+
           let result: MCPToolResult;
           
           // Route to appropriate tool handler
@@ -116,42 +142,27 @@ export class ECommerceMCPServer implements OnModuleInit {
               break;
 
             default:
-              result = {
-                content: [
-                  {
-                    type: "text",
-                    text: `Unknown tool: ${name}`
-                  }
-                ],
-                isError: true
+              const errorResult = this.errorHandler.handleToolNotFound(name);
+              return {
+                content: errorResult.content
               };
           }
           
-          // Log tool execution result
-          if (result.isError) {
-            this.logger.warn(`Tool ${name} failed: ${result.content[0]?.text || 'Unknown error'}`);
-            return {
-              content: result.content,
-              isError: true
-            };
-          } else {
-            this.logger.log(`Tool ${name} completed successfully`);
-            return {
-              content: result.content
-            };
-          }
-          
-        } catch (error) {
-          this.logger.error(`Tool ${name} execution failed`, error);
+          // Log execution metrics
+          const executionTime = Date.now() - startTime;
+          this.logger.log(`Tool ${name} completed in ${executionTime}ms`);
           
           return {
-            content: [
-              {
-                type: "text",
-                text: `Tool execution failed: ${error.message}`
-              }
-            ],
-            isError: true
+            content: result.content
+          };
+          
+        } catch (error) {
+          const executionTime = Date.now() - startTime;
+          this.logger.error(`Tool ${name} execution failed after ${executionTime}ms`, error);
+          
+          const errorResult = this.errorHandler.handleUnexpectedError(error, name);
+          return {
+            content: errorResult.content
           };
         }
       });
@@ -222,16 +233,28 @@ export class ECommerceMCPServer implements OnModuleInit {
     uptime: number;
     cache: any;
     api: boolean;
+    rateLimit: any;
+    server: {
+      name: string;
+      version: string;
+    };
   }> {
     try {
       const apiHealthy = await this.apiClient.healthCheck();
       const cacheStats = this.cacheService.getStats();
+      const rateLimitStats = this.rateLimiter.getStats();
+      const config = this.configService.getConfig();
       
       return {
         status: apiHealthy ? 'healthy' : 'unhealthy',
         uptime: process.uptime(),
         cache: cacheStats,
         api: apiHealthy,
+        rateLimit: rateLimitStats,
+        server: {
+          name: config.server.name,
+          version: config.server.version,
+        },
       };
     } catch (error) {
       this.logger.error('Health check failed', error);
@@ -240,6 +263,8 @@ export class ECommerceMCPServer implements OnModuleInit {
         uptime: process.uptime(),
         cache: { error: error.message },
         api: false,
+        rateLimit: { error: error.message },
+        server: { name: 'unknown', version: 'unknown' },
       };
     }
   }

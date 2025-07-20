@@ -1,20 +1,21 @@
 import { MCPToolResult } from '../types/api-types';
-import { MCPErrorHandler } from './error-handler';
+import { MCPErrorHandler, MCPErrorCode } from './error-handler';
 
 export class MCPValidators {
+  private static readonly errorHandler = new MCPErrorHandler();
   
   /**
    * Validate product search parameters
    */
   static validateSearchParams(args: any): { isValid: boolean; error?: MCPToolResult } {
     // Validate pagination
-    const paginationValidation = MCPErrorHandler.validatePagination(args.page, args.limit);
+    const paginationValidation = this.validatePagination(args.page, args.limit);
     if (!paginationValidation.isValid) {
       return paginationValidation;
     }
 
     // Validate price range
-    const priceValidation = MCPErrorHandler.validatePriceRange(args.minPrice, args.maxPrice);
+    const priceValidation = this.validatePriceRange(args.minPrice, args.maxPrice);
     if (!priceValidation.isValid) {
       return priceValidation;
     }
@@ -23,8 +24,8 @@ export class MCPValidators {
     if (args.sortOrder && !['asc', 'desc'].includes(args.sortOrder)) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_SORT_ORDER',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Sort order must be either "asc" or "desc"'
         )
       };
@@ -34,8 +35,8 @@ export class MCPValidators {
     if (args.tags && !Array.isArray(args.tags)) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_TAGS',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Tags must be an array of strings'
         )
       };
@@ -52,8 +53,8 @@ export class MCPValidators {
     if (!args.productId && !args.slug) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'MISSING_IDENTIFIER',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Either productId or slug must be provided'
         )
       };
@@ -63,8 +64,8 @@ export class MCPValidators {
     if (args.productId && typeof args.productId !== 'string') {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_PRODUCT_ID',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Product ID must be a string'
         )
       };
@@ -74,8 +75,8 @@ export class MCPValidators {
     if (args.slug && typeof args.slug !== 'string') {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_SLUG',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Slug must be a string'
         )
       };
@@ -89,7 +90,7 @@ export class MCPValidators {
    */
   static validateCategoryParams(args: any): { isValid: boolean; error?: MCPToolResult } {
     // Validate required categorySlug
-    const validation = MCPErrorHandler.validateArguments(args, ['categorySlug']);
+    const validation = this.validateArguments(args, ['categorySlug']);
     if (!validation.isValid) {
       return validation;
     }
@@ -98,15 +99,15 @@ export class MCPValidators {
     if (typeof args.categorySlug !== 'string' || args.categorySlug.trim().length === 0) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_CATEGORY_SLUG',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Category slug must be a non-empty string'
         )
       };
     }
 
     // Validate pagination
-    return MCPErrorHandler.validatePagination(args.page, args.limit);
+    return this.validatePagination(args.page, args.limit);
   }
 
   /**
@@ -114,7 +115,7 @@ export class MCPValidators {
    */
   static validateBrandParams(args: any): { isValid: boolean; error?: MCPToolResult } {
     // Validate required brandSlug
-    const validation = MCPErrorHandler.validateArguments(args, ['brandSlug']);
+    const validation = this.validateArguments(args, ['brandSlug']);
     if (!validation.isValid) {
       return validation;
     }
@@ -123,15 +124,15 @@ export class MCPValidators {
     if (typeof args.brandSlug !== 'string' || args.brandSlug.trim().length === 0) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_BRAND_SLUG',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Brand slug must be a non-empty string'
         )
       };
     }
 
     // Validate pagination
-    return MCPErrorHandler.validatePagination(args.page, args.limit);
+    return this.validatePagination(args.page, args.limit);
   }
 
   /**
@@ -143,8 +144,8 @@ export class MCPValidators {
       if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 50) {
         return {
           isValid: false,
-          error: MCPErrorHandler.createErrorResult(
-            'INVALID_LIMIT',
+          error: this.errorHandler.createErrorResponse(
+            MCPErrorCode.INVALID_PARAMETERS,
             'Limit must be an integer between 1 and 50'
           )
         };
@@ -162,8 +163,8 @@ export class MCPValidators {
     if (!args.orderId && !args.orderNumber) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'MISSING_ORDER_IDENTIFIER',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Either orderId or orderNumber must be provided'
         )
       };
@@ -176,7 +177,7 @@ export class MCPValidators {
    * Validate user parameters
    */
   static validateUserParams(args: any): { isValid: boolean; error?: MCPToolResult } {
-    const validation = MCPErrorHandler.validateArguments(args, ['userId']);
+    const validation = this.validateArguments(args, ['userId']);
     if (!validation.isValid) {
       return validation;
     }
@@ -185,8 +186,8 @@ export class MCPValidators {
     if (typeof args.userId !== 'string' || args.userId.trim().length === 0) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_USER_ID',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'User ID must be a non-empty string'
         )
       };
@@ -205,8 +206,8 @@ export class MCPValidators {
     if (startDate && !this.isValidDateString(startDate)) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_START_DATE',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Start date must be in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss.sssZ)'
         )
       };
@@ -215,8 +216,8 @@ export class MCPValidators {
     if (endDate && !this.isValidDateString(endDate)) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_END_DATE',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'End date must be in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss.sssZ)'
         )
       };
@@ -229,8 +230,8 @@ export class MCPValidators {
       if (start > end) {
         return {
           isValid: false,
-          error: MCPErrorHandler.createErrorResult(
-            'INVALID_DATE_RANGE',
+          error: this.errorHandler.createErrorResponse(
+            MCPErrorCode.INVALID_PARAMETERS,
             'Start date cannot be after end date'
           )
         };
@@ -247,8 +248,8 @@ export class MCPValidators {
     if (args.productIds && !Array.isArray(args.productIds)) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_PRODUCT_IDS',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Product IDs must be an array'
         )
       };
@@ -257,8 +258,8 @@ export class MCPValidators {
     if (args.productIds && args.productIds.length === 0) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'EMPTY_PRODUCT_IDS',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Product IDs array cannot be empty'
         )
       };
@@ -267,8 +268,8 @@ export class MCPValidators {
     if (args.productIds && args.productIds.length > 100) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'TOO_MANY_PRODUCT_IDS',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Cannot check more than 100 products at once'
         )
       };
@@ -277,8 +278,8 @@ export class MCPValidators {
     if (args.threshold !== undefined && (!Number.isInteger(args.threshold) || args.threshold < 0)) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_THRESHOLD',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Threshold must be a non-negative integer'
         )
       };
@@ -295,8 +296,8 @@ export class MCPValidators {
     if (args.period && !this.isValidPeriod(args.period)) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_PERIOD',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Period must be in format like "7d", "30d", "1h", "24h"'
         )
       };
@@ -306,8 +307,8 @@ export class MCPValidators {
     if (args.limit !== undefined && (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 1000)) {
       return {
         isValid: false,
-        error: MCPErrorHandler.createErrorResult(
-          'INVALID_LIMIT',
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
           'Limit must be an integer between 1 and 1000'
         )
       };
@@ -344,6 +345,100 @@ export class MCPValidators {
   private static isValidPeriod(period: string): boolean {
     const periodRegex = /^\d+[hdwmy]$/i;
     return periodRegex.test(period);
+  }
+
+  /**
+   * Validate pagination parameters
+   */
+  static validatePagination(
+    page?: number,
+    limit?: number
+  ): { isValid: boolean; error?: MCPToolResult } {
+    if (page !== undefined && (page < 1 || !Number.isInteger(page))) {
+      return {
+        isValid: false,
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
+          'Page must be a positive integer'
+        )
+      };
+    }
+
+    if (limit !== undefined && (limit < 1 || limit > 100 || !Number.isInteger(limit))) {
+      return {
+        isValid: false,
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
+          'Limit must be an integer between 1 and 100'
+        )
+      };
+    }
+
+    return { isValid: true };
+  }
+
+  /**
+   * Validate price range parameters
+   */
+  static validatePriceRange(
+    minPrice?: number,
+    maxPrice?: number
+  ): { isValid: boolean; error?: MCPToolResult } {
+    if (minPrice !== undefined && minPrice < 0) {
+      return {
+        isValid: false,
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
+          'Minimum price cannot be negative'
+        )
+      };
+    }
+
+    if (maxPrice !== undefined && maxPrice < 0) {
+      return {
+        isValid: false,
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
+          'Maximum price cannot be negative'
+        )
+      };
+    }
+
+    if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
+      return {
+        isValid: false,
+        error: this.errorHandler.createErrorResponse(
+          MCPErrorCode.INVALID_PARAMETERS,
+          'Minimum price cannot be greater than maximum price'
+        )
+      };
+    }
+
+    return { isValid: true };
+  }
+
+  /**
+   * Validate tool arguments
+   */
+  static validateArguments(
+    args: any,
+    required: string[],
+    optional: string[] = []
+  ): { isValid: boolean; error?: MCPToolResult } {
+    // Check required arguments
+    for (const field of required) {
+      if (args[field] === undefined || args[field] === null) {
+        return {
+          isValid: false,
+          error: this.errorHandler.createErrorResponse(
+            MCPErrorCode.INVALID_PARAMETERS,
+            `Required parameter '${field}' is missing`
+          )
+        };
+      }
+    }
+
+    return { isValid: true };
   }
 
   /**

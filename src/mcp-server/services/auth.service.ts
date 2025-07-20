@@ -160,6 +160,7 @@ export class MCPAuthService {
   }
 
   private hashApiKey(apiKey: string): string {
+    console.log("👌👌👌👌👌👌👌👌👌👌👌👌👌👌",apiKey)
     return createHash('sha256').update(apiKey).digest('hex');
   }
 
