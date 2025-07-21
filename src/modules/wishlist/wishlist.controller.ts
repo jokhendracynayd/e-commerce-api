@@ -42,6 +42,30 @@ interface RequestWithUser extends Request {
 export class WishlistController {
   constructor(private readonly wishlistService: WishlistService) {}
 
+  @Get('count')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Get the count of items in the wishlist' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Returns the number of items in the wishlist',
+    schema: {
+      type: 'object',
+      properties: {
+        count: {
+          type: 'number',
+          example: 5,
+          description: 'The number of items in the wishlist'
+        }
+      }
+    }
+  })
+  @ApiBearerAuth('JWT-auth')
+  async getWishlistCount(@Req() req: RequestWithUser): Promise<{ count: number }> {
+    const userId = req.user.id;
+    const count = await this.wishlistService.getWishlistCount(userId);
+    return { count };
+  }
+
   @Get()
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: "Get the current user's wishlist" })

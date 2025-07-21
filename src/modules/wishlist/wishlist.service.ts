@@ -223,6 +223,22 @@ export class WishlistService {
   }
 
   /**
+   * Get the count of items in the user's wishlist
+   */
+  async getWishlistCount(userId: string): Promise<number> {
+    try {
+      const count = await this.prismaService.wishlistItem.count({
+        where: { userId },
+      });
+
+      return count;
+    } catch (error) {
+      this.logger.error(`Error getting wishlist count for user ${userId}:`, error);
+      throw new InternalServerErrorException('Failed to get wishlist count');
+    }
+  }
+
+  /**
    * Helper method to get a single wishlist item with product details
    */
   private async getWishlistItem(id: string) {
