@@ -233,7 +233,10 @@ export class WishlistService {
 
       return count;
     } catch (error) {
-      this.logger.error(`Error getting wishlist count for user ${userId}:`, error);
+      this.logger.error(
+        `Error getting wishlist count for user ${userId}:`,
+        error,
+      );
       throw new InternalServerErrorException('Failed to get wishlist count');
     }
   }

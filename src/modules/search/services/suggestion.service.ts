@@ -37,11 +37,11 @@ export class SuggestionService {
    */
   async getSuggestions(query: SuggestQueryDto): Promise<SuggestResponseDto> {
     const startTime = Date.now();
-    
+
     // Check cache first
     const cacheKey = this.generateSuggestCacheKey(query);
     const cached = await this.cacheManager.get<SuggestResponseDto>(cacheKey);
-    
+
     if (cached) {
       this.logger.debug(`Returning cached suggestions for query: ${query.q}`);
       return cached;
@@ -85,7 +85,7 @@ export class SuggestionService {
 
       // Process results
       let resultIndex = 0;
-      
+
       if (types.includes(SuggestionType.PRODUCTS)) {
         const productResult = results[resultIndex++];
         if (productResult.status === 'fulfilled') {
@@ -122,14 +122,16 @@ export class SuggestionService {
       }
 
       // Calculate total suggestions
-      response.total_suggestions = 
+      response.total_suggestions =
         (response.products?.length || 0) +
         (response.categories?.length || 0) +
         (response.brands?.length || 0) +
         (response.queries?.length || 0);
-
     } catch (error) {
-      this.logger.error(`Error getting suggestions for query: ${query.q}`, error);
+      this.logger.error(
+        `Error getting suggestions for query: ${query.q}`,
+        error,
+      );
       throw error;
     }
 
@@ -147,22 +149,26 @@ export class SuggestionService {
   /**
    * Get product suggestions using completion suggester
    */
-  async getProductSuggestions(query: SuggestQueryDto): Promise<ProductSuggestion[]> {
+  async getProductSuggestions(
+    query: SuggestQueryDto,
+  ): Promise<ProductSuggestion[]> {
     try {
       const searchParams = {
         index: 'products',
-          suggest: {
-            product_suggest: {
-              prefix: query.q,
-              completion: {
-                field: 'suggest',
-                size: query.limit,
-                skip_duplicates: true,
-                fuzzy: query.fuzzy ? {
-                  fuzziness: query.fuzziness,
-                  prefix_length: 1,
-                  unicode_aware: true,
-                } : undefined,
+        suggest: {
+          product_suggest: {
+            prefix: query.q,
+            completion: {
+              field: 'suggest',
+              size: query.limit,
+              skip_duplicates: true,
+              fuzzy: query.fuzzy
+                ? {
+                    fuzziness: query.fuzziness,
+                    prefix_length: 1,
+                    unicode_aware: true,
+                  }
+                : undefined,
             },
           },
         },
@@ -184,24 +190,29 @@ export class SuggestionService {
       // Type guard to ensure suggestions is an array
       const suggestionArray = Array.isArray(suggestions) ? suggestions : [];
 
-      return suggestionArray.map((suggestion: any): ProductSuggestion => ({
-        text: suggestion.text,
-        product_id: suggestion._source.id,
-        score: suggestion._score || 0,
-        title: suggestion._source.title,
-        price: suggestion._source.discount_price || suggestion._source.price,
-        image: suggestion._source.images?.[0],
-        in_stock: suggestion._source.in_stock,
-        category: suggestion._source.category ? {
-          id: suggestion._source.category.id,
-          name: suggestion._source.category.name,
-        } : undefined,
-        brand: suggestion._source.brand ? {
-          id: suggestion._source.brand.id,
-          name: suggestion._source.brand.name,
-        } : undefined,
-      }));
-
+      return suggestionArray.map(
+        (suggestion: any): ProductSuggestion => ({
+          text: suggestion.text,
+          product_id: suggestion._source.id,
+          score: suggestion._score || 0,
+          title: suggestion._source.title,
+          price: suggestion._source.discount_price || suggestion._source.price,
+          image: suggestion._source.images?.[0],
+          in_stock: suggestion._source.in_stock,
+          category: suggestion._source.category
+            ? {
+                id: suggestion._source.category.id,
+                name: suggestion._source.category.name,
+              }
+            : undefined,
+          brand: suggestion._source.brand
+            ? {
+                id: suggestion._source.brand.id,
+                name: suggestion._source.brand.name,
+              }
+            : undefined,
+        }),
+      );
     } catch (error) {
       this.logger.error('Error getting product suggestions', error);
       return [];
@@ -211,53 +222,54 @@ export class SuggestionService {
   /**
    * Get category suggestions
    */
-  async getCategorySuggestions(query: SuggestQueryDto): Promise<CategorySuggestion[]> {
+  async getCategorySuggestions(
+    query: SuggestQueryDto,
+  ): Promise<CategorySuggestion[]> {
     try {
       const searchParams = {
         index: 'categories',
-          suggest: {
-            category_suggest: {
-              prefix: query.q,
-              completion: {
-                field: 'suggest',
-                size: query.limit,
-                skip_duplicates: true,
-                fuzzy: query.fuzzy ? {
-                  fuzziness: query.fuzziness,
-                  prefix_length: 1,
-                } : undefined,
+        suggest: {
+          category_suggest: {
+            prefix: query.q,
+            completion: {
+              field: 'suggest',
+              size: query.limit,
+              skip_duplicates: true,
+              fuzzy: query.fuzzy
+                ? {
+                    fuzziness: query.fuzziness,
+                    prefix_length: 1,
+                  }
+                : undefined,
             },
           },
         },
-        _source: [
-          'id',
-          'name',
-          'path',
-          'level',
-          'product_count',
-          'parent',
-        ],
+        _source: ['id', 'name', 'path', 'level', 'product_count', 'parent'],
       };
 
       const response = await this.elasticsearchService.search(searchParams);
-      const suggestions = response.suggest?.category_suggest?.[0]?.options || [];
+      const suggestions =
+        response.suggest?.category_suggest?.[0]?.options || [];
 
       // Type guard to ensure suggestions is an array
       const suggestionArray = Array.isArray(suggestions) ? suggestions : [];
 
-      return suggestionArray.map((suggestion: any): CategorySuggestion => ({
-        text: suggestion.text,
-        category_id: suggestion._source.id,
-        name: suggestion._source.name,
-        path: suggestion._source.path || '',
-        product_count: suggestion._source.product_count || 0,
-        level: suggestion._source.level || 0,
-        parent: suggestion._source.parent ? {
-          id: suggestion._source.parent.id,
-          name: suggestion._source.parent.name,
-        } : undefined,
-      }));
-
+      return suggestionArray.map(
+        (suggestion: any): CategorySuggestion => ({
+          text: suggestion.text,
+          category_id: suggestion._source.id,
+          name: suggestion._source.name,
+          path: suggestion._source.path || '',
+          product_count: suggestion._source.product_count || 0,
+          level: suggestion._source.level || 0,
+          parent: suggestion._source.parent
+            ? {
+                id: suggestion._source.parent.id,
+                name: suggestion._source.parent.name,
+              }
+            : undefined,
+        }),
+      );
     } catch (error) {
       this.logger.error('Error getting category suggestions', error);
       return [];
@@ -267,31 +279,29 @@ export class SuggestionService {
   /**
    * Get brand suggestions
    */
-  async getBrandSuggestions(query: SuggestQueryDto): Promise<BrandSuggestion[]> {
+  async getBrandSuggestions(
+    query: SuggestQueryDto,
+  ): Promise<BrandSuggestion[]> {
     try {
       const searchParams = {
         index: 'brands',
-          suggest: {
-            brand_suggest: {
-              prefix: query.q,
-              completion: {
-                field: 'suggest',
-                size: query.limit,
-                skip_duplicates: true,
-                fuzzy: query.fuzzy ? {
-                  fuzziness: query.fuzziness,
-                  prefix_length: 1,
-                } : undefined,
-              },
+        suggest: {
+          brand_suggest: {
+            prefix: query.q,
+            completion: {
+              field: 'suggest',
+              size: query.limit,
+              skip_duplicates: true,
+              fuzzy: query.fuzzy
+                ? {
+                    fuzziness: query.fuzziness,
+                    prefix_length: 1,
+                  }
+                : undefined,
             },
           },
-          _source: [
-            'id',
-            'name',
-            'logo',
-            'product_count',
-            'is_featured',
-          ],
+        },
+        _source: ['id', 'name', 'logo', 'product_count', 'is_featured'],
       };
 
       const response = await this.elasticsearchService.search(searchParams);
@@ -300,15 +310,16 @@ export class SuggestionService {
       // Type guard to ensure suggestions is an array
       const suggestionArray = Array.isArray(suggestions) ? suggestions : [];
 
-      return suggestionArray.map((suggestion: any): BrandSuggestion => ({
-        text: suggestion.text,
-        brand_id: suggestion._source.id,
-        name: suggestion._source.name,
-        product_count: suggestion._source.product_count || 0,
-        logo: suggestion._source.logo,
-        is_featured: suggestion._source.is_featured || false,
-      }));
-
+      return suggestionArray.map(
+        (suggestion: any): BrandSuggestion => ({
+          text: suggestion.text,
+          brand_id: suggestion._source.id,
+          name: suggestion._source.name,
+          product_count: suggestion._source.product_count || 0,
+          logo: suggestion._source.logo,
+          is_featured: suggestion._source.is_featured || false,
+        }),
+      );
     } catch (error) {
       this.logger.error('Error getting brand suggestions', error);
       return [];
@@ -318,48 +329,50 @@ export class SuggestionService {
   /**
    * Get popular query suggestions
    */
-  async getQuerySuggestions(query: SuggestQueryDto): Promise<QuerySuggestion[]> {
+  async getQuerySuggestions(
+    query: SuggestQueryDto,
+  ): Promise<QuerySuggestion[]> {
     try {
       const searchParams = {
         index: 'search_queries',
-          query: {
-            bool: {
-              should: [
-                {
-                  prefix: {
-                    'query.keyword': {
-                      value: query.q,
-                      boost: 2.0,
-                    },
+        query: {
+          bool: {
+            should: [
+              {
+                prefix: {
+                  'query.keyword': {
+                    value: query.q,
+                    boost: 2.0,
                   },
                 },
-                {
-                  match: {
-                      query: query.q,
-                  },
+              },
+              {
+                match: {
+                  query: query.q,
                 },
-              ],
-              minimum_should_match: 1,
-            },
+              },
+            ],
+            minimum_should_match: 1,
           },
-          sort: [
-          { frequency: 'desc' },
-          { last_searched: 'desc' },
-          ],
-          size: query.limit,
-          _source: ['query', 'frequency', 'result_count', 'last_searched'],
+        },
+        sort: [{ frequency: 'desc' }, { last_searched: 'desc' }],
+        size: query.limit,
+        _source: ['query', 'frequency', 'result_count', 'last_searched'],
       };
 
-      const response = await this.elasticsearchService.search(searchParams as any);
+      const response = await this.elasticsearchService.search(
+        searchParams as any,
+      );
       const hits = response.hits?.hits || [];
 
-      return hits.map((hit: any): QuerySuggestion => ({
-        text: hit._source.query,
-        frequency: hit._source.frequency || 0,
-        result_count: hit._source.result_count || 0,
-        last_searched: hit._source.last_searched,
-      }));
-
+      return hits.map(
+        (hit: any): QuerySuggestion => ({
+          text: hit._source.query,
+          frequency: hit._source.frequency || 0,
+          result_count: hit._source.result_count || 0,
+          last_searched: hit._source.last_searched,
+        }),
+      );
     } catch (error) {
       this.logger.error('Error getting query suggestions', error);
       return [];
@@ -369,28 +382,32 @@ export class SuggestionService {
   /**
    * Get spell corrections using Elasticsearch's term suggester
    */
-  async getSpellCorrections(query: SuggestQueryDto): Promise<SpellCorrection[]> {
+  async getSpellCorrections(
+    query: SuggestQueryDto,
+  ): Promise<SpellCorrection[]> {
     try {
       const searchParams = {
         index: 'products',
-          suggest: {
-            spell_suggest: {
-              text: query.q,
-              term: {
-                field: 'title',
-                size: 3,
-                sort: 'frequency',
-                suggest_mode: 'popular',
-                min_word_length: 3,
-                prefix_length: 1,
-                min_doc_freq: 1,
-              },
+        suggest: {
+          spell_suggest: {
+            text: query.q,
+            term: {
+              field: 'title',
+              size: 3,
+              sort: 'frequency',
+              suggest_mode: 'popular',
+              min_word_length: 3,
+              prefix_length: 1,
+              min_doc_freq: 1,
             },
           },
-          size: 0, // We only want suggestions, not search results
+        },
+        size: 0, // We only want suggestions, not search results
       };
 
-      const response = await this.elasticsearchService.search(searchParams as any);
+      const response = await this.elasticsearchService.search(
+        searchParams as any,
+      );
       const suggestions = response.suggest?.spell_suggest || [];
 
       const corrections: SpellCorrection[] = [];
@@ -416,7 +433,6 @@ export class SuggestionService {
       }
 
       return corrections.slice(0, query.limit);
-
     } catch (error) {
       this.logger.error('Error getting spell corrections', error);
       return [];
@@ -426,12 +442,15 @@ export class SuggestionService {
   /**
    * Get autocomplete suggestions (fast real-time search-as-you-type)
    */
-  async getAutocomplete(query: AutocompleteQueryDto): Promise<AutocompleteResponseDto> {
+  async getAutocomplete(
+    query: AutocompleteQueryDto,
+  ): Promise<AutocompleteResponseDto> {
     const startTime = Date.now();
 
     // Check cache first
     const cacheKey = this.generateAutocompleteCacheKey(query);
-    const cached = await this.cacheManager.get<AutocompleteResponseDto>(cacheKey);
+    const cached =
+      await this.cacheManager.get<AutocompleteResponseDto>(cacheKey);
 
     if (cached) {
       return cached;
@@ -440,24 +459,27 @@ export class SuggestionService {
     try {
       const searchParams = {
         index: 'products',
-          suggest: {
-            autocomplete: {
-              prefix: query.text,
-              completion: {
-                field: 'autocomplete',
-                size: query.size,
-                skip_duplicates: true,
-                fuzzy: {
-                  fuzziness: 'AUTO',
-                  prefix_length: 1,
-                },
-                contexts: query.context_aware && query.category_context ? {
-                  category: [query.category_context],
-                } : undefined,
+        suggest: {
+          autocomplete: {
+            prefix: query.text,
+            completion: {
+              field: 'autocomplete',
+              size: query.size,
+              skip_duplicates: true,
+              fuzzy: {
+                fuzziness: 'AUTO',
+                prefix_length: 1,
               },
+              contexts:
+                query.context_aware && query.category_context
+                  ? {
+                      category: [query.category_context],
+                    }
+                  : undefined,
             },
           },
-          size: 0,
+        },
+        size: 0,
       };
 
       const response = await this.elasticsearchService.search(searchParams);
@@ -466,12 +488,14 @@ export class SuggestionService {
       // Type guard to ensure suggestions is an array
       const suggestionArray = Array.isArray(suggestions) ? suggestions : [];
 
-      const autocompleteResults: AutocompleteSuggestion[] = suggestionArray.map((suggestion: any) => ({
-        text: suggestion.text,
-        score: suggestion._score || 0,
-        type: this.determineSuggestionType(suggestion.text),
-        data: suggestion.payload || {},
-      }));
+      const autocompleteResults: AutocompleteSuggestion[] = suggestionArray.map(
+        (suggestion: any) => ({
+          text: suggestion.text,
+          score: suggestion._score || 0,
+          type: this.determineSuggestionType(suggestion.text),
+          data: suggestion.payload || {},
+        }),
+      );
 
       const result: AutocompleteResponseDto = {
         suggestions: autocompleteResults,
@@ -486,10 +510,12 @@ export class SuggestionService {
       await this.cacheManager.set(cacheKey, result, 300);
 
       return result;
-
     } catch (error) {
-      this.logger.error(`Error getting autocomplete for query: ${query.text}`, error);
-      
+      this.logger.error(
+        `Error getting autocomplete for query: ${query.text}`,
+        error,
+      );
+
       return {
         suggestions: [],
         took: Date.now() - startTime,
@@ -524,11 +550,10 @@ export class SuggestionService {
         source: 'suggestion_api',
       };
 
-              await this.elasticsearchService.index({
-          index: 'suggestion_analytics',
-          body: analyticsDoc,
+      await this.elasticsearchService.index({
+        index: 'suggestion_analytics',
+        body: analyticsDoc,
       });
-
     } catch (error) {
       this.logger.warn('Failed to track suggestion analytics:', error);
     }
@@ -537,7 +562,9 @@ export class SuggestionService {
   /**
    * Determine the type of suggestion based on text analysis
    */
-  private determineSuggestionType(text: string): 'product' | 'category' | 'brand' | 'query' {
+  private determineSuggestionType(
+    text: string,
+  ): 'product' | 'category' | 'brand' | 'query' {
     // Simple heuristic - in a real implementation, this could be more sophisticated
     if (text.toLowerCase().includes('category')) return 'category';
     if (text.toLowerCase().includes('brand')) return 'brand';
@@ -573,4 +600,4 @@ export class SuggestionService {
     ];
     return keyParts.join(':');
   }
-} 
+}

@@ -24,6 +24,7 @@ import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { RecommendationsModule } from './modules/recommendations/recommendations.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
 // import { SearchModule } from './modules/search/search.module';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -57,6 +58,7 @@ import { CacheModule } from './config/cache.module';
     SchedulerModule,
     AnalyticsModule,
     RecommendationsModule,
+    ReviewsModule,
     CacheModule,
     // SearchModule,
   ],

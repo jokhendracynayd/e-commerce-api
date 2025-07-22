@@ -1,4 +1,12 @@
-import { IsOptional, IsString, IsArray, IsNumber, IsEnum, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsArray,
+  IsNumber,
+  IsEnum,
+  Min,
+  Max,
+} from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -155,4 +163,4 @@ export class AutocompleteQueryDto {
   @IsOptional()
   @IsString()
   user_id?: string;
-} 
+}

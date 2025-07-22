@@ -75,8 +75,11 @@ export class AnalyticsController {
     // 1. JWT authentication (most reliable)
     // 2. X-User-ID header (fallback)
     // 3. metadata userId (fallback)
-    let userId = (request as any).user?.id || userIdHeader || createActivityDto.metadata?.userId;
-    
+    const userId =
+      (request as any).user?.id ||
+      userIdHeader ||
+      createActivityDto.metadata?.userId;
+
     const ipAddress = request.ip || request.connection.remoteAddress;
     const userAgent = request.get('User-Agent');
 
@@ -94,7 +97,7 @@ export class AnalyticsController {
       entityType: createActivityDto.entityType || 'null',
       activityType: createActivityDto.activityType,
       hasAuthHeader: !!request.headers.authorization,
-      sessionId: sessionId
+      sessionId: sessionId,
     });
 
     return this.analyticsService.trackActivity(
@@ -151,14 +154,14 @@ export class AnalyticsController {
     // 2. X-User-ID header (fallback)
     // 3. First activity's metadata userId (fallback)
     let userId = (request as any).user?.id || userIdHeader;
-    
+
     if (!userId && createBatchDto.activities.length > 0) {
       const firstActivityUserId = createBatchDto.activities[0].metadata?.userId;
       if (firstActivityUserId) {
         userId = firstActivityUserId;
       }
     }
-    
+
     const ipAddress = request.ip || request.connection.remoteAddress;
     const userAgent = request.get('User-Agent');
 
@@ -171,7 +174,7 @@ export class AnalyticsController {
       hasAuthHeader: !!request.headers.authorization,
       activitiesCount: createBatchDto.activities.length,
       sampleEntityId: createBatchDto.activities[0]?.entityId || 'null',
-      sampleEntityType: createBatchDto.activities[0]?.entityType || 'null'
+      sampleEntityType: createBatchDto.activities[0]?.entityType || 'null',
     });
 
     // Apply session ID to all activities if provided in header

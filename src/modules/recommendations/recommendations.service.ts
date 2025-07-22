@@ -11,6 +11,12 @@ import { AppLogger } from '../../common/services/logger.service';
 import { UserActivityType } from '@prisma/client';
 import { OrderStatus } from '@prisma/client';
 
+interface FrequentItemsQueryResult {
+  recommended_product_id: string;
+  frequency: number;
+  confidence: number;
+}
+
 @Injectable()
 export class RecommendationsService {
   constructor(
@@ -457,11 +463,11 @@ export class RecommendationsService {
         LIMIT $2
       `;
 
-      const frequentItems = (await this.prismaService.$queryRawUnsafe(
+      const frequentItems = await this.prismaService.$queryRawUnsafe(
         coOccurrenceQuery,
         productId,
         limit,
-      )) as any[];
+      ) as FrequentItemsQueryResult[];
 
       if (frequentItems.length === 0) {
         // Fallback to similar products if no frequently bought together items found
@@ -603,7 +609,9 @@ export class RecommendationsService {
       // Compute velocity and sort by velocity then count
       const trendingStats = stats.map((s) => {
         const first = s._min.createdAt!;
-        const days = Math.floor((Date.now() - first.getTime()) / (1000 * 60 * 60 * 24));
+        const days = Math.floor(
+          (Date.now() - first.getTime()) / (1000 * 60 * 60 * 24),
+        );
         const interval = Math.max(1, days);
         return {
           productId: s.entityId!,
@@ -616,7 +624,7 @@ export class RecommendationsService {
       );
       const topStats = trendingStats.slice(0, limit);
       // Extract product IDs (force as string[])
-      const productIds = (topStats.map((s) => s.productId!)) as string[];
+      const productIds = topStats.map((s) => s.productId);
       const products = await this.prismaService.product.findMany({
         where: {
           id: { in: productIds },
@@ -945,19 +953,20 @@ export class RecommendationsService {
         _sum: { quantity: true, totalPrice: true },
         _count: { orderId: true },
       });
-      const filteredStats = stats.filter(s => (s._sum.quantity ?? 0) >= 2);
+      const filteredStats = stats.filter((s) => (s._sum.quantity ?? 0) >= 2);
       if (!filteredStats.length) {
         return this.getTopRatedProducts(categoryId, limit, includeProduct);
       }
       // Sort by total sold desc, then order count desc
-      filteredStats.sort((a, b) =>
-        (b._sum.quantity! - a._sum.quantity!) ||
-        (b._count.orderId - a._count.orderId)
+      filteredStats.sort(
+        (a, b) =>
+          b._sum.quantity! - a._sum.quantity! ||
+          b._count.orderId - a._count.orderId,
       );
       const topStats = filteredStats.slice(0, limit);
       // Get product details
       // Extract and assert non-null product IDs for Prisma
-      const productIds = (topStats.map((s) => s.productId!)).filter(Boolean) as string[];
+      const productIds = topStats.map((s) => s.productId!).filter(Boolean);
       const products = await this.prismaService.product.findMany({
         where: {
           id: { in: productIds },
@@ -993,10 +1002,10 @@ export class RecommendationsService {
       });
 
       // Normalize sales scores and assemble recommendations
-      const maxSales = Math.max(...topStats.map(s => s._sum.quantity!));
+      const maxSales = Math.max(...topStats.map((s) => s._sum.quantity!));
       return topStats
         .map((stat, index) => {
-          const prod = products.find(p => p.id === stat.productId);
+          const prod = products.find((p) => p.id === stat.productId);
           if (!prod) return null;
           return {
             id: `temp-${prod.id}`,

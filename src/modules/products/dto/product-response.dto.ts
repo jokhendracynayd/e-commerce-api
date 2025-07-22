@@ -363,7 +363,7 @@ export class ProductResponseDto {
       available: true,
       discount: 10,
       bankName: 'HDFC Bank',
-      terms: 'Valid on orders above ₹5000'
+      terms: 'Valid on orders above ₹5000',
     },
     nullable: true,
   })
@@ -374,7 +374,7 @@ export class ProductResponseDto {
     example: {
       available: true,
       maxDiscount: 15000,
-      terms: 'Exchange your old device'
+      terms: 'Exchange your old device',
     },
     nullable: true,
   })

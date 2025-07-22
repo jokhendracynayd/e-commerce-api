@@ -30,7 +30,7 @@ export class MCPErrorHandler {
     code: MCPErrorCode,
     message: string,
     details?: any,
-    requestId?: string
+    requestId?: string,
   ): MCPToolResult {
     const error: MCPError = {
       code,
@@ -46,14 +46,18 @@ export class MCPErrorHandler {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({
-            error: true,
-            code: error.code,
-            message: error.message,
-            timestamp: error.timestamp,
-            ...(error.details && { details: error.details }),
-            ...(error.requestId && { requestId: error.requestId }),
-          }, null, 2),
+          text: JSON.stringify(
+            {
+              error: true,
+              code: error.code,
+              message: error.message,
+              timestamp: error.timestamp,
+              ...(error.details && { details: error.details }),
+              ...(error.requestId && { requestId: error.requestId }),
+            },
+            null,
+            2,
+          ),
         },
       ],
       isError: true,
@@ -63,11 +67,14 @@ export class MCPErrorHandler {
   /**
    * Handle authentication errors
    */
-  handleAuthError(message = 'Authentication failed', details?: any): MCPToolResult {
+  handleAuthError(
+    message = 'Authentication failed',
+    details?: any,
+  ): MCPToolResult {
     return this.createErrorResponse(
       MCPErrorCode.AUTHENTICATION_FAILED,
       message,
-      details
+      details,
     );
   }
 
@@ -82,7 +89,7 @@ export class MCPErrorHandler {
         resetTime,
         resetIn: Math.ceil((resetTime - Date.now()) / 1000),
         ...details,
-      }
+      },
     );
   }
 
@@ -93,7 +100,7 @@ export class MCPErrorHandler {
     return this.createErrorResponse(
       MCPErrorCode.TOOL_NOT_FOUND,
       `Tool '${toolName}' is not available`,
-      { toolName, availableTools: this.getAvailableTools() }
+      { toolName, availableTools: this.getAvailableTools() },
     );
   }
 
@@ -104,18 +111,17 @@ export class MCPErrorHandler {
     return this.createErrorResponse(
       MCPErrorCode.INVALID_PARAMETERS,
       'Invalid parameters provided',
-      { errors, toolName }
+      { errors, toolName },
     );
   }
 
   /**
    * Handle API unavailable errors
    */
-  handleApiUnavailable(message = 'Backend API is currently unavailable'): MCPToolResult {
-    return this.createErrorResponse(
-      MCPErrorCode.API_UNAVAILABLE,
-      message
-    );
+  handleApiUnavailable(
+    message = 'Backend API is currently unavailable',
+  ): MCPToolResult {
+    return this.createErrorResponse(MCPErrorCode.API_UNAVAILABLE, message);
   }
 
   /**
@@ -125,39 +131,48 @@ export class MCPErrorHandler {
     return this.createErrorResponse(
       MCPErrorCode.PERMISSION_DENIED,
       'Insufficient permissions to perform this action',
-      { requiredPermission }
+      { requiredPermission },
     );
   }
 
   /**
    * Handle resource not found errors
    */
-  handleResourceNotFound(resourceType: string, resourceId: string): MCPToolResult {
+  handleResourceNotFound(
+    resourceType: string,
+    resourceId: string,
+  ): MCPToolResult {
     return this.createErrorResponse(
       MCPErrorCode.RESOURCE_NOT_FOUND,
       `${resourceType} with ID '${resourceId}' not found`,
-      { resourceType, resourceId }
+      { resourceType, resourceId },
     );
   }
 
   /**
    * Handle unexpected errors
    */
-  handleUnexpectedError(error: Error, toolName?: string, requestId?: string): MCPToolResult {
+  handleUnexpectedError(
+    error: Error,
+    toolName?: string,
+    requestId?: string,
+  ): MCPToolResult {
     // Don't expose internal error details in production
     const isProduction = process.env.NODE_ENV === 'production';
-    const message = isProduction 
-      ? 'An unexpected error occurred' 
+    const message = isProduction
+      ? 'An unexpected error occurred'
       : error.message;
 
     return this.createErrorResponse(
       MCPErrorCode.INTERNAL_ERROR,
       message,
-      isProduction ? undefined : {
-        stack: error.stack,
-        toolName,
-      },
-      requestId
+      isProduction
+        ? undefined
+        : {
+            stack: error.stack,
+            toolName,
+          },
+      requestId,
     );
   }
 
@@ -169,12 +184,16 @@ export class MCPErrorHandler {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({
-            success: true,
-            data,
-            message,
-            timestamp: new Date().toISOString(),
-          }, null, 2),
+          text: JSON.stringify(
+            {
+              success: true,
+              data,
+              message,
+              timestamp: new Date().toISOString(),
+            },
+            null,
+            2,
+          ),
         },
       ],
       isError: false,
@@ -184,12 +203,15 @@ export class MCPErrorHandler {
   /**
    * Validate tool parameters
    */
-  validateParameters(params: any, schema: any): {
+  validateParameters(
+    params: any,
+    schema: any,
+  ): {
     isValid: boolean;
     errors: any[];
   } {
     const errors: any[] = [];
-    
+
     // Basic validation (you can enhance this with a proper schema validator)
     if (schema.required) {
       for (const field of schema.required) {
@@ -218,4 +240,4 @@ export class MCPErrorHandler {
       'get_products_by_brand',
     ];
   }
-} 
+}

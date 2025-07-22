@@ -32,7 +32,8 @@ class UploadFileDto {
   @IsString()
   @Length(1, 64)
   @Matches(/^[a-zA-Z0-9_\/-]*$/, {
-    message: 'folder can only contain letters, numbers, dash, underscore, and slash',
+    message:
+      'folder can only contain letters, numbers, dash, underscore, and slash',
   })
   folder?: string;
 }
@@ -49,7 +50,8 @@ class UploadFromUrlDto {
   @IsString()
   @Length(1, 128)
   @Matches(/^[a-zA-Z0-9_.\-]+$/, {
-    message: 'fileName can only contain letters, numbers, dot, dash, and underscore',
+    message:
+      'fileName can only contain letters, numbers, dot, dash, and underscore',
   })
   fileName?: string;
 
@@ -57,7 +59,8 @@ class UploadFromUrlDto {
   @IsString()
   @Length(1, 64)
   @Matches(/^[a-zA-Z0-9_\/-]*$/, {
-    message: 'folder can only contain letters, numbers, dash, underscore, and slash',
+    message:
+      'folder can only contain letters, numbers, dash, underscore, and slash',
   })
   folder?: string;
 }
@@ -66,7 +69,8 @@ class PresignedUrlDto {
   @IsString()
   @Length(1, 128)
   @Matches(/^[a-zA-Z0-9_.\-]+$/, {
-    message: 'fileName can only contain letters, numbers, dot, dash, and underscore',
+    message:
+      'fileName can only contain letters, numbers, dot, dash, and underscore',
   })
   fileName: string;
 
@@ -78,7 +82,8 @@ class PresignedUrlDto {
   @IsString()
   @Length(1, 64)
   @Matches(/^[a-zA-Z0-9_\/-]*$/, {
-    message: 'folder can only contain letters, numbers, dash, underscore, and slash',
+    message:
+      'folder can only contain letters, numbers, dash, underscore, and slash',
   })
   folder?: string;
 }
@@ -224,10 +229,7 @@ export class UploadsController {
     const { url, fileName, folder } = uploadFromUrlDto;
 
     if (!url) {
-      throw new BadRequestException(
-        'URL is required',
-        ErrorCode.INVALID_INPUT,
-      );
+      throw new BadRequestException('URL is required', ErrorCode.INVALID_INPUT);
     }
 
     return this.uploadsService.uploadFromUrl(

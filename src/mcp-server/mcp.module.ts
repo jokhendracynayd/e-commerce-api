@@ -43,4 +43,4 @@ export class MCPModule {
   async getModuleHealth() {
     return await this.mcpServer.healthCheck();
   }
-} 
+}

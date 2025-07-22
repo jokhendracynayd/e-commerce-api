@@ -67,7 +67,9 @@ async function bootstrap() {
 
     // Configure CORS with credentials support
     const corsOrigin =
-      nodeEnv === 'production' ? ['https://allmart.fashion', 'https://admin.allmart.fashion'] : true;
+      nodeEnv === 'production'
+        ? ['https://allmart.fashion', 'https://admin.allmart.fashion']
+        : true;
     app.enableCors({
       origin: corsOrigin,
       credentials: true,
@@ -137,6 +139,10 @@ async function bootstrap() {
         '/inventory/availability/product',
         '/inventory/availability/variant',
         '/inventory/add',
+
+        // review
+        '/reviews',
+        '/reviews/',
 
         // Analytics operations
         '/analytics/',

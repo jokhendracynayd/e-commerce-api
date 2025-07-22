@@ -277,7 +277,10 @@ export class ProductsService {
       }
       // Transform product and include specification groups
       const dto = this.transformProductToDto(product);
-      const specGroups = (await this.specificationsService.getGroupedProductSpecifications(id)) as GroupedProductSpecificationsResponseDto[];
+      const specGroups =
+        (await this.specificationsService.getGroupedProductSpecifications(
+          id,
+        )) as GroupedProductSpecificationsResponseDto[];
       dto.specificationGroups = specGroups;
       return dto;
     } catch (error) {
@@ -333,7 +336,10 @@ export class ProductsService {
       }
       // Transform product and include specification groups
       const dto = this.transformProductToDto(product);
-      const specGroups = (await this.specificationsService.getGroupedProductSpecifications(product.id)) as GroupedProductSpecificationsResponseDto[];
+      const specGroups =
+        (await this.specificationsService.getGroupedProductSpecifications(
+          product.id,
+        )) as GroupedProductSpecificationsResponseDto[];
       dto.specificationGroups = specGroups;
       return dto;
     } catch (error) {

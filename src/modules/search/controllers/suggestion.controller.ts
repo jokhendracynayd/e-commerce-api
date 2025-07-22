@@ -23,7 +23,8 @@ export class SuggestionController {
   @Public()
   @ApiOperation({
     summary: 'Get search suggestions (Phase 3.1)',
-    description: 'Get comprehensive search suggestions including products, categories, brands, popular queries, and spell corrections',
+    description:
+      'Get comprehensive search suggestions including products, categories, brands, popular queries, and spell corrections',
   })
   @ApiResponse({
     status: 200,
@@ -71,17 +72,20 @@ export class SuggestionController {
   ): Promise<SuggestResponseDto> {
     try {
       this.logger.log(`Getting suggestions for query: ${query.q}`);
-      
+
       const startTime = Date.now();
       const response = await this.suggestionService.getSuggestions(query);
-      
+
       this.logger.log(
         `Suggestions retrieved in ${Date.now() - startTime}ms for query: ${query.q}`,
       );
-      
+
       return response;
     } catch (error) {
-      this.logger.error(`Error getting suggestions for query: ${query.q}`, error);
+      this.logger.error(
+        `Error getting suggestions for query: ${query.q}`,
+        error,
+      );
       throw error;
     }
   }
@@ -90,7 +94,8 @@ export class SuggestionController {
   @Public()
   @ApiOperation({
     summary: 'Get autocomplete suggestions (Phase 3.1)',
-    description: 'Fast real-time search-as-you-type autocomplete suggestions optimized for quick response times',
+    description:
+      'Fast real-time search-as-you-type autocomplete suggestions optimized for quick response times',
   })
   @ApiResponse({
     status: 200,
@@ -129,16 +134,19 @@ export class SuggestionController {
   ): Promise<AutocompleteResponseDto> {
     try {
       this.logger.debug(`Getting autocomplete for text: ${query.text}`);
-      
+
       const response = await this.suggestionService.getAutocomplete(query);
-      
+
       this.logger.debug(
         `Autocomplete retrieved in ${response.took}ms for text: ${query.text}`,
       );
-      
+
       return response;
     } catch (error) {
-      this.logger.error(`Error getting autocomplete for text: ${query.text}`, error);
+      this.logger.error(
+        `Error getting autocomplete for text: ${query.text}`,
+        error,
+      );
       throw error;
     }
   }
@@ -167,8 +175,9 @@ export class SuggestionController {
         spell_check: false,
       };
 
-      const response = await this.suggestionService.getSuggestions(suggestQuery);
-      
+      const response =
+        await this.suggestionService.getSuggestions(suggestQuery);
+
       return {
         products: response.products || [],
         took: response.took,
@@ -177,7 +186,10 @@ export class SuggestionController {
         timestamp: response.timestamp,
       };
     } catch (error) {
-      this.logger.error(`Error getting product suggestions for query: ${query}`, error);
+      this.logger.error(
+        `Error getting product suggestions for query: ${query}`,
+        error,
+      );
       throw error;
     }
   }
@@ -206,8 +218,9 @@ export class SuggestionController {
         spell_check: false,
       };
 
-      const response = await this.suggestionService.getSuggestions(suggestQuery);
-      
+      const response =
+        await this.suggestionService.getSuggestions(suggestQuery);
+
       return {
         categories: response.categories || [],
         took: response.took,
@@ -216,7 +229,10 @@ export class SuggestionController {
         timestamp: response.timestamp,
       };
     } catch (error) {
-      this.logger.error(`Error getting category suggestions for query: ${query}`, error);
+      this.logger.error(
+        `Error getting category suggestions for query: ${query}`,
+        error,
+      );
       throw error;
     }
   }
@@ -245,8 +261,9 @@ export class SuggestionController {
         spell_check: false,
       };
 
-      const response = await this.suggestionService.getSuggestions(suggestQuery);
-      
+      const response =
+        await this.suggestionService.getSuggestions(suggestQuery);
+
       return {
         brands: response.brands || [],
         took: response.took,
@@ -255,7 +272,10 @@ export class SuggestionController {
         timestamp: response.timestamp,
       };
     } catch (error) {
-      this.logger.error(`Error getting brand suggestions for query: ${query}`, error);
+      this.logger.error(
+        `Error getting brand suggestions for query: ${query}`,
+        error,
+      );
       throw error;
     }
   }
@@ -264,7 +284,8 @@ export class SuggestionController {
   @Public()
   @ApiOperation({
     summary: 'Get popular query suggestions',
-    description: 'Get popular and trending search queries based on search analytics',
+    description:
+      'Get popular and trending search queries based on search analytics',
   })
   @ApiResponse({
     status: 200,
@@ -283,8 +304,9 @@ export class SuggestionController {
         spell_check: false,
       };
 
-      const response = await this.suggestionService.getSuggestions(suggestQuery);
-      
+      const response =
+        await this.suggestionService.getSuggestions(suggestQuery);
+
       return {
         queries: response.queries || [],
         took: response.took,
@@ -293,7 +315,10 @@ export class SuggestionController {
         timestamp: response.timestamp,
       };
     } catch (error) {
-      this.logger.error(`Error getting popular queries for query: ${query}`, error);
+      this.logger.error(
+        `Error getting popular queries for query: ${query}`,
+        error,
+      );
       throw error;
     }
   }
@@ -302,7 +327,8 @@ export class SuggestionController {
   @Public()
   @ApiOperation({
     summary: 'Get spell corrections',
-    description: 'Get spell corrections and "did you mean" suggestions for search queries',
+    description:
+      'Get spell corrections and "did you mean" suggestions for search queries',
   })
   @ApiResponse({
     status: 200,
@@ -321,8 +347,9 @@ export class SuggestionController {
         spell_check: true,
       };
 
-      const response = await this.suggestionService.getSuggestions(suggestQuery);
-      
+      const response =
+        await this.suggestionService.getSuggestions(suggestQuery);
+
       return {
         corrections: response.corrections || [],
         took: response.took,
@@ -332,7 +359,10 @@ export class SuggestionController {
         has_corrections: (response.corrections?.length || 0) > 0,
       };
     } catch (error) {
-      this.logger.error(`Error getting spell corrections for query: ${query}`, error);
+      this.logger.error(
+        `Error getting spell corrections for query: ${query}`,
+        error,
+      );
       throw error;
     }
   }
@@ -341,7 +371,8 @@ export class SuggestionController {
   @Public()
   @ApiOperation({
     summary: 'Get all types of suggestions',
-    description: 'Get comprehensive suggestions including all types: products, categories, brands, queries, and spell corrections',
+    description:
+      'Get comprehensive suggestions including all types: products, categories, brands, queries, and spell corrections',
   })
   @ApiResponse({
     status: 200,
@@ -370,8 +401,11 @@ export class SuggestionController {
 
       return await this.suggestionService.getSuggestions(suggestQuery);
     } catch (error) {
-      this.logger.error(`Error getting all suggestions for query: ${query}`, error);
+      this.logger.error(
+        `Error getting all suggestions for query: ${query}`,
+        error,
+      );
       throw error;
     }
   }
-} 
+}

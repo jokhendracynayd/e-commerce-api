@@ -20,7 +20,7 @@ export class MCPAuthService {
    */
   async getSystemToken(): Promise<string> {
     const now = Date.now();
-    
+
     // Return cached token if still valid (with 5 minute buffer)
     if (this.systemToken && this.tokenExpiryTime > now + 5 * 60 * 1000) {
       return this.systemToken;
@@ -40,14 +40,16 @@ export class MCPAuthService {
       this.systemToken = this.jwtService.sign(payload, {
         secret: config.auth.jwtSecret,
       });
-      
+
       this.tokenExpiryTime = now + 3600000; // 1 hour
-      
+
       this.logger.log('Generated new system token for MCP operations');
       return this.systemToken;
     } catch (error) {
       this.logger.error('Failed to generate system token', error);
-      throw new UnauthorizedException('Failed to generate system authentication token');
+      throw new UnauthorizedException(
+        'Failed to generate system authentication token',
+      );
     }
   }
 
@@ -62,15 +64,17 @@ export class MCPAuthService {
     try {
       const config = this.mcpConfig.getConfig();
       const hashedApiKey = this.hashApiKey(apiKey);
-      
+
       // Check against configured API keys (assuming they're stored hashed)
-      const validKeys = config.auth.apiKeys.map(key => this.hashApiKey(key));
+      const validKeys = config.auth.apiKeys.map((key) => this.hashApiKey(key));
       const isValid = validKeys.includes(hashedApiKey);
-      
+
       if (!isValid) {
-        this.logger.warn(`Invalid MCP API key attempted: ${apiKey.substring(0, 8)}...`);
+        this.logger.warn(
+          `Invalid MCP API key attempted: ${apiKey.substring(0, 8)}...`,
+        );
       }
-      
+
       return isValid;
     } catch (error) {
       this.logger.error('Error validating MCP client API key', error);
@@ -87,7 +91,7 @@ export class MCPAuthService {
       if (userIdOrToken.includes('.')) {
         return this.createUserContextFromToken(userIdOrToken);
       }
-      
+
       // Otherwise, treat as user ID and create basic context
       return this.createBasicUserContext(userIdOrToken);
     } catch (error) {
@@ -103,8 +107,11 @@ export class MCPAuthService {
     const timestamp = Date.now().toString();
     const random = Math.random().toString(36).substring(2);
     const combined = `${timestamp}-${random}`;
-    
-    return Buffer.from(combined).toString('base64').replace(/[+/=]/g, '').substring(0, 32);
+
+    return Buffer.from(combined)
+      .toString('base64')
+      .replace(/[+/=]/g, '')
+      .substring(0, 32);
   }
 
   /**
@@ -112,7 +119,7 @@ export class MCPAuthService {
    */
   async refreshSystemTokenIfNeeded(): Promise<void> {
     const now = Date.now();
-    
+
     // Refresh if token expires in less than 10 minutes
     if (!this.systemToken || this.tokenExpiryTime < now + 10 * 60 * 1000) {
       await this.getSystemToken();
@@ -137,7 +144,10 @@ export class MCPAuthService {
   /**
    * Check if user has required permissions
    */
-  async hasPermission(userContext: UserContext, requiredPermission: string): Promise<boolean> {
+  async hasPermission(
+    userContext: UserContext,
+    requiredPermission: string,
+  ): Promise<boolean> {
     // System context has all permissions
     if (userContext.role === 'ADMIN') {
       return true;
@@ -153,25 +163,28 @@ export class MCPAuthService {
   async getAuthHeaders(): Promise<Record<string, string>> {
     const token = await this.getSystemToken();
     return {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       'X-MCP-Client': 'true',
     };
   }
 
   private hashApiKey(apiKey: string): string {
-    console.log("👌👌👌👌👌👌👌👌👌👌👌👌👌👌",apiKey)
+    console.log('👌👌👌👌👌👌👌👌👌👌👌👌👌👌', apiKey);
     return createHash('sha256').update(apiKey).digest('hex');
   }
 
-  private async createUserContextFromToken(token: string): Promise<UserContext> {
+  private async createUserContextFromToken(
+    token: string,
+  ): Promise<UserContext> {
     const decoded = await this.validateAndDecodeToken(token);
-    
+
     return {
       userId: decoded.sub,
       email: decoded.email,
       role: decoded.role || 'USER',
-      permissions: decoded.permissions || this.getDefaultPermissions(decoded.role),
+      permissions:
+        decoded.permissions || this.getDefaultPermissions(decoded.role),
     };
   }
 
@@ -210,11 +223,7 @@ export class MCPAuthService {
         ];
       case 'USER':
       default:
-        return [
-          'products:read',
-          'orders:read:own',
-          'user:read:own',
-        ];
+        return ['products:read', 'orders:read:own', 'user:read:own'];
     }
   }
 }
@@ -223,7 +232,10 @@ export class MCPAuthService {
 export class MCPAuthGuard {
   constructor(private readonly authService: MCPAuthService) {}
 
-  async validateRequest(apiKey: string, userToken?: string): Promise<UserContext | null> {
+  async validateRequest(
+    apiKey: string,
+    userToken?: string,
+  ): Promise<UserContext | null> {
     // First validate MCP client
     const isValidClient = await this.authService.validateMCPClient(apiKey);
     if (!isValidClient) {
@@ -243,4 +255,4 @@ export class MCPAuthGuard {
       permissions: ['*'],
     };
   }
-} 
+}

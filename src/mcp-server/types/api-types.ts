@@ -153,20 +153,20 @@ export interface TrackingInfo {
   estimatedDelivery?: string;
 }
 
-export type OrderStatus = 
-  | 'PENDING' 
-  | 'CONFIRMED' 
-  | 'PROCESSING' 
-  | 'SHIPPED' 
-  | 'DELIVERED' 
-  | 'CANCELLED' 
+export type OrderStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PROCESSING'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'CANCELLED'
   | 'REFUNDED';
 
-export type PaymentStatus = 
-  | 'PENDING' 
-  | 'PAID' 
-  | 'FAILED' 
-  | 'REFUNDED' 
+export type PaymentStatus =
+  | 'PENDING'
+  | 'PAID'
+  | 'FAILED'
+  | 'REFUNDED'
   | 'PARTIALLY_REFUNDED';
 
 // User Related Types
@@ -221,13 +221,13 @@ export interface SearchParams {
   limit?: number;
 }
 
-export type SortOption = 
-  | 'relevance' 
-  | 'price' 
-  | 'name' 
-  | 'rating' 
-  | 'popularity' 
-  | 'newest' 
+export type SortOption =
+  | 'relevance'
+  | 'price'
+  | 'name'
+  | 'rating'
+  | 'popularity'
+  | 'newest'
   | 'discount';
 
 export interface SearchResponse {
@@ -373,4 +373,4 @@ export interface APIClientResponse<T = any> {
   status: number;
   statusText: string;
   headers: Record<string, string>;
-} 
+}

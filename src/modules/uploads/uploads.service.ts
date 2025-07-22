@@ -213,7 +213,8 @@ export class UploadsService {
 
       // Get the buffer and content info
       const buffer = Buffer.from(await response.arrayBuffer());
-      const contentType = response.headers.get('content-type') || 'application/octet-stream';
+      const contentType =
+        response.headers.get('content-type') || 'application/octet-stream';
       const contentLength = buffer.length;
 
       // Determine filename
@@ -276,7 +277,10 @@ export class UploadsService {
         throw error;
       }
 
-      this.logger.error(`Failed to upload file from URL: ${error.message}`, error);
+      this.logger.error(
+        `Failed to upload file from URL: ${error.message}`,
+        error,
+      );
       throw new InternalServerErrorException(
         'Failed to upload file from URL to storage',
         ErrorCode.INTERNAL_SERVER_ERROR,

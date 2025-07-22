@@ -202,4 +202,4 @@ export class AutocompleteResponseDto {
 
   @ApiProperty({ description: 'Whether results were retrieved from cache' })
   from_cache: boolean;
-} 
+}

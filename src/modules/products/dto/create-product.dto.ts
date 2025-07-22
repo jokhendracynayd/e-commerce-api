@@ -327,7 +327,7 @@ export class CreateProductDto {
       available: true,
       discount: 10,
       bankName: 'HDFC Bank',
-      terms: 'Valid on orders above ₹5000'
+      terms: 'Valid on orders above ₹5000',
     },
   })
   @IsOptional()
@@ -339,7 +339,7 @@ export class CreateProductDto {
     example: {
       available: true,
       maxDiscount: 15000,
-      terms: 'Exchange your old device'
+      terms: 'Exchange your old device',
     },
   })
   @IsOptional()

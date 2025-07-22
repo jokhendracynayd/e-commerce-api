@@ -54,13 +54,15 @@ export class WishlistController {
         count: {
           type: 'number',
           example: 5,
-          description: 'The number of items in the wishlist'
-        }
-      }
-    }
+          description: 'The number of items in the wishlist',
+        },
+      },
+    },
   })
   @ApiBearerAuth('JWT-auth')
-  async getWishlistCount(@Req() req: RequestWithUser): Promise<{ count: number }> {
+  async getWishlistCount(
+    @Req() req: RequestWithUser,
+  ): Promise<{ count: number }> {
     const userId = req.user.id;
     const count = await this.wishlistService.getWishlistCount(userId);
     return { count };

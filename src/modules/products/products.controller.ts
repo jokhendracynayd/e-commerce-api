@@ -55,8 +55,8 @@ import { Public } from '../../common/guards/jwt-auth.guard';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  @Public()
   @Get()
+  @Public()
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(300) // Cache for 5 minutes
   @ApiOperation({ summary: 'Get all products with filtering and pagination' })
@@ -276,6 +276,7 @@ export class ProductsController {
   }
 
   @Get('slug/:slug')
+  @Public()
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(300) // Cache for 5 minutes
   @ApiOperation({ summary: 'Get product by slug' })

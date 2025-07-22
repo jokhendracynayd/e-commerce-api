@@ -78,7 +78,7 @@ export class MCPRateLimiter {
     resetTime: number;
   } {
     const entry = this.clientLimits.get(clientId);
-    
+
     if (!entry || entry.resetTime < Date.now()) {
       return {
         count: 0,
@@ -112,7 +112,7 @@ export class MCPRateLimiter {
   } {
     const now = Date.now();
     const activeClients = Array.from(this.clientLimits.values()).filter(
-      entry => entry.resetTime > now
+      (entry) => entry.resetTime > now,
     ).length;
 
     return {
@@ -134,7 +134,9 @@ export class MCPRateLimiter {
     }
 
     if (cleanedCount > 0) {
-      this.logger.debug(`Cleaned up ${cleanedCount} expired rate limit entries`);
+      this.logger.debug(
+        `Cleaned up ${cleanedCount} expired rate limit entries`,
+      );
     }
   }
-} 
+}

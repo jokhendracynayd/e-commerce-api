@@ -1,11 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { 
-  CallToolRequestSchema, 
+import {
+  CallToolRequestSchema,
   ListToolsRequestSchema,
   CallToolRequest,
-  ListToolsRequest
+  ListToolsRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { MCPConfigService } from '../config/mcp-config';
@@ -43,9 +43,9 @@ export class ECommerceMCPServer implements OnModuleInit {
     try {
       // Validate configuration
       this.configService.validateConfig();
-      
+
       const config = this.configService.getConfig();
-      
+
       // Create MCP server instance
       this.server = new Server(
         {
@@ -54,9 +54,9 @@ export class ECommerceMCPServer implements OnModuleInit {
         },
         {
           capabilities: {
-            tools: {}
-          }
-        }
+            tools: {},
+          },
+        },
       );
 
       // Register tool handlers
@@ -64,9 +64,8 @@ export class ECommerceMCPServer implements OnModuleInit {
 
       // Start the server
       await this.startServer();
-      
+
       this.logger.log(`E-Commerce MCP Server initialized successfully`);
-      
     } catch (error) {
       this.logger.error('Failed to initialize MCP server', error);
       throw error;
@@ -81,7 +80,7 @@ export class ECommerceMCPServer implements OnModuleInit {
           ...ProductTools.getToolDefinitions(),
           // Future tools will be added here
         ];
-        
+
         this.logger.debug(`Listing ${tools.length} available tools`);
         return { tools };
       });
@@ -90,85 +89,114 @@ export class ECommerceMCPServer implements OnModuleInit {
       this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args = {} } = request.params;
         const startTime = Date.now();
-        
+
         // Extract authentication headers
         const apiKey = this.extractApiKey(request);
         const userToken = this.extractUserToken(request);
         const clientId = apiKey || 'anonymous';
-        
-        this.logger.log(`Tool called: ${name} by client ${clientId.substring(0, 8)}...`);
-        
+
+        this.logger.log(
+          `Tool called: ${name} by client ${clientId.substring(0, 8)}...`,
+        );
+
         try {
           // Check rate limiting
           const rateLimitResult = this.rateLimiter.checkLimit(clientId);
           if (!rateLimitResult.allowed) {
-            const errorResult = this.errorHandler.handleRateLimitError(rateLimitResult.resetTime);
+            const errorResult = this.errorHandler.handleRateLimitError(
+              rateLimitResult.resetTime,
+            );
             return {
-              content: errorResult.content
+              content: errorResult.content,
             };
           }
 
           // Validate API key
-          if (!await this.authService.validateMCPClient(apiKey)) {
-            const errorResult = this.errorHandler.handleAuthError('Invalid API key');
+          if (!(await this.authService.validateMCPClient(apiKey))) {
+            const errorResult =
+              this.errorHandler.handleAuthError('Invalid API key');
             return {
-              content: errorResult.content
+              content: errorResult.content,
             };
           }
 
           let result: MCPToolResult;
-          
+
           // Route to appropriate tool handler
           switch (name) {
             // Product tools
             case 'search_products':
-              result = await this.productTools.handleSearchProducts(args, apiKey, userToken);
+              result = await this.productTools.handleSearchProducts(
+                args,
+                apiKey,
+                userToken,
+              );
               break;
-              
+
             case 'get_product_details':
-              result = await this.productTools.handleGetProductDetails(args, apiKey, userToken);
+              result = await this.productTools.handleGetProductDetails(
+                args,
+                apiKey,
+                userToken,
+              );
               break;
-              
+
             case 'get_featured_products':
-              result = await this.productTools.handleGetFeaturedProducts(args, apiKey, userToken);
+              result = await this.productTools.handleGetFeaturedProducts(
+                args,
+                apiKey,
+                userToken,
+              );
               break;
-              
+
             case 'get_products_by_category':
-              result = await this.productTools.handleGetProductsByCategory(args, apiKey, userToken);
+              result = await this.productTools.handleGetProductsByCategory(
+                args,
+                apiKey,
+                userToken,
+              );
               break;
-              
+
             case 'get_products_by_brand':
-              result = await this.productTools.handleGetProductsByBrand(args, apiKey, userToken);
+              result = await this.productTools.handleGetProductsByBrand(
+                args,
+                apiKey,
+                userToken,
+              );
               break;
 
             default:
               const errorResult = this.errorHandler.handleToolNotFound(name);
               return {
-                content: errorResult.content
+                content: errorResult.content,
               };
           }
-          
+
           // Log execution metrics
           const executionTime = Date.now() - startTime;
           this.logger.log(`Tool ${name} completed in ${executionTime}ms`);
-          
+
           return {
-            content: result.content
+            content: result.content,
           };
-          
         } catch (error) {
           const executionTime = Date.now() - startTime;
-          this.logger.error(`Tool ${name} execution failed after ${executionTime}ms`, error);
-          
-          const errorResult = this.errorHandler.handleUnexpectedError(error, name);
+          this.logger.error(
+            `Tool ${name} execution failed after ${executionTime}ms`,
+            error,
+          );
+
+          const errorResult = this.errorHandler.handleUnexpectedError(
+            error,
+            name,
+          );
           return {
-            content: errorResult.content
+            content: errorResult.content,
           };
         }
       });
-      
+
       this.logger.log('MCP tool handlers registered successfully');
-      
     } catch (error) {
       this.logger.error('Failed to register tool handlers', error);
       throw error;
@@ -180,12 +208,11 @@ export class ECommerceMCPServer implements OnModuleInit {
       // Use stdio transport for MCP communication
       const transport = new StdioServerTransport();
       await this.server.connect(transport);
-      
+
       this.logger.log('MCP Server started and listening on stdio');
-      
+
       // Log server capabilities
       this.logServerCapabilities();
-      
     } catch (error) {
       this.logger.error('Failed to start MCP server', error);
       throw error;
@@ -196,7 +223,11 @@ export class ECommerceMCPServer implements OnModuleInit {
     // Extract API key from request headers or parameters
     // This will depend on how the MCP client sends authentication
     const headers = request.meta?.headers || {};
-    return headers['x-api-key'] || headers['authorization']?.replace('Bearer ', '') || '';
+    return (
+      headers['x-api-key'] ||
+      headers['authorization']?.replace('Bearer ', '') ||
+      ''
+    );
   }
 
   private extractUserToken(request: any): string | undefined {
@@ -207,23 +238,25 @@ export class ECommerceMCPServer implements OnModuleInit {
 
   private logServerCapabilities(): void {
     const config = this.configService.getConfig();
-    
+
     this.logger.log('='.repeat(50));
     this.logger.log(`E-Commerce MCP Server - ${config.server.version}`);
     this.logger.log('='.repeat(50));
     this.logger.log('Available Tools:');
-    
+
     const tools = ProductTools.getToolDefinitions();
-    tools.forEach(tool => {
+    tools.forEach((tool) => {
       this.logger.log(`  ✓ ${tool.name}: ${tool.description}`);
     });
-    
+
     this.logger.log('='.repeat(50));
     this.logger.log('Configuration:');
     this.logger.log(`  Cache TTL: ${config.cache.ttl}ms`);
     this.logger.log(`  Max Cache Size: ${config.cache.maxSize}`);
     this.logger.log(`  API Timeout: ${config.backend.timeout}ms`);
-    this.logger.log(`  Rate Limit: ${config.rateLimit.maxRequests} requests per ${config.rateLimit.windowMs}ms`);
+    this.logger.log(
+      `  Rate Limit: ${config.rateLimit.maxRequests} requests per ${config.rateLimit.windowMs}ms`,
+    );
     this.logger.log('='.repeat(50));
   }
 
@@ -244,7 +277,7 @@ export class ECommerceMCPServer implements OnModuleInit {
       const cacheStats = this.cacheService.getStats();
       const rateLimitStats = this.rateLimiter.getStats();
       const config = this.configService.getConfig();
-      
+
       return {
         status: apiHealthy ? 'healthy' : 'unhealthy',
         uptime: process.uptime(),
@@ -273,16 +306,15 @@ export class ECommerceMCPServer implements OnModuleInit {
   async shutdown(): Promise<void> {
     try {
       this.logger.log('Shutting down MCP server...');
-      
+
       if (this.server) {
         await this.server.close();
       }
-      
+
       // Cleanup cache
       this.cacheService.clear();
-      
+
       this.logger.log('MCP server shutdown complete');
-      
     } catch (error) {
       this.logger.error('Error during shutdown', error);
     }
@@ -304,7 +336,7 @@ export async function createMCPServer(
     cacheService,
     productTools,
   );
-  
+
   await server.onModuleInit();
   return server;
-} 
+}

@@ -52,8 +52,8 @@ export class CategoriesController {
     private readonly productsService: ProductsService,
   ) {}
 
-  @Public()
   @Get()
+  @Public()
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(60 * 15) // Cache for 15 minutes
   @ApiOperation({ summary: 'Get all categories' })
@@ -66,8 +66,8 @@ export class CategoriesController {
     return this.categoriesService.findAll();
   }
 
-  @Public()
   @Get('tree')
+  @Public()
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(60 * 15) // Cache for 15 minutes
   @ApiOperation({ summary: 'Get category hierarchy tree' })
@@ -80,8 +80,8 @@ export class CategoriesController {
     return this.categoriesService.getCategoryTree();
   }
 
-  @Public()
   @Get(':id/products')
+  @Public()
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(60 * 5) // Cache for 5 minutes
   @ApiOperation({ summary: 'Get products in a category' })
@@ -145,8 +145,8 @@ export class CategoriesController {
     return this.productsService.findAll(categoryFilterDto);
   }
 
-  @Public()
   @Get(':id/recursive-products')
+  @Public()
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(60 * 5) // Cache for 5 minutes
   @ApiOperation({
@@ -233,6 +233,7 @@ export class CategoriesController {
   }
 
   @Get('slug/:slug')
+  @Public()
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(60 * 15) // Cache for 15 minutes
   @ApiOperation({ summary: 'Get a category by slug' })
