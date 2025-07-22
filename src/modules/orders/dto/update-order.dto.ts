@@ -80,4 +80,12 @@ export class UpdateOrderDto {
   @IsOptional()
   @IsString()
   estimatedDelivery?: string;
+
+  @ApiPropertyOptional({
+    description: 'Currency code (ISO 4217 format)',
+    example: 'USD',
+  })
+  @IsOptional()
+  @IsString()
+  currency?: string;
 }

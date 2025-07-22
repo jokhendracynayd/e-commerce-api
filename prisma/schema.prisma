@@ -283,6 +283,7 @@ model Order {
   shippingFee     Decimal       @default(0) @map("shipping_fee") @db.Decimal(10, 2)
   discount        Decimal       @default(0) @db.Decimal(10, 2)
   total           Decimal       @db.Decimal(10, 2)
+  currency        String        @default("USD")
   placedAt        DateTime      @default(now()) @map("placed_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
   couponCode      String?       @map("coupon_code")
@@ -291,8 +292,10 @@ model Order {
   reviews         ProductReview[]
   user            User?         @relation(fields: [userId], references: [id])
   payments        Payment[]
+  timeline        OrderTimeline[]
 
   @@index([userId], map: "idx_order_user")
+  @@index([currency], map: "idx_order_currency")
   @@map("orders")
 }
 
@@ -486,6 +489,18 @@ model Payment {
   order             Order         @relation(fields: [orderId], references: [id])
 
   @@map("payments")
+}
+
+model OrderTimeline {
+  id        String      @id @default(uuid())
+  orderId   String      @map("order_id")
+  status    OrderStatus
+  note      String?
+  createdAt DateTime    @default(now()) @map("created_at")
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId], map: "idx_order_timeline_order")
+  @@map("order_timeline")
 }
 
 enum Gender {

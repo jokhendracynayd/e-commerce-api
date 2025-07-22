@@ -113,4 +113,13 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   discountCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'Currency code (ISO 4217 format)',
+    example: 'USD',
+    default: 'USD',
+  })
+  @IsOptional()
+  @IsString()
+  currency?: string;
 }

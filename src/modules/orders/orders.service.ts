@@ -17,6 +17,7 @@ import {
   OrderResponseDto,
   OrderFilterDto,
   PaginatedOrderResponseDto,
+  OrderTimelineDto,
 } from './dto';
 import { AppLogger } from '../../common/services/logger.service';
 import { generateOrderNumber } from '../../common/utils/order-number';
@@ -43,6 +44,7 @@ export class OrdersService {
         endDate,
         sortBy = 'placedAt',
         sortOrder = 'desc',
+        currency,
       } = filterDto;
 
       const skip = (page - 1) * limit;
@@ -79,6 +81,10 @@ export class OrdersService {
         if (endDate) {
           where.placedAt.lte = endDate;
         }
+      }
+
+      if (currency) {
+        where.currency = currency;
       }
 
       // Build order by
@@ -312,6 +318,7 @@ export class OrdersService {
                   price: true,
                   discountPrice: true,
                   isActive: true,
+                  currency: true,
                 },
               });
 
@@ -402,6 +409,7 @@ export class OrdersService {
                 ...item,
                 unitPrice,
                 totalPrice,
+                productCurrency: product.currency,
               };
             }),
           );
@@ -430,6 +438,24 @@ export class OrdersService {
           const billingAddress =
             createOrderDto.billingAddress || createOrderDto.shippingAddress;
 
+          // Get currency from request or from the first product
+          let orderCurrency = createOrderDto.currency;
+          
+          if (!orderCurrency) {
+            // Use currency from the first product
+            orderCurrency = itemsWithPrices[0]?.productCurrency || 'USD';
+            
+            // Validate that all products have the same currency
+            const allCurrencies = itemsWithPrices.map(item => item.productCurrency);
+            const uniqueCurrencies = Array.from(new Set(allCurrencies));
+            
+            if (uniqueCurrencies.length > 1) {
+              throw new BadRequestException(
+                `Mixed currencies not supported. Found currencies: ${uniqueCurrencies.join(', ')}. Please ensure all products have the same currency.`
+              );
+            }
+          }
+
           // Create order
           const order = await prisma.order.create({
             data: {
@@ -446,6 +472,7 @@ export class OrdersService {
               shippingFee,
               discount,
               total,
+              currency: orderCurrency,
               items: {
                 create: itemsWithPrices.map((item) => ({
                   productId: item.productId,
@@ -586,6 +613,9 @@ export class OrdersService {
             }
           }
 
+          // Add timeline entry for order creation
+          await this.addTimelineEntry(prisma, order.id, OrderStatus.PENDING);
+
           return order;
         },
         {
@@ -655,6 +685,10 @@ export class OrdersService {
         updateData.billingAddress = updateOrderDto.billingAddress as any;
       }
 
+      if (updateOrderDto.currency !== undefined) {
+        updateData.currency = updateOrderDto.currency;
+      }
+
       // Update the order
       const updatedOrder = await this.prismaService.order.update({
         where: { id },
@@ -710,6 +744,18 @@ export class OrdersService {
           // Restore inventory when order is cancelled or returned
           await this.restoreInventoryForOrder(id);
         }
+      }
+
+      // Add timeline entry if order status changed
+      if (
+        updateOrderDto.status !== undefined &&
+        updateOrderDto.status !== existingOrder.status
+      ) {
+        await this.addTimelineEntry(
+          this.prismaService,
+          id,
+          updateOrderDto.status,
+        );
       }
 
       this.logger.log(`Updated order: ${id}`);
@@ -803,6 +849,9 @@ export class OrdersService {
           // Restore inventory
           await this.restoreInventoryForOrder(id, prisma);
 
+          // Add timeline entry for order cancellation
+          await this.addTimelineEntry(prisma, id, OrderStatus.CANCELLED);
+
           return result;
         },
       );
@@ -894,6 +943,51 @@ export class OrdersService {
     }
   }
 
+  // Helper to create timeline entry
+  private async addTimelineEntry(
+    prisma: Prisma.TransactionClient | PrismaService,
+    orderId: string,
+    status: OrderStatus,
+    note?: string,
+  ): Promise<void> {
+    // `prisma` could be either the injected PrismaService or a transaction client
+    // @ts-ignore – orderTimeline will exist after prisma generate
+    await (prisma as any).orderTimeline.create({
+      data: {
+        orderId,
+        status,
+        note,
+      },
+    });
+  }
+
+  // New method: fetch timeline
+  async getTimeline(orderId: string): Promise<OrderTimelineDto[]> {
+    // Verify order exists
+    const orderExists = await this.prismaService.order.findUnique({
+      where: { id: orderId },
+      select: { id: true },
+    });
+
+    if (!orderExists) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    // @ts-ignore – orderTimeline will exist after prisma generate
+    const events = await (this.prismaService as any).orderTimeline.findMany({
+      where: { orderId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return events.map((e: any) => ({
+      id: e.id,
+      orderId: e.orderId,
+      status: e.status,
+      note: e.note,
+      createdAt: e.createdAt,
+    }));
+  }
+
   // Helper method to transform order to DTO
   private transformOrderToDto(order: any): OrderResponseDto {
     // Transform order items
@@ -933,6 +1027,7 @@ export class OrdersService {
       shippingFee: parseFloat(order.shippingFee.toString()),
       discount: parseFloat(order.discount.toString()),
       total: parseFloat(order.total.toString()),
+      currency: order.currency,
       items,
       placedAt: order.placedAt,
       updatedAt: order.updatedAt,

@@ -220,6 +220,12 @@ export class OrderResponseDto {
   total: number;
 
   @ApiProperty({
+    description: 'Currency code (ISO 4217 format)',
+    example: 'USD',
+  })
+  currency: string;
+
+  @ApiProperty({
     description: 'Order items',
     type: [OrderItemResponseDto],
   })

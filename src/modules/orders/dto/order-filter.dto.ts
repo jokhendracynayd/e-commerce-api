@@ -101,4 +101,12 @@ export class OrderFilterDto {
   @IsOptional()
   @IsEnum(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc' = 'desc';
+
+  @ApiPropertyOptional({
+    description: 'Filter by currency',
+    example: 'USD',
+  })
+  @IsOptional()
+  @IsString()
+  currency?: string;
 }
