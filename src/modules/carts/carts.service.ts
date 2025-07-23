@@ -535,13 +535,23 @@ export class CartsService {
           );
         }
 
-        // Update cart item
+        // Calculate delta and update cart item
+        const delta = quantity - cartItem.quantity;
+
         await prisma.cartItem.update({
           where: { id: cartItemId },
-          data: {
-            quantity,
-          },
+          data: { quantity },
         });
+
+        // Adjust reserved quantity accordingly
+        if (delta !== 0) {
+          await prisma.inventory.update({
+            where: cartItem.variantId ? { variantId: cartItem.variantId } : { productId: cartItem.productId },
+            data: {
+              reservedQuantity: { increment: delta },
+            },
+          });
+        }
 
         // Fetch updated cart
         const updatedCart = await prisma.cart.findUnique({
@@ -629,10 +639,19 @@ export class CartsService {
         );
       }
 
-      // Delete the cart item
-      await this.prismaService.cartItem.delete({
-        where: { id: cartItemId },
-      });
+      // Use transaction to update inventory reservation and delete item atomically
+      await this.prismaService.$transaction(async (prisma) => {
+        // Decrement reservedQuantity
+        await prisma.inventory.update({
+          where: cartItem.variantId ? { variantId: cartItem.variantId } : { productId: cartItem.productId },
+          data: {
+            reservedQuantity: { decrement: cartItem.quantity },
+          },
+        });
+
+        // Delete the cart item
+        await prisma.cartItem.delete({ where: { id: cartItemId } });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
       // Return the updated cart
       const updatedCart = await this.prismaService.cart.findUnique({
@@ -700,10 +719,31 @@ export class CartsService {
         throw new NotFoundException(`Cart for user ${userId} not found`);
       }
 
-      // Delete all cart items
-      await this.prismaService.cartItem.deleteMany({
+      // Fetch all cart items first to release reservations
+      const cartItems = await this.prismaService.cartItem.findMany({
         where: { cartId: cart.id },
+        select: {
+          id: true,
+          quantity: true,
+          productId: true,
+          variantId: true,
+        },
       });
+
+      await this.prismaService.$transaction(async (prisma) => {
+        // Release reservations
+        for (const item of cartItems) {
+          await prisma.inventory.update({
+            where: item.variantId ? { variantId: item.variantId } : { productId: item.productId },
+            data: {
+              reservedQuantity: { decrement: item.quantity },
+            },
+          });
+        }
+
+        // Delete items in one go
+        await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
       // Return the empty cart
       const emptyCart = await this.prismaService.cart.findUnique({
