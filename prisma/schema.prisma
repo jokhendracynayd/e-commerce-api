@@ -9,40 +9,40 @@ datasource db {
 }
 
 model User {
-  id                  String          @id @default(uuid())
-  email               String          @unique
+  id                  String                  @id @default(uuid())
+  email               String                  @unique
   password            String
   firstName           String?
   lastName            String?
-  phone               String?         @unique
-  isEmailVerified     Boolean         @default(false) @map("is_email_verified")
-  isPhoneVerified     Boolean         @default(false) @map("is_phone_verified")
+  phone               String?                 @unique
+  isEmailVerified     Boolean                 @default(false) @map("is_email_verified")
+  isPhoneVerified     Boolean                 @default(false) @map("is_phone_verified")
   gender              Gender?
-  status              UserStatus      @default(ACTIVE)
-  role                Role            @default(USER)
-  lastLoginAt         DateTime?       @map("last_login_at")
-  loginIp             String?         @map("login_ip")
-  signupIp            String?         @map("signup_ip")
-  deletedAt           DateTime?       @map("deleted_at")
-  createdAt           DateTime        @default(now()) @map("created_at")
-  updatedAt           DateTime        @updatedAt @map("updated_at")
+  status              UserStatus              @default(ACTIVE)
+  role                Role                    @default(USER)
+  lastLoginAt         DateTime?               @map("last_login_at")
+  loginIp             String?                 @map("login_ip")
+  signupIp            String?                 @map("signup_ip")
+  deletedAt           DateTime?               @map("deleted_at")
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
   refreshToken        String?
-  profileImage        String?         @map("profile_image")
-  dateOfBirth         DateTime?       @map("date_of_birth")
+  profileImage        String?                 @map("profile_image")
+  dateOfBirth         DateTime?               @map("date_of_birth")
   bio                 String?
   preferences         Json?
-  failedLoginAttempts Int             @default(0) @map("failed_login_attempts")
-  lastPasswordChange  DateTime?       @map("last_password_change")
+  failedLoginAttempts Int                     @default(0) @map("failed_login_attempts")
+  lastPasswordChange  DateTime?               @map("last_password_change")
   addresses           Address[]
+  browsingHistory     BrowsingHistory[]
   cart                Cart?
   couponUsages        CouponUsage[]
   orders              Order[]
+  recommendations     ProductRecommendation[]
   reviews             ProductReview[]
   products            Product[]
-  wishlistItems       WishlistItem[]
   activities          UserActivity[]
-  browsingHistory     BrowsingHistory[]
-  recommendations     ProductRecommendation[]
+  wishlistItems       WishlistItem[]
 
   @@map("users")
 }
@@ -92,63 +92,60 @@ model Tag {
 }
 
 model Product {
-  id               String                 @id @default(uuid())
-  sellerId         String?                @map("seller_id")
-  title            String
-  slug             String                 @unique
-  description      String?
-  shortDescription String?                @map("short_description")
-  subtitle         String?                // Added: For color/size info like "Blue Strap, Free Size"
-  brandId          String?                @map("brand_id")
-  categoryId       String?                @map("category_id")
-  subCategoryId    String?                @map("sub_category_id")
-  price            Decimal                @db.Decimal(10, 2)
-  discountPrice    Decimal?               @map("discount_price") @db.Decimal(10, 2)
-  currency         String                 @default("USD")
-  stockQuantity    Int                    @default(0) @map("stock_quantity")
-  sku              String                 @unique
-  barcode          String?
-  weight           Float?
-  dimensions       Json?
-  isActive         Boolean                @default(true) @map("is_active")
-  isFeatured       Boolean                @default(false) @map("is_featured")
-  isNew            Boolean                @default(false) @map("is_new") // Added: For new product badge
-  isBestSeller     Boolean                @default(false) @map("is_best_seller") // Added: For best seller badge
-  isSponsored      Boolean                @default(false) @map("is_sponsored") // Added: For sponsored tag
-  visibility       ProductVisibility      @default(PUBLIC)
-  averageRating    Float                  @default(0) @map("average_rating")
-  reviewCount      Int                    @default(0) @map("review_count")
-  
-  // Bank offer fields - using JSON for flexibility
-  bankOffer        Json?                  @map("bank_offer") // Added: Bank offer details
-  exchangeOffer    Json?                  @map("exchange_offer") // Added: Exchange offer details
-  
-  metaTitle        String?                @map("meta_title")
-  metaDescription  String?                @map("meta_description")
-  metaKeywords     String?                @map("meta_keywords")
-  createdAt        DateTime               @default(now()) @map("created_at")
-  updatedAt        DateTime               @updatedAt @map("updated_at")
-  cartItems        CartItem[]
-  CouponProduct    CouponProduct[]
-  inventory        Inventory?
-  inventoryLogs    InventoryLog[]
-  orderItems       OrderItem[]
-  deals            ProductDeal[]
-  images           ProductImage[]
-  reviews          ProductReview[]
-  specifications   ProductSpecification[]
-  tags             ProductTag[]
-  variants         ProductVariant[]
-  brand            Brand?                 @relation(fields: [brandId], references: [id])
-  category         Category?              @relation("CategoryProducts", fields: [categoryId], references: [id])
-  seller           User?                  @relation(fields: [sellerId], references: [id])
-  subCategory      Category?              @relation("SubCategoryProducts", fields: [subCategoryId], references: [id])
-  wishlistItems    WishlistItem[]
-  browsingHistory      BrowsingHistory[]
-  baseRecommendations  ProductRecommendation[] @relation("BaseProduct")
+  id                    String                  @id @default(uuid())
+  sellerId              String?                 @map("seller_id")
+  title                 String
+  slug                  String                  @unique
+  description           String?
+  shortDescription      String?                 @map("short_description")
+  brandId               String?                 @map("brand_id")
+  categoryId            String?                 @map("category_id")
+  subCategoryId         String?                 @map("sub_category_id")
+  price                 Decimal                 @db.Decimal(10, 2)
+  discountPrice         Decimal?                @map("discount_price") @db.Decimal(10, 2)
+  currency              String                  @default("USD")
+  stockQuantity         Int                     @default(0) @map("stock_quantity")
+  sku                   String                  @unique
+  barcode               String?
+  weight                Float?
+  dimensions            Json?
+  isActive              Boolean                 @default(true) @map("is_active")
+  isFeatured            Boolean                 @default(false) @map("is_featured")
+  visibility            ProductVisibility       @default(PUBLIC)
+  averageRating         Float                   @default(0) @map("average_rating")
+  reviewCount           Int                     @default(0) @map("review_count")
+  metaTitle             String?                 @map("meta_title")
+  metaDescription       String?                 @map("meta_description")
+  metaKeywords          String?                 @map("meta_keywords")
+  createdAt             DateTime                @default(now()) @map("created_at")
+  updatedAt             DateTime                @updatedAt @map("updated_at")
+  bankOffer             Json?                   @map("bank_offer")
+  exchangeOffer         Json?                   @map("exchange_offer")
+  isBestSeller          Boolean                 @default(false) @map("is_best_seller")
+  isNew                 Boolean                 @default(false) @map("is_new")
+  isSponsored           Boolean                 @default(false) @map("is_sponsored")
+  subtitle              String?
+  browsingHistory       BrowsingHistory[]
+  cartItems             CartItem[]
+  CouponProduct         CouponProduct[]
+  inventory             Inventory?
+  inventoryLogs         InventoryLog[]
+  orderItems            OrderItem[]
+  deals                 ProductDeal[]
+  images                ProductImage[]
+  baseRecommendations   ProductRecommendation[] @relation("BaseProduct")
   targetRecommendations ProductRecommendation[] @relation("RecommendedProduct")
-  similarityBase       ProductSimilarity[]     @relation("SimilarityBase")
-  similarityTarget     ProductSimilarity[]     @relation("SimilarityTarget")
+  reviews               ProductReview[]
+  similarityBase        ProductSimilarity[]     @relation("SimilarityBase")
+  similarityTarget      ProductSimilarity[]     @relation("SimilarityTarget")
+  specifications        ProductSpecification[]
+  tags                  ProductTag[]
+  variants              ProductVariant[]
+  brand                 Brand?                  @relation(fields: [brandId], references: [id])
+  category              Category?               @relation("CategoryProducts", fields: [categoryId], references: [id])
+  seller                User?                   @relation(fields: [sellerId], references: [id])
+  subCategory           Category?               @relation("SubCategoryProducts", fields: [subCategoryId], references: [id])
+  wishlistItems         WishlistItem[]
 
   @@index([categoryId], map: "idx_product_category")
   @@index([slug], map: "idx_product_slug")
@@ -173,16 +170,16 @@ model ProductVariant {
   id              String         @id @default(uuid())
   productId       String         @map("product_id")
   variantName     String         @map("variant_name")
-  color           String?        // Added: Color name (e.g., "Blue", "Red")
-  colorHex        String?        @map("color_hex") // Added: Hex color code (e.g., "#0000FF")
-  size            String?        // Added: Size information (e.g., "M", "Large", "128GB")
-  variantImage    String?        @map("variant_image") // Added: Specific image for this variant
   sku             String         @unique
   price           Decimal        @db.Decimal(10, 2)
   stockQuantity   Int            @default(0) @map("stock_quantity")
   additionalPrice Decimal        @default(0) @map("additional_price") @db.Decimal(10, 2)
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
+  color           String?
+  colorHex        String?        @map("color_hex")
+  size            String?
+  variantImage    String?        @map("variant_image")
   cartItems       CartItem[]
   inventory       Inventory?
   inventoryLogs   InventoryLog[]
@@ -218,21 +215,20 @@ model ProductDeal {
 }
 
 model ProductReview {
-  id                String   @id @default(uuid())
-  productId         String   @map("product_id")
-  userId            String   @map("user_id")
-  orderId           String   @map("order_id")
-  rating            Int
-  title             String?  // Review title/headline
-  comment           String?
-  isVerifiedPurchase Boolean @default(true) @map("is_verified_purchase")
-  helpfulCount      Int      @default(0) @map("helpful_count")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
-  
-  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id                 String   @id @default(uuid())
+  productId          String   @map("product_id")
+  userId             String   @map("user_id")
+  rating             Int
+  comment            String?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  helpfulCount       Int      @default(0) @map("helpful_count")
+  isVerifiedPurchase Boolean  @default(true) @map("is_verified_purchase")
+  title              String?
+  orderId            String   @map("order_id")
+  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product            Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId, orderId])
   @@index([productId, rating])
@@ -253,46 +249,46 @@ model Cart {
 }
 
 model CartItem {
-  id                String          @id @default(uuid())
-  cartId            String          @map("cart_id")
-  productId         String          @map("product_id")
-  variantId         String?         @map("variant_id")
-  quantity          Int
-  reservationExpires DateTime?      @map("reservation_expires")
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @updatedAt @map("updated_at")
-  cart              Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant           ProductVariant? @relation(fields: [variantId], references: [id])
+  id                 String          @id @default(uuid())
+  cartId             String          @map("cart_id")
+  productId          String          @map("product_id")
+  variantId          String?         @map("variant_id")
+  quantity           Int
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  reservationExpires DateTime?       @map("reservation_expires")
+  cart               Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product            Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant            ProductVariant? @relation(fields: [variantId], references: [id])
 
   @@unique([cartId, productId, variantId])
   @@map("cart_items")
 }
 
 model Order {
-  id              String        @id @default(uuid())
-  userId          String?       @map("user_id")
-  orderNumber     String        @unique @map("order_number")
-  status          OrderStatus   @default(PENDING)
-  paymentStatus   PaymentStatus @default(PENDING) @map("payment_status")
-  paymentMethod   String?       @map("payment_method")
-  shippingAddress Json          @map("shipping_address")
-  billingAddress  Json          @map("billing_address")
-  subtotal        Decimal       @db.Decimal(10, 2)
-  tax             Decimal       @default(0) @db.Decimal(10, 2)
-  shippingFee     Decimal       @default(0) @map("shipping_fee") @db.Decimal(10, 2)
-  discount        Decimal       @default(0) @db.Decimal(10, 2)
-  total           Decimal       @db.Decimal(10, 2)
-  currency        String        @default("USD")
-  placedAt        DateTime      @default(now()) @map("placed_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  couponCode      String?       @map("coupon_code")
+  id              String          @id @default(uuid())
+  userId          String?         @map("user_id")
+  orderNumber     String          @unique @map("order_number")
+  status          OrderStatus     @default(PENDING)
+  paymentStatus   PaymentStatus   @default(PENDING) @map("payment_status")
+  paymentMethod   String?         @map("payment_method")
+  shippingAddress Json            @map("shipping_address")
+  billingAddress  Json            @map("billing_address")
+  subtotal        Decimal         @db.Decimal(10, 2)
+  tax             Decimal         @default(0) @db.Decimal(10, 2)
+  shippingFee     Decimal         @default(0) @map("shipping_fee") @db.Decimal(10, 2)
+  discount        Decimal         @default(0) @db.Decimal(10, 2)
+  total           Decimal         @db.Decimal(10, 2)
+  placedAt        DateTime        @default(now()) @map("placed_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  couponCode      String?         @map("coupon_code")
+  currency        String          @default("USD")
   couponUsages    CouponUsage[]
   items           OrderItem[]
-  reviews         ProductReview[]
-  user            User?         @relation(fields: [userId], references: [id])
-  payments        Payment[]
   timeline        OrderTimeline[]
+  user            User?           @relation(fields: [userId], references: [id])
+  payments        Payment[]
+  reviews         ProductReview[]
 
   @@index([userId], map: "idx_order_user")
   @@index([currency], map: "idx_order_currency")
@@ -503,6 +499,137 @@ model OrderTimeline {
   @@map("order_timeline")
 }
 
+model UserActivity {
+  id           String           @id @default(uuid())
+  userId       String?          @map("user_id")
+  sessionId    String           @map("session_id")
+  activityType UserActivityType @map("activity_type")
+  entityId     String?          @map("entity_id")
+  entityType   String?          @map("entity_type")
+  metadata     Json?
+  ipAddress    String?          @map("ip_address")
+  userAgent    String?          @map("user_agent")
+  referrer     String?
+  pageUrl      String?          @map("page_url")
+  deviceType   String?          @map("device_type")
+  duration     Int?
+  timestamp    DateTime         @default(now())
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  user         User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, timestamp])
+  @@index([sessionId, timestamp])
+  @@index([entityId, entityType])
+  @@index([activityType, timestamp])
+  @@index([timestamp])
+  @@index([createdAt])
+  @@map("user_activities")
+}
+
+model BrowsingHistory {
+  id           String    @id @default(uuid())
+  userId       String?   @map("user_id")
+  sessionId    String    @map("session_id")
+  productId    String    @map("product_id")
+  viewedAt     DateTime  @default(now()) @map("viewed_at")
+  lastViewedAt DateTime  @updatedAt @map("last_viewed_at")
+  viewCount    Int       @default(1) @map("view_count")
+  timeSpent    Int?      @map("time_spent")
+  source       String?
+  deviceType   String?   @map("device_type")
+  conversion   Boolean   @default(false)
+  conversionAt DateTime? @map("conversion_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user         User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId, lastViewedAt])
+  @@index([sessionId, viewedAt])
+  @@index([productId, viewedAt])
+  @@index([source, viewedAt])
+  @@index([conversion, conversionAt])
+  @@index([createdAt])
+  @@map("browsing_history")
+}
+
+model ProductRecommendation {
+  id                   String               @id @default(uuid())
+  userId               String?              @map("user_id")
+  sessionId            String?              @map("session_id")
+  productId            String?              @map("product_id")
+  recommendedProductId String               @map("recommended_product_id")
+  recommendationType   RecommendationType   @map("recommendation_type")
+  score                Float                @default(0)
+  position             Int?
+  batchId              String?              @map("batch_id")
+  viewed               Boolean              @default(false)
+  clicked              Boolean              @default(false)
+  converted            Boolean              @default(false)
+  viewedAt             DateTime?            @map("viewed_at")
+  clickedAt            DateTime?            @map("clicked_at")
+  convertedAt          DateTime?            @map("converted_at")
+  algorithmVersion     String?              @map("algorithm_version")
+  metadata             Json?
+  expiresAt            DateTime?            @map("expires_at")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  batch                RecommendationBatch? @relation(fields: [batchId], references: [id])
+  product              Product?             @relation("BaseProduct", fields: [productId], references: [id], onDelete: Cascade)
+  recommendedProduct   Product              @relation("RecommendedProduct", fields: [recommendedProductId], references: [id], onDelete: Cascade)
+  user                 User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sessionId, productId, recommendedProductId, recommendationType])
+  @@index([userId, recommendationType, score])
+  @@index([sessionId, recommendationType, score])
+  @@index([productId, recommendationType, score])
+  @@index([recommendationType, score, createdAt])
+  @@index([expiresAt])
+  @@index([batchId])
+  @@map("product_recommendations")
+}
+
+model RecommendationBatch {
+  id               String                  @id @default(uuid())
+  batchType        RecommendationType      @map("batch_type")
+  algorithmVersion String                  @map("algorithm_version")
+  totalGenerated   Int                     @default(0) @map("total_generated")
+  status           BatchStatus             @default(RUNNING)
+  startedAt        DateTime                @default(now()) @map("started_at")
+  completedAt      DateTime?               @map("completed_at")
+  errorMessage     String?                 @map("error_message")
+  metadata         Json?
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+  recommendations  ProductRecommendation[]
+
+  @@index([batchType, status])
+  @@index([startedAt])
+  @@index([createdAt])
+  @@map("recommendation_batches")
+}
+
+model ProductSimilarity {
+  id               String   @id @default(uuid())
+  productId        String   @map("product_id")
+  similarProductId String   @map("similar_product_id")
+  similarityScore  Float    @map("similarity_score")
+  similarityType   String
+  lastCalculated   DateTime @default(now()) @map("last_calculated")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  product          Product  @relation("SimilarityBase", fields: [productId], references: [id], onDelete: Cascade)
+  similarProduct   Product  @relation("SimilarityTarget", fields: [similarProductId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, similarProductId, similarityType])
+  @@index([productId, similarityScore])
+  @@index([similarityType, similarityScore])
+  @@index([createdAt])
+  @@map("product_similarities")
+}
+
 enum Gender {
   MALE
   FEMALE
@@ -570,154 +697,6 @@ enum CouponStatus {
   DISABLED
 }
 
-// ===================================
-// RECOMMENDATION SYSTEM MODELS
-// ===================================
-
-model UserActivity {
-  id           String           @id @default(uuid())
-  userId       String?          @map("user_id")
-  sessionId    String           @map("session_id")
-  activityType UserActivityType @map("activity_type")
-  entityId     String?          @map("entity_id")
-  entityType   String?          @map("entity_type")
-  metadata     Json?
-  ipAddress    String?          @map("ip_address")
-  userAgent    String?          @map("user_agent")
-  referrer     String?
-  pageUrl      String?          @map("page_url")
-  deviceType   String?          @map("device_type")
-  duration     Int?             // Time spent in seconds
-  timestamp    DateTime         @default(now())
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
-  user         User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, timestamp])
-  @@index([sessionId, timestamp])
-  @@index([entityId, entityType])
-  @@index([activityType, timestamp])
-  @@index([timestamp]) // For cleanup jobs
-  @@index([createdAt])
-  @@map("user_activities")
-}
-
-model BrowsingHistory {
-  id           String   @id @default(uuid())
-  userId       String?  @map("user_id")
-  sessionId    String   @map("session_id")
-  productId    String   @map("product_id")
-  viewedAt     DateTime @default(now()) @map("viewed_at")
-  lastViewedAt DateTime @updatedAt @map("last_viewed_at")
-  viewCount    Int      @default(1) @map("view_count")
-  timeSpent    Int?     @map("time_spent") // in seconds
-  source       String?  // e.g., "search", "category", "recommendation"
-  deviceType   String?  @map("device_type")
-  conversion   Boolean  @default(false) // Did this view lead to purchase?
-  conversionAt DateTime? @map("conversion_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  
-  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, productId]) // Prevent duplicates, update instead
-  @@index([userId, lastViewedAt])
-  @@index([sessionId, viewedAt])
-  @@index([productId, viewedAt])
-  @@index([source, viewedAt])
-  @@index([conversion, conversionAt])
-  @@index([createdAt])
-  @@map("browsing_history")
-}
-
-model ProductRecommendation {
-  id                  String             @id @default(uuid())
-  userId              String?            @map("user_id")
-  sessionId           String?            @map("session_id") // For anonymous users
-  productId           String?            @map("product_id") // Null for global recommendations
-  recommendedProductId String            @map("recommended_product_id")
-  recommendationType  RecommendationType @map("recommendation_type")
-  score               Float              @default(0)
-  position            Int?               // Position in recommendation list
-  batchId             String?            @map("batch_id") // Link to generation batch
-  
-  // Tracking metrics
-  viewed              Boolean            @default(false)
-  clicked             Boolean            @default(false)
-  converted           Boolean            @default(false)
-  viewedAt            DateTime?          @map("viewed_at")
-  clickedAt           DateTime?          @map("clicked_at")
-  convertedAt         DateTime?          @map("converted_at")
-  
-  // Metadata
-  algorithmVersion    String?            @map("algorithm_version")
-  metadata            Json?              // Store algorithm-specific data
-  expiresAt           DateTime?          @map("expires_at")
-  
-  createdAt           DateTime           @default(now()) @map("created_at")
-  updatedAt           DateTime           @updatedAt @map("updated_at")
-  
-  user                User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product             Product?           @relation("BaseProduct", fields: [productId], references: [id], onDelete: Cascade)
-  recommendedProduct  Product            @relation("RecommendedProduct", fields: [recommendedProductId], references: [id], onDelete: Cascade)
-  batch               RecommendationBatch? @relation(fields: [batchId], references: [id])
-
-  @@unique([userId, sessionId, productId, recommendedProductId, recommendationType])
-  @@index([userId, recommendationType, score])
-  @@index([sessionId, recommendationType, score])
-  @@index([productId, recommendationType, score])
-  @@index([recommendationType, score, createdAt])
-  @@index([expiresAt]) // For cleanup
-  @@index([batchId])
-  @@map("product_recommendations")
-}
-
-model RecommendationBatch {
-  id               String                 @id @default(uuid())
-  batchType        RecommendationType     @map("batch_type")
-  algorithmVersion String                 @map("algorithm_version")
-  totalGenerated   Int                    @default(0) @map("total_generated")
-  status           BatchStatus            @default(RUNNING)
-  startedAt        DateTime               @default(now()) @map("started_at")
-  completedAt      DateTime?              @map("completed_at")
-  errorMessage     String?                @map("error_message")
-  metadata         Json?
-  createdAt        DateTime               @default(now()) @map("created_at")
-  updatedAt        DateTime               @updatedAt @map("updated_at")
-  
-  recommendations  ProductRecommendation[]
-  
-  @@index([batchType, status])
-  @@index([startedAt])
-  @@index([createdAt])
-  @@map("recommendation_batches")
-}
-
-model ProductSimilarity {
-  id              String   @id @default(uuid())
-  productId       String   @map("product_id")
-  similarProductId String  @map("similar_product_id")
-  similarityScore Float    @map("similarity_score")
-  similarityType  String   // "category", "attributes", "collaborative"
-  lastCalculated  DateTime @default(now()) @map("last_calculated")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  
-  product         Product  @relation("SimilarityBase", fields: [productId], references: [id], onDelete: Cascade)
-  similarProduct  Product  @relation("SimilarityTarget", fields: [similarProductId], references: [id], onDelete: Cascade)
-  
-  @@unique([productId, similarProductId, similarityType])
-  @@index([productId, similarityScore])
-  @@index([similarityType, similarityScore])
-  @@index([createdAt])
-  @@map("product_similarities")
-}
-
-// ===================================
-// RECOMMENDATION SYSTEM ENUMS
-// ===================================
-
 enum UserActivityType {
   PAGE_VIEW
   PRODUCT_VIEW
@@ -759,4 +738,43 @@ enum BatchStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+// Promo Banners for marketing/promotions
+enum BannerPlacement {
+  HOME_TOP
+  HOME_MIDDLE
+  HOME_BOTTOM
+  CATEGORY
+  PRODUCT
+  CHECKOUT
+  GLOBAL
+}
+
+enum BannerDevice {
+  ALL
+  DESKTOP
+  MOBILE
+}
+
+model PromoBanner {
+  id              String          @id @default(uuid())
+  title           String
+  subtitle        String?
+  imageUrl        String          @map("image_url")
+  linkUrl         String?         @map("link_url")
+  ctaText         String?         @map("cta_text")
+  backgroundColor String?         @map("background_color")
+  textColor       String?         @map("text_color")
+  placement       BannerPlacement
+  device          BannerDevice    @default(ALL)
+  isActive        Boolean         @default(true) @map("is_active")
+  sortOrder       Int             @default(0) @map("sort_order")
+  visibleFrom     DateTime?       @map("visible_from")
+  visibleTo       DateTime?       @map("visible_to")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([placement, device, isActive, visibleFrom, visibleTo])
+  @@map("promo_banners")
 }

@@ -359,25 +359,25 @@ export class CartsService {
           }
 
           // Update inventory reservations
-          if (variantId) {
-            await prisma.inventory.update({
-              where: { variantId },
-              data: {
-                reservedQuantity: {
-                  increment: newQuantityToReserve,
-                },
-              },
-            });
-          } else {
-            await prisma.inventory.update({
-              where: { productId },
-              data: {
-                reservedQuantity: {
-                  increment: newQuantityToReserve,
-                },
-              },
-            });
-          }
+          // if (variantId) {
+          //   await prisma.inventory.update({
+          //     where: { variantId },
+          //     data: {
+          //       reservedQuantity: {
+          //         increment: newQuantityToReserve,
+          //       },
+          //     },
+          //   });
+          // } else {
+          //   await prisma.inventory.update({
+          //     where: { productId },
+          //     data: {
+          //       reservedQuantity: {
+          //         increment: newQuantityToReserve,
+          //       },
+          //     },
+          //   });
+          // }
 
           // Return the updated cart
           const updatedCart = await prisma.cart.findUnique({
@@ -543,15 +543,15 @@ export class CartsService {
           data: { quantity },
         });
 
-        // Adjust reserved quantity accordingly
-        if (delta !== 0) {
-          await prisma.inventory.update({
-            where: cartItem.variantId ? { variantId: cartItem.variantId } : { productId: cartItem.productId },
-            data: {
-              reservedQuantity: { increment: delta },
-            },
-          });
-        }
+        // Adjust reserved quantity accordingly inventory update
+        // if (delta !== 0) {
+        //   await prisma.inventory.update({
+        //     where: cartItem.variantId ? { variantId: cartItem.variantId } : { productId: cartItem.productId },
+        //     data: {
+        //       reservedQuantity: { increment: delta },
+        //     },
+        //   });
+        // }
 
         // Fetch updated cart
         const updatedCart = await prisma.cart.findUnique({
@@ -642,12 +642,12 @@ export class CartsService {
       // Use transaction to update inventory reservation and delete item atomically
       await this.prismaService.$transaction(async (prisma) => {
         // Decrement reservedQuantity
-        await prisma.inventory.update({
-          where: cartItem.variantId ? { variantId: cartItem.variantId } : { productId: cartItem.productId },
-          data: {
-            reservedQuantity: { decrement: cartItem.quantity },
-          },
-        });
+        // await prisma.inventory.update({
+        //   where: cartItem.variantId ? { variantId: cartItem.variantId } : { productId: cartItem.productId },
+        //   data: {
+        //     reservedQuantity: { decrement: cartItem.quantity },
+        //   },
+        // });
 
         // Delete the cart item
         await prisma.cartItem.delete({ where: { id: cartItemId } });
@@ -732,14 +732,14 @@ export class CartsService {
 
       await this.prismaService.$transaction(async (prisma) => {
         // Release reservations
-        for (const item of cartItems) {
-          await prisma.inventory.update({
-            where: item.variantId ? { variantId: item.variantId } : { productId: item.productId },
-            data: {
-              reservedQuantity: { decrement: item.quantity },
-            },
-          });
-        }
+        // for (const item of cartItems) {
+        //   await prisma.inventory.update({
+        //     where: item.variantId ? { variantId: item.variantId } : { productId: item.productId },
+        //     data: {
+        //       reservedQuantity: { decrement: item.quantity },
+        //     },
+        //   });
+        // }
 
         // Delete items in one go
         await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });

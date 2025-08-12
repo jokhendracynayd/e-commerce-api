@@ -97,6 +97,7 @@ async function bootstrap() {
         '/auth/refresh',
         '/auth/logout',
         '/auth/admin/login',
+        '/auth/admin/register',
         '/auth/csrf-token',
         '/docs',
 
@@ -164,10 +165,14 @@ async function bootstrap() {
         // Specification operations
         '/specifications',
         '/specifications/',
+
+        // Promo banners
+        '/promo-banners',
+        '/promo-banners/',
       ];
 
       // Log the path being checked (for debugging)
-      console.log(`Checking CSRF for ${method} ${fullPath}`);
+      // console.log(`Checking CSRF for ${method} ${fullPath}`);
 
       // Check if this path should be exempt from CSRF
       const shouldExempt = exemptPaths.some(
