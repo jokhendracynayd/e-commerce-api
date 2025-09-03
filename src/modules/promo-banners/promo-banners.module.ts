@@ -11,5 +11,3 @@ import { AppLogger } from '../../common/services/logger.service';
   exports: [PromoBannersService],
 })
 export class PromoBannersModule {}
-
-

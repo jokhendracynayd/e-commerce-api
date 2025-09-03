@@ -36,7 +36,7 @@
     "@bull-board/express": "^6.10.1",
     "@bull-board/nestjs": "^6.10.1",
     "@bull-board/ui": "^6.10.1",
-    "@elastic/elasticsearch": "^9.0.2",
+    "@elastic/elasticsearch": "^8.15.0",
     "@modelcontextprotocol/sdk": "^1.13.3",
     "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/bull": "^11.0.2",

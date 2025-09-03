@@ -49,5 +49,3 @@ export class PromoBannerResponseDto {
   @ApiProperty()
   updatedAt: Date;
 }
-
-

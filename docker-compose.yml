@@ -51,7 +51,7 @@ services:
       # Performance optimizations
       - bootstrap.memory_lock=true
       - thread_pool.search.queue_size=10000
-      - thread_pool.index.queue_size=10000
+      # - thread_pool.index.queue_size=10000
     ulimits:
       memlock:
         soft: -1

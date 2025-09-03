@@ -1,5 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUrl, MaxLength, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export enum BannerPlacementDto {
   HOME_TOP = 'HOME_TOP',
@@ -85,5 +95,3 @@ export class CreatePromoBannerDto {
   @IsDateString()
   visibleTo?: string;
 }
-
-

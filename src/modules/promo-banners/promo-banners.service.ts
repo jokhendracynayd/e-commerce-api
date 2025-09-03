@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { AppLogger } from '../../common/services/logger.service';
 import { CreatePromoBannerDto } from './dto/create-promo-banner.dto';
@@ -6,7 +10,10 @@ import { UpdatePromoBannerDto } from './dto/update-promo-banner.dto';
 
 @Injectable()
 export class PromoBannersService {
-  constructor(private prisma: PrismaService, private logger: AppLogger) {
+  constructor(
+    private prisma: PrismaService,
+    private logger: AppLogger,
+  ) {
     this.logger.setContext('PromoBannersService');
   }
 
@@ -27,7 +34,8 @@ export class PromoBannersService {
         ],
       };
       if (params.placement) where.placement = params.placement;
-      if (params.device && params.device !== 'ALL') where.device = params.device;
+      if (params.device && params.device !== 'ALL')
+        where.device = params.device;
 
       const banners = await this.prisma.promoBanner.findMany({
         where,
@@ -51,7 +59,10 @@ export class PromoBannersService {
       if (params.device) where.device = params.device;
       if (params.isActive !== undefined && params.isActive !== 'all') {
         // Accept 'true'/'false' strings or boolean
-        const flag = typeof params.isActive === 'string' ? params.isActive === 'true' : params.isActive;
+        const flag =
+          typeof params.isActive === 'string'
+            ? params.isActive === 'true'
+            : params.isActive;
         where.isActive = flag;
       }
 
@@ -87,7 +98,9 @@ export class PromoBannersService {
     try {
       const data: any = { ...dto };
       if ('visibleFrom' in dto) {
-        data.visibleFrom = dto.visibleFrom ? new Date(dto.visibleFrom as any) : null;
+        data.visibleFrom = dto.visibleFrom
+          ? new Date(dto.visibleFrom as any)
+          : null;
       }
       if ('visibleTo' in dto) {
         data.visibleTo = dto.visibleTo ? new Date(dto.visibleTo as any) : null;
@@ -111,5 +124,3 @@ export class PromoBannersService {
     }
   }
 }
-
-

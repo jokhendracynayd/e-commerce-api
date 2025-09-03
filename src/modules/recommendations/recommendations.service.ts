@@ -467,7 +467,7 @@ export class RecommendationsService {
         coOccurrenceQuery,
         productId,
         limit,
-      ) as FrequentItemsQueryResult[];
+      );
 
       if (frequentItems.length === 0) {
         // Fallback to similar products if no frequently bought together items found

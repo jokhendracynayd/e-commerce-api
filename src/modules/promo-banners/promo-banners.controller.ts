@@ -1,5 +1,22 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { PromoBannersService } from './promo-banners.service';
 import { PromoBannerResponseDto } from './dto/response.dto';
@@ -21,7 +38,11 @@ export class PromoBannersController {
   @CacheTTL(60 * 5)
   @ApiOperation({ summary: 'List active promo banners for a placement/device' })
   @ApiQuery({ name: 'placement', required: false })
-  @ApiQuery({ name: 'device', required: false, description: 'ALL | DESKTOP | MOBILE' })
+  @ApiQuery({
+    name: 'device',
+    required: false,
+    description: 'ALL | DESKTOP | MOBILE',
+  })
   @ApiResponse({ status: 200, type: [PromoBannerResponseDto] })
   async listPublic(
     @Query('placement') placement?: string,
@@ -37,13 +58,21 @@ export class PromoBannersController {
   @ApiOperation({ summary: 'List promo banners (admin)' })
   @ApiQuery({ name: 'placement', required: false })
   @ApiQuery({ name: 'device', required: false })
-  @ApiQuery({ name: 'isActive', required: false, description: 'true | false | all' })
+  @ApiQuery({
+    name: 'isActive',
+    required: false,
+    description: 'true | false | all',
+  })
   async listAdmin(
     @Query('placement') placement?: string,
     @Query('device') device?: string,
     @Query('isActive') isActive?: string,
   ): Promise<PromoBannerResponseDto[]> {
-    return (await this.service.listAdmin({ placement, device, isActive })) as any;
+    return (await this.service.listAdmin({
+      placement,
+      device,
+      isActive,
+    })) as any;
   }
 
   // Admin endpoints
@@ -52,7 +81,9 @@ export class PromoBannersController {
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Create promo banner (admin)' })
-  async create(@Body() dto: CreatePromoBannerDto): Promise<PromoBannerResponseDto> {
+  async create(
+    @Body() dto: CreatePromoBannerDto,
+  ): Promise<PromoBannerResponseDto> {
     return (await this.service.create(dto)) as any;
   }
 
@@ -77,5 +108,3 @@ export class PromoBannersController {
     return this.service.remove(id);
   }
 }
-
-

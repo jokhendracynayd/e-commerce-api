@@ -8,12 +8,18 @@ export class OrderTimelineDto {
   @ApiProperty({ description: 'Order ID' })
   orderId: string;
 
-  @ApiProperty({ enum: OrderStatus, description: 'Order status at this point in time' })
+  @ApiProperty({
+    enum: OrderStatus,
+    description: 'Order status at this point in time',
+  })
   status: OrderStatus;
 
-  @ApiProperty({ description: 'Optional note describing the event', required: false })
+  @ApiProperty({
+    description: 'Optional note describing the event',
+    required: false,
+  })
   note?: string | null;
 
   @ApiProperty({ description: 'Timestamp of the event' })
   createdAt: Date;
-} 
+}

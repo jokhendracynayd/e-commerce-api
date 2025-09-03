@@ -123,11 +123,13 @@ export class OrdersController {
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Get timeline events for an order' })
   @ApiParam({ name: 'id', description: 'Order ID', type: String })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Returns timeline events', type: [OrderTimelineDto] })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Returns timeline events',
+    type: [OrderTimelineDto],
+  })
   @ApiBearerAuth('JWT-auth')
-  async getTimeline(
-    @Param('id') id: string,
-  ): Promise<OrderTimelineDto[]> {
+  async getTimeline(@Param('id') id: string): Promise<OrderTimelineDto[]> {
     return this.ordersService.getTimeline(id);
   }
 

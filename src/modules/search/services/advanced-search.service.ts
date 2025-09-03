@@ -220,15 +220,19 @@ export class AdvancedSearchService {
         const esQuery = this.queryBuilder.buildSearchQuery(strategyQuery);
         const startTime = Date.now();
 
-        const response = await this.elasticsearchService.search({
-          index: INDEX_CONFIGURATIONS.products.index,
-          body: {
-            query: esQuery,
-            size: 5,
-            _source: ['id', 'title'],
+        const response = await this.elasticsearchService.search(
+          {
+            index: INDEX_CONFIGURATIONS.products.index,
+            body: {
+              query: esQuery,
+              size: 5,
+              _source: ['id', 'title'],
+            },
           },
-          timeout: '5s',
-        } as any);
+          {
+            timeout: '5s',
+          } as any,
+        );
 
         const took = Date.now() - startTime;
         const totalHits =

@@ -640,18 +640,21 @@ export class CartsService {
       }
 
       // Use transaction to update inventory reservation and delete item atomically
-      await this.prismaService.$transaction(async (prisma) => {
-        // Decrement reservedQuantity
-        // await prisma.inventory.update({
-        //   where: cartItem.variantId ? { variantId: cartItem.variantId } : { productId: cartItem.productId },
-        //   data: {
-        //     reservedQuantity: { decrement: cartItem.quantity },
-        //   },
-        // });
+      await this.prismaService.$transaction(
+        async (prisma) => {
+          // Decrement reservedQuantity
+          // await prisma.inventory.update({
+          //   where: cartItem.variantId ? { variantId: cartItem.variantId } : { productId: cartItem.productId },
+          //   data: {
+          //     reservedQuantity: { decrement: cartItem.quantity },
+          //   },
+          // });
 
-        // Delete the cart item
-        await prisma.cartItem.delete({ where: { id: cartItemId } });
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+          // Delete the cart item
+          await prisma.cartItem.delete({ where: { id: cartItemId } });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
 
       // Return the updated cart
       const updatedCart = await this.prismaService.cart.findUnique({
@@ -730,20 +733,23 @@ export class CartsService {
         },
       });
 
-      await this.prismaService.$transaction(async (prisma) => {
-        // Release reservations
-        // for (const item of cartItems) {
-        //   await prisma.inventory.update({
-        //     where: item.variantId ? { variantId: item.variantId } : { productId: item.productId },
-        //     data: {
-        //       reservedQuantity: { decrement: item.quantity },
-        //     },
-        //   });
-        // }
+      await this.prismaService.$transaction(
+        async (prisma) => {
+          // Release reservations
+          // for (const item of cartItems) {
+          //   await prisma.inventory.update({
+          //     where: item.variantId ? { variantId: item.variantId } : { productId: item.productId },
+          //     data: {
+          //       reservedQuantity: { decrement: item.quantity },
+          //     },
+          //   });
+          // }
 
-        // Delete items in one go
-        await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+          // Delete items in one go
+          await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
 
       // Return the empty cart
       const emptyCart = await this.prismaService.cart.findUnique({

@@ -66,14 +66,18 @@ export class SearchService {
       );
 
       // Execute search
-      const response = await this.elasticsearchService.search({
-        index: INDEX_CONFIGURATIONS.products.index,
-        body: esQuery,
-        timeout: this.configService.get<string>(
-          'ELASTICSEARCH_REQUEST_TIMEOUT',
-          '30s',
-        ),
-      } as any);
+      const response = await this.elasticsearchService.search(
+        {
+          index: INDEX_CONFIGURATIONS.products.index,
+          body: esQuery,
+        },
+        {
+          timeout: this.configService.get<string>(
+            'ELASTICSEARCH_REQUEST_TIMEOUT',
+            '30s',
+          ),
+        } as any,
+      );
 
       const took = Date.now() - startTime;
 

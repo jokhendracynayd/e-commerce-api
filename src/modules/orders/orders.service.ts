@@ -440,18 +440,20 @@ export class OrdersService {
 
           // Get currency from request or from the first product
           let orderCurrency = createOrderDto.currency;
-          
+
           if (!orderCurrency) {
             // Use currency from the first product
             orderCurrency = itemsWithPrices[0]?.productCurrency || 'USD';
-            
+
             // Validate that all products have the same currency
-            const allCurrencies = itemsWithPrices.map(item => item.productCurrency);
+            const allCurrencies = itemsWithPrices.map(
+              (item) => item.productCurrency,
+            );
             const uniqueCurrencies = Array.from(new Set(allCurrencies));
-            
+
             if (uniqueCurrencies.length > 1) {
               throw new BadRequestException(
-                `Mixed currencies not supported. Found currencies: ${uniqueCurrencies.join(', ')}. Please ensure all products have the same currency.`
+                `Mixed currencies not supported. Found currencies: ${uniqueCurrencies.join(', ')}. Please ensure all products have the same currency.`,
               );
             }
           }
