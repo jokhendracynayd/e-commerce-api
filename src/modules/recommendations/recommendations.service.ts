@@ -11,11 +11,7 @@ import { AppLogger } from '../../common/services/logger.service';
 import { UserActivityType } from '@prisma/client';
 import { OrderStatus } from '@prisma/client';
 
-interface FrequentItemsQueryResult {
-  recommended_product_id: string;
-  frequency: number;
-  confidence: number;
-}
+
 
 @Injectable()
 export class RecommendationsService {
@@ -440,44 +436,59 @@ export class RecommendationsService {
         );
       }
 
-      // Fallback: analyze order history to find frequently bought together items
-      const coOccurrenceQuery = `
-        SELECT 
-          oi2.product_id as recommended_product_id,
-          COUNT(*) as frequency,
-          COUNT(*) * 1.0 / (
-            SELECT COUNT(DISTINCT order_id) 
-            FROM order_items 
-            WHERE product_id = $1
-          ) as confidence
-        FROM order_items oi1
-        JOIN order_items oi2 ON oi1.order_id = oi2.order_id
-        JOIN products p ON oi2.product_id = p.id
-        WHERE oi1.product_id = $1 
-          AND oi2.product_id != $1
-          AND p.visibility = 'PUBLIC'
-          AND p.is_active = true
-        GROUP BY oi2.product_id
-        HAVING COUNT(*) >= 2
-        ORDER BY frequency DESC, confidence DESC
-        LIMIT $2
-      `;
+      // Get orders that contain the target product
+      const ordersWithProduct = await this.prismaService.orderItem.findMany({
+        where: { productId },
+        select: { orderId: true },
+        distinct: ['orderId'],
+      });
 
-      const frequentItems = await this.prismaService.$queryRawUnsafe(
-        coOccurrenceQuery,
-        productId,
-        limit,
-      );
+      if (ordersWithProduct.length === 0) {
+        // Fallback to similar products if no orders found
+        return this.getSimilarProducts(productId, limit, includeProduct);
+      }
 
-      if (frequentItems.length === 0) {
+      const orderIds = ordersWithProduct.map((item) => item.orderId).filter((id): id is string => id !== null);
+
+      // Fallback: analyze order history to find frequently bought together items using Prisma client
+      const frequentItems = await this.prismaService.orderItem.groupBy({
+        by: ['productId'],
+        where: {
+          orderId: { in: orderIds },
+          productId: { not: productId },
+          product: {
+            visibility: 'PUBLIC',
+            isActive: true,
+          },
+        },
+        _count: {
+          orderId: true,
+        },
+        orderBy: {
+          _count: {
+            orderId: 'desc',
+          },
+        },
+        take: limit,
+      });
+
+      // Calculate confidence scores
+      const totalOrders = orderIds.length;
+      const frequentItemsWithConfidence = frequentItems.map((item) => ({
+        productId: item.productId,
+        frequency: item._count.orderId,
+        confidence: item._count.orderId / totalOrders,
+      }));
+
+      if (frequentItemsWithConfidence.length === 0) {
         // Fallback to similar products if no frequently bought together items found
         return this.getSimilarProducts(productId, limit, includeProduct);
       }
 
       // Get product details for frequently bought together items
-      const productIds = frequentItems.map(
-        (item) => item.recommended_product_id,
-      );
+      const productIds = frequentItemsWithConfidence.map(
+        (item) => item.productId,
+      ).filter((id): id is string => id !== null);
       const products = await this.prismaService.product.findMany({
         where: {
           id: { in: productIds },
@@ -512,10 +523,10 @@ export class RecommendationsService {
       });
 
       // Create recommendation responses with frequency-based scoring
-      return frequentItems
+      return frequentItemsWithConfidence
         .map((item, index) => {
           const prod = products.find(
-            (p) => p.id === item.recommended_product_id,
+            (p) => p.id === item.productId,
           );
           if (!prod) return null;
 
@@ -526,12 +537,12 @@ export class RecommendationsService {
             productId,
             recommendedProductId: prod.id,
             recommendationType: RecommendationType.FREQUENTLY_BOUGHT_TOGETHER,
-            score: Math.min(Number(item.confidence), 1.0),
+            score: Math.min(item.confidence, 1.0),
             position: index + 1,
             algorithmVersion: 'market-basket-v1.0',
             metadata: {
-              frequency: Number(item.frequency),
-              confidence: Number(item.confidence),
+              frequency: item.frequency,
+              confidence: item.confidence,
               algorithm: 'market_basket_analysis',
             },
             viewed: false,
