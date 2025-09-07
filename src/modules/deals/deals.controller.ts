@@ -27,6 +27,9 @@ import {
   DealResponseDto,
   DealListResponseDto,
   AddProductToDealDto,
+  ApplyDealDto,
+  DealLimitsDto,
+  AddProductValidationDto,
 } from './dto';
 import { JwtAuthGuard, Public } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -258,5 +261,85 @@ export class DealsController {
       take: limitNum > 0 ? limitNum : 10,
       status,
     });
+  }
+
+  @Public()
+  @Post(':id/apply')
+  @ApiOperation({ summary: 'Apply a deal to a product' })
+  @ApiResponse({
+    status: 200,
+    description: 'Deal applied successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Deal cannot be applied' })
+  @ApiResponse({ status: 404, description: 'Deal or product not found' })
+  @ApiParam({ name: 'id', description: 'Deal ID' })
+  async applyDeal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() applyDealDto: ApplyDealDto,
+  ) {
+    return this.dealsService.applyDealToProduct(
+      id,
+      applyDealDto.userId,
+      applyDealDto.productId,
+      applyDealDto.orderId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post(':id/limits')
+  @ApiOperation({ summary: 'Set usage limits for a deal' })
+  @ApiResponse({
+    status: 200,
+    description: 'Deal limits set successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Deal not found' })
+  @ApiParam({ name: 'id', description: 'Deal ID' })
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'SELLER')
+  async setDealLimits(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dealLimitsDto: DealLimitsDto,
+  ) {
+    return this.dealsService.setDealLimits(
+      id,
+      dealLimitsDto.maxTotalUsage,
+      dealLimitsDto.maxUserUsage,
+    );
+  }
+
+  @Public()
+  @Get(':id/stats')
+  @ApiOperation({ summary: 'Get deal usage statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns deal usage statistics',
+  })
+  @ApiResponse({ status: 404, description: 'Deal not found' })
+  @ApiParam({ name: 'id', description: 'Deal ID' })
+  async getDealStats(@Param('id', ParseUUIDPipe) id: string) {
+    return this.dealsService.getDealStats(id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post(':id/products/validate')
+  @ApiOperation({ summary: 'Add product to deal with validation' })
+  @ApiResponse({
+    status: 200,
+    description: 'Product added to deal successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Product cannot be added to deal' })
+  @ApiResponse({ status: 404, description: 'Deal or product not found' })
+  @ApiParam({ name: 'id', description: 'Deal ID' })
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'SELLER')
+  async addProductWithValidation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() addProductValidationDto: AddProductValidationDto,
+  ) {
+    return this.dealsService.addProductWithValidation(
+      id,
+      addProductValidationDto.productId,
+      addProductValidationDto.maxUsage,
+    );
   }
 }

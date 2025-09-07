@@ -7,10 +7,14 @@ import {
 import { PrismaService } from '../../common/prisma.service';
 import { CreateDealDto, UpdateDealDto } from './dto';
 import { Prisma, DealType } from '@prisma/client';
+import { DealValidationService } from './deal-validation.service';
 
 @Injectable()
 export class DealsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private dealValidationService: DealValidationService,
+  ) {}
 
   // Helper method to determine deal status based on start and end times
   private getDealStatus(
@@ -760,6 +764,237 @@ export class DealsService {
       throw new InternalServerErrorException(
         `Failed to fetch products by deal type: ${error.message}`,
       );
+    }
+  }
+
+  // Enhanced methods for deal validation and usage tracking
+
+  /**
+   * Apply a deal to a product with validation
+   */
+  async applyDealToProduct(
+    productDealId: string,
+    userId: string,
+    productId: string,
+    orderId?: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    discountAmount?: number;
+  }> {
+    try {
+      // 1. Validate deal application
+      const validation = await this.dealValidationService.validateDealApplication(
+        productDealId,
+        userId,
+        productId,
+      );
+
+      if (!validation.isValid) {
+        return {
+          success: false,
+          message: validation.reason || 'Deal cannot be applied',
+        };
+      }
+
+      // 2. Get deal details
+      const deal = await this.prisma.productDeal.findUnique({
+        where: { id: productDealId },
+        include: { product: true },
+      });
+
+      if (!deal) {
+        return { success: false, message: 'Deal not found' };
+      }
+
+      // 3. Calculate discount amount
+      const productPrice = typeof deal.product.price === 'string' 
+        ? parseFloat(deal.product.price) 
+        : Number(deal.product.price);
+      
+      const discountAmount = (productPrice * Number(deal.discount)) / 100;
+
+      // 4. Record deal usage
+      await this.dealValidationService.recordDealUsage(
+        productDealId,
+        userId,
+        orderId,
+      );
+
+      return {
+        success: true,
+        message: 'Deal applied successfully',
+        discountAmount,
+      };
+    } catch (error) {
+      console.error('Error applying deal to product:', error);
+      return {
+        success: false,
+        message: 'Failed to apply deal',
+      };
+    }
+  }
+
+  /**
+   * Set usage limits for a deal
+   */
+  async setDealLimits(
+    productDealId: string,
+    maxTotalUsage?: number,
+    maxUserUsage?: number,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      // Check if deal exists
+      const deal = await this.prisma.productDeal.findUnique({
+        where: { id: productDealId },
+      });
+
+      if (!deal) {
+        return { success: false, message: 'Deal not found' };
+      }
+
+      await this.dealValidationService.setDealLimits(
+        productDealId,
+        maxTotalUsage,
+        maxUserUsage,
+      );
+
+      return { success: true, message: 'Deal limits set successfully' };
+    } catch (error) {
+      console.error('Error setting deal limits:', error);
+      return { success: false, message: 'Failed to set deal limits' };
+    }
+  }
+
+  /**
+   * Get deal usage statistics
+   */
+  async getDealStats(productDealId: string): Promise<{
+    totalUsage: number;
+    uniqueUsers: number;
+    recentUsage: Date[];
+    limits?: {
+      maxTotalUsage?: number;
+      maxUserUsage?: number;
+      currentUsage: number;
+    };
+  }> {
+    try {
+      const [usageStats, limits] = await Promise.all([
+        this.dealValidationService.getDealUsageStats(productDealId),
+        this.prisma.dealLimits.findUnique({
+          where: { productDealId },
+        }),
+      ]);
+
+      return {
+        ...usageStats,
+        limits: limits ? {
+          maxTotalUsage: limits.maxTotalUsage ?? undefined,
+          maxUserUsage: limits.maxUserUsage ?? undefined,
+          currentUsage: limits.currentUsage,
+        } : undefined,
+      };
+    } catch (error) {
+      console.error('Error getting deal stats:', error);
+      throw new InternalServerErrorException('Failed to get deal statistics');
+    }
+  }
+
+  /**
+   * Validate product availability before adding to deal
+   */
+  async validateProductForDeal(productId: string): Promise<{
+    isValid: boolean;
+    reason?: string;
+    product?: any;
+  }> {
+    try {
+      const validation = await this.dealValidationService.validateProductAvailability(productId);
+      
+      if (!validation.isAvailable) {
+        return {
+          isValid: false,
+          reason: validation.reason,
+        };
+      }
+
+      const product = await this.prisma.product.findUnique({
+        where: { id: productId },
+        include: {
+          category: true,
+          brand: true,
+          images: true,
+        },
+      });
+
+      return {
+        isValid: true,
+        product,
+      };
+    } catch (error) {
+      console.error('Error validating product for deal:', error);
+      return {
+        isValid: false,
+        reason: 'Internal error during validation',
+      };
+    }
+  }
+
+  /**
+   * Enhanced add product method with validation
+   */
+  async addProductWithValidation(
+    dealId: string,
+    productId: string,
+    maxUsage?: number,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      // 1. Validate product availability
+      const productValidation = await this.validateProductForDeal(productId);
+      
+      if (!productValidation.isValid) {
+        return {
+          success: false,
+          message: productValidation.reason || 'Product cannot be added to deal',
+        };
+      }
+
+      // 2. Check if product already has this deal
+      const existingDeal = await this.prisma.productDeal.findFirst({
+        where: {
+          productId,
+          dealType: (await this.prisma.productDeal.findUnique({
+            where: { id: dealId },
+          }))?.dealType,
+        },
+      });
+
+      if (existingDeal) {
+        return {
+          success: false,
+          message: 'Product already has a deal of this type',
+        };
+      }
+
+      // 3. Add product to deal
+      await this.addProduct(dealId, productId);
+
+      // 4. Set usage limits if provided
+      if (maxUsage) {
+        await this.setDealLimits(dealId, undefined, maxUsage);
+      }
+
+      return {
+        success: true,
+        message: 'Product added to deal successfully',
+      };
+    } catch (error) {
+      console.error('Error adding product with validation:', error);
+      return {
+        success: false,
+        message: 'Failed to add product to deal',
+      };
     }
   }
 }

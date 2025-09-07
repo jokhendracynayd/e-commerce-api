@@ -169,6 +169,10 @@ async function bootstrap() {
         // Promo banners
         '/promo-banners',
         '/promo-banners/',
+
+        // Payment operations
+        '/payments',
+        '/payments/',
       ];
 
       // Log the path being checked (for debugging)

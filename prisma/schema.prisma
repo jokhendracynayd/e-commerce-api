@@ -43,6 +43,7 @@ model User {
   products            Product[]
   activities          UserActivity[]
   wishlistItems       WishlistItem[]
+  dealUsages          DealUsage[]
 
   @@map("users")
 }
@@ -132,6 +133,7 @@ model Product {
   inventoryLogs         InventoryLog[]
   orderItems            OrderItem[]
   deals                 ProductDeal[]
+  dealUsages            DealUsage[]
   images                ProductImage[]
   baseRecommendations   ProductRecommendation[] @relation("BaseProduct")
   targetRecommendations ProductRecommendation[] @relation("RecommendedProduct")
@@ -210,8 +212,45 @@ model ProductDeal {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  usages    DealUsage[]
+  limits    DealLimits?
 
   @@map("product_deals")
+}
+
+// Additional models for enhanced deal functionality
+model DealUsage {
+  id          String   @id @default(uuid())
+  productDealId String @map("product_deal_id")
+  productId   String   @map("product_id")
+  userId      String   @map("user_id")
+  orderId     String?  @map("order_id")
+  usedAt      DateTime @default(now()) @map("used_at")
+  
+  // Relations
+  productDeal ProductDeal @relation(fields: [productDealId], references: [id], onDelete: Cascade)
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order      Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  
+  @@unique([productDealId, userId]) // Prevent duplicate usage by same user
+  @@map("deal_usages")
+}
+
+model DealLimits {
+  id          String   @id @default(uuid())
+  productDealId String @map("product_deal_id")
+  maxTotalUsage Int?   @map("max_total_usage") // Total usage limit for this deal
+  maxUserUsage  Int?   @map("max_user_usage")  // Max usage per user
+  currentUsage  Int    @default(0) @map("current_usage")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  productDeal ProductDeal @relation(fields: [productDealId], references: [id], onDelete: Cascade)
+  
+  @@unique([productDealId])
+  @@map("deal_limits")
 }
 
 model ProductReview {
@@ -289,6 +328,7 @@ model Order {
   user            User?           @relation(fields: [userId], references: [id])
   payments        Payment[]
   reviews         ProductReview[]
+  dealUsages      DealUsage[]
 
   @@index([userId], map: "idx_order_user")
   @@index([currency], map: "idx_order_currency")

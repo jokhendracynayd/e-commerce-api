@@ -442,95 +442,16 @@ export class CategoriesService {
       const sortBy = options?.sortBy || 'title';
       const sortOrder = options?.sortOrder || 'asc';
 
-      // Get all products for root category to build hierarchy
-      const result = await this.collectAllCategoryProducts(categoryId);
-      // Fetch direct child categories for interleaving
-      const childCategories = await this.prismaService.category.findMany({
-        where: { parentId: categoryId },
-      });
+      // Use optimized single query approach instead of recursive calls
+      const allProducts = await this.getCategoryProductsOptimized(categoryId, options);
 
-      // Collect, filter, and sort products per child category
-      const groupProductsArray = await Promise.all(
-        childCategories.map(async (child) => {
-          const { allProducts: groupAll } =
-            await this.collectAllCategoryProducts(child.id);
-          let group = [...groupAll];
-          // Price filter
-          if (
-            options?.minPrice !== undefined ||
-            options?.maxPrice !== undefined
-          ) {
-            const minPrice = options?.minPrice ?? -Infinity;
-            const maxPrice = options?.maxPrice ?? Infinity;
-            group = group.filter((p) => {
-              const pr = parseFloat(p.price);
-              return pr >= minPrice && pr <= maxPrice;
-            });
-          }
-          // Search filter
-          if (options?.search) {
-            const term = options.search.toLowerCase();
-            group = group.filter((p) => p.title.toLowerCase().includes(term));
-          }
-          // Featured filter
-          if (options?.featured !== undefined) {
-            group = group.filter((p) => p.isFeatured === options.featured);
-          }
-          // Sort group
-          if (sortBy === 'price') {
-            group.sort((a, b) =>
-              sortOrder === 'asc'
-                ? parseFloat(a.price) - parseFloat(b.price)
-                : parseFloat(b.price) - parseFloat(a.price),
-            );
-          } else if (sortBy === 'title') {
-            group.sort((a, b) =>
-              sortOrder === 'asc'
-                ? a.title.localeCompare(b.title)
-                : b.title.localeCompare(a.title),
-            );
-          } else if (sortBy === 'rating') {
-            group.sort((a, b) =>
-              sortOrder === 'asc'
-                ? (a.rating || 0) - (b.rating || 0)
-                : (b.rating || 0) - (a.rating || 0),
-            );
-          }
-          return group;
-        }),
-      );
-      // Round-robin interleaving across child groups
-      const interleaved: any[] = [];
-      const seenIds = new Set<string>();
-      let idx = 0;
-      while (interleaved.length < limit) {
-        let addedInRound = false;
-        for (const group of groupProductsArray) {
-          const prod = group[idx];
-          if (prod && !seenIds.has(prod.id)) {
-            interleaved.push(prod);
-            seenIds.add(prod.id);
-            addedInRound = true;
-            if (interleaved.length === limit) break;
-          }
-        }
-        if (!addedInRound) break;
-        idx++;
-      }
-      // Fallback: if interleaved not enough, append from all root products
-      if (interleaved.length < limit) {
-        for (const prod of result.allProducts) {
-          if (interleaved.length >= limit) break;
-          if (!seenIds.has(prod.id)) {
-            interleaved.push(prod);
-            seenIds.add(prod.id);
-          }
-        }
-      }
-      // Pagination metadata
-      const totalProducts = result.allProducts.length;
+      // Calculate pagination
+      const totalProducts = allProducts.length;
       const totalPages = Math.ceil(totalProducts / limit);
-      // Return interleaved products
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedProducts = allProducts.slice(startIndex, endIndex);
+
       return {
         success: true,
         data: {
@@ -539,8 +460,7 @@ export class CategoriesService {
           slug: rootCategory.slug,
           description: rootCategory.description,
           icon: rootCategory.icon,
-          products: interleaved,
-          categories: result.categoryHierarchy,
+          products: paginatedProducts,
           pagination: {
             total: totalProducts,
             page,
@@ -573,10 +493,116 @@ export class CategoriesService {
     }
   }
 
-  private async collectAllCategoryProducts(categoryId: string): Promise<{
+  // Optimized method to get category products with single query
+  private async getCategoryProductsOptimized(
+    categoryId: string,
+    options?: {
+      limit?: number;
+      page?: number;
+      sortBy?: 'price' | 'title' | 'rating';
+      sortOrder?: 'asc' | 'desc';
+      minPrice?: number;
+      maxPrice?: number;
+      search?: string;
+      featured?: boolean;
+    },
+  ): Promise<any[]> {
+    // Build where clause for filtering
+    const whereClause: any = {
+      isActive: true,
+      visibility: 'PUBLIC',
+      OR: [
+        { categoryId: categoryId },
+        { subCategoryId: categoryId },
+      ],
+    };
+
+    // Add price filters
+    if (options?.minPrice !== undefined || options?.maxPrice !== undefined) {
+      whereClause.price = {};
+      if (options.minPrice !== undefined) {
+        whereClause.price.gte = options.minPrice;
+      }
+      if (options.maxPrice !== undefined) {
+        whereClause.price.lte = options.maxPrice;
+      }
+    }
+
+    // Add search filter
+    if (options?.search) {
+      whereClause.title = {
+        contains: options.search,
+        mode: 'insensitive',
+      };
+    }
+
+    // Add featured filter
+    if (options?.featured !== undefined) {
+      whereClause.isFeatured = options.featured;
+    }
+
+    // Build orderBy clause
+    let orderBy: any = {};
+    if (options?.sortBy === 'price') {
+      orderBy.price = options.sortOrder || 'asc';
+    } else if (options?.sortBy === 'title') {
+      orderBy.title = options.sortOrder || 'asc';
+    } else if (options?.sortBy === 'rating') {
+      orderBy.rating = options.sortOrder || 'desc';
+    } else {
+      orderBy.title = 'asc';
+    }
+
+    // Execute single optimized query
+    const products = await this.prismaService.product.findMany({
+      where: whereClause,
+      include: {
+        brand: true,
+        images: {
+          orderBy: {
+            position: 'asc',
+          },
+        },
+        variants: true,
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+        deals: true,
+      },
+      orderBy: orderBy,
+      take: options?.limit || 100, // Limit to prevent huge responses
+    });
+
+    // Transform products
+    return products.map((product) => this.transformProduct(product));
+  }
+
+  private async collectAllCategoryProducts(
+    categoryId: string,
+    visitedIds: Set<string> = new Set(),
+  ): Promise<{
     allProducts: any[];
     categoryHierarchy: any;
   }> {
+    // Prevent infinite loops by tracking visited categories
+    if (visitedIds.has(categoryId)) {
+      this.logger.warn(`Circular reference detected for category ${categoryId} in collectAllCategoryProducts`);
+      return {
+        allProducts: [],
+        categoryHierarchy: {
+          id: categoryId,
+          name: 'Circular Reference',
+          slug: 'circular-reference',
+          description: 'Circular reference detected',
+          icon: null,
+          children: [],
+        },
+      };
+    }
+
+    visitedIds.add(categoryId);
     // Keep track of all products to avoid duplicates
     const productMap = new Map();
 
@@ -638,10 +664,10 @@ export class CategoriesService {
       children: [],
     };
 
-    // Process children recursively
+    // Process children recursively with circular reference protection
     if (childCategories.length > 0) {
       for (const child of childCategories) {
-        const childResult = await this.collectAllCategoryProducts(child.id);
+        const childResult = await this.collectAllCategoryProducts(child.id, new Set(visitedIds));
 
         // Add child category to hierarchy
         categoryHierarchy.children.push(childResult.categoryHierarchy);

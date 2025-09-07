@@ -22,24 +22,32 @@ export class BrandsService {
 
   async findAll(includeProductCount = false): Promise<BrandResponseDto[]> {
     try {
+      if (includeProductCount) {
+        // Use a single query with aggregation to get product counts
+        const brandsWithProductCount = await this.prismaService.brand.findMany({
+          orderBy: {
+            name: 'asc',
+          },
+          include: {
+            _count: {
+              select: {
+                products: true,
+              },
+            },
+          },
+        });
+
+        return brandsWithProductCount.map(brand => ({
+          ...brand,
+          productCount: brand._count.products,
+        }));
+      }
+
       const brands = await this.prismaService.brand.findMany({
         orderBy: {
           name: 'asc',
         },
       });
-
-      if (includeProductCount) {
-        // Get product count for each brand
-        const brandsWithProductCount = await Promise.all(
-          brands.map(async (brand) => {
-            const productCount = await this.prismaService.product.count({
-              where: { brandId: brand.id },
-            });
-            return { ...brand, productCount };
-          }),
-        );
-        return brandsWithProductCount;
-      }
 
       return brands;
     } catch (error) {
@@ -56,19 +64,34 @@ export class BrandsService {
     includeProductCount = false,
   ): Promise<BrandResponseDto> {
     try {
+      if (includeProductCount) {
+        const brand = await this.prismaService.brand.findUnique({
+          where: { id },
+          include: {
+            _count: {
+              select: {
+                products: true,
+              },
+            },
+          },
+        });
+
+        if (!brand) {
+          throw new NotFoundException(`Brand with ID ${id} not found`);
+        }
+
+        return {
+          ...brand,
+          productCount: brand._count.products,
+        };
+      }
+
       const brand = await this.prismaService.brand.findUnique({
         where: { id },
       });
 
       if (!brand) {
         throw new NotFoundException(`Brand with ID ${id} not found`);
-      }
-
-      if (includeProductCount) {
-        const productCount = await this.prismaService.product.count({
-          where: { brandId: brand.id },
-        });
-        return { ...brand, productCount };
       }
 
       return brand;
@@ -91,19 +114,34 @@ export class BrandsService {
     includeProductCount = false,
   ): Promise<BrandResponseDto> {
     try {
+      if (includeProductCount) {
+        const brand = await this.prismaService.brand.findUnique({
+          where: { slug },
+          include: {
+            _count: {
+              select: {
+                products: true,
+              },
+            },
+          },
+        });
+
+        if (!brand) {
+          throw new NotFoundException(`Brand with slug '${slug}' not found`);
+        }
+
+        return {
+          ...brand,
+          productCount: brand._count.products,
+        };
+      }
+
       const brand = await this.prismaService.brand.findUnique({
         where: { slug },
       });
 
       if (!brand) {
         throw new NotFoundException(`Brand with slug '${slug}' not found`);
-      }
-
-      if (includeProductCount) {
-        const productCount = await this.prismaService.product.count({
-          where: { brandId: brand.id },
-        });
-        return { ...brand, productCount };
       }
 
       return brand;

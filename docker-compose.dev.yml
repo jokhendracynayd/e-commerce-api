@@ -1,19 +1,20 @@
-# Production Docker Compose Configuration
 version: '3.8'
 
 services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: ecommerce_redis_prod
+    container_name: ecommerce_redis_dev
     restart: unless-stopped
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    command: redis-server --appendonly yes
     networks:
       - ecommerce_network
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -21,17 +22,16 @@ services:
   # Elasticsearch for search
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: ecommerce_elasticsearch_prod
+    container_name: ecommerce_elasticsearch_dev
     restart: unless-stopped
     environment:
       - cluster.name=ecommerce-cluster
       - node.name=es-node-1
       - discovery.type=single-node
-      - xpack.security.enabled=true
-      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
       - network.host=0.0.0.0
       - http.port=9200
-      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD}
     ulimits:
       memlock:
         soft: -1
@@ -41,10 +41,13 @@ services:
         hard: 65536
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
     networks:
       - ecommerce_network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -u elastic:${ELASTICSEARCH_PASSWORD} http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -53,16 +56,16 @@ services:
   # Kibana for Elasticsearch monitoring
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.0
-    container_name: ecommerce_kibana_prod
+    container_name: ecommerce_kibana_dev
     restart: unless-stopped
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - ELASTICSEARCH_USERNAME=elastic
-      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}
       - SERVER_NAME=kibana
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=5601
-      - XPACK_SECURITY_ENABLED=true
+      - XPACK_SECURITY_ENABLED=false
+    ports:
+      - "5601:5601"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -71,24 +74,20 @@ services:
     networks:
       - ecommerce_network
 
-  # E-commerce API
+  # E-commerce API - Development Mode with Hot Reload
   api:
     build:
       context: .
-      dockerfile: Dockerfile
-      target: production
-    container_name: ecommerce_api_prod
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce_api_dev
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      NODE_ENV: production
       # Override Redis and Elasticsearch to use containerized services
       REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
       ELASTICSEARCH_NODE: http://elasticsearch:9200
-      ELASTICSEARCH_USERNAME: elastic
-      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD}
+      NODE_ENV: development
     ports:
       - "3001:3001"
     depends_on:
@@ -97,16 +96,22 @@ services:
       elasticsearch:
         condition: service_healthy
     volumes:
+      # Mount source code for hot reloading
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./package-lock.json:/app/package-lock.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./tsconfig.build.json:/app/tsconfig.build.json
+      - ./nest-cli.json:/app/nest-cli.json
+      - ./prisma:/app/prisma
+      - ./.env:/app/.env
       - ./logs:/app/logs
       - ./uploads:/app/uploads
+      # Exclude node_modules to use container's version
+      - /app/node_modules
     networks:
       - ecommerce_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    command: npm run start:dev
 
 volumes:
   redis_data:
