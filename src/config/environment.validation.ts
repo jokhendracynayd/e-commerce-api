@@ -22,11 +22,11 @@ export const environmentValidationSchema = Joi.object({
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
   BCRYPT_ROUNDS: Joi.number().min(10).max(15).default(12),
 
-  // Redis Configuration
-  REDIS_HOST: Joi.string().default('localhost'),
-  REDIS_PORT: Joi.number().port().default(6379),
-  REDIS_PASSWORD: Joi.string().optional().allow(''),
-  REDIS_DB: Joi.number().default(0),
+  // Redis Configuration (DISABLED)
+  // REDIS_HOST: Joi.string().default('localhost'),
+  // REDIS_PORT: Joi.number().port().default(6379),
+  // REDIS_PASSWORD: Joi.string().optional().allow(''),
+  // REDIS_DB: Joi.number().default(0),
 
   // AWS S3 Configuration
   AWS_REGION: Joi.string().required(),
@@ -67,56 +67,56 @@ export const environmentValidationSchema = Joi.object({
   ADMIN_URL: Joi.string().uri().optional(),
   FRONTEND_URL: Joi.string().uri().optional(),
 
-  // ================================ Enhanced Elasticsearch Configuration ================================
+  // ================================ Enhanced Elasticsearch Configuration (DISABLED) ================================
 
   // Core Elasticsearch Configuration
-  ELASTICSEARCH_NODE: Joi.string().uri().default('http://localhost:9200'),
-  ELASTICSEARCH_USERNAME: Joi.string().optional().allow(''),
-  ELASTICSEARCH_PASSWORD: Joi.string().optional().allow(''),
-  ELASTICSEARCH_MAX_RETRIES: Joi.number().min(1).max(10).default(3),
-  ELASTICSEARCH_REQUEST_TIMEOUT: Joi.number()
-    .min(1000)
-    .max(120000)
-    .default(30000),
-  ELASTICSEARCH_PING_TIMEOUT: Joi.number().min(1000).max(10000).default(3000),
-  ELASTICSEARCH_SNIFF_INTERVAL: Joi.number()
-    .min(60000)
-    .max(3600000)
-    .default(300000),
+  // ELASTICSEARCH_NODE: Joi.string().uri().default('http://localhost:9200'),
+  // ELASTICSEARCH_USERNAME: Joi.string().optional().allow(''),
+  // ELASTICSEARCH_PASSWORD: Joi.string().optional().allow(''),
+  // ELASTICSEARCH_MAX_RETRIES: Joi.number().min(1).max(10).default(3),
+  // ELASTICSEARCH_REQUEST_TIMEOUT: Joi.number()
+  //   .min(1000)
+  //   .max(120000)
+  //   .default(30000),
+  // ELASTICSEARCH_PING_TIMEOUT: Joi.number().min(1000).max(10000).default(3000),
+  // ELASTICSEARCH_SNIFF_INTERVAL: Joi.number()
+  //   .min(60000)
+  //   .max(3600000)
+  //   .default(300000),
 
   // Search Configuration
-  SEARCH_CACHE_TTL: Joi.number().min(60).max(3600).default(300), // 5 minutes
-  SEARCH_MAX_RESULTS: Joi.number().min(10).max(1000).default(100),
-  SEARCH_DEFAULT_SIZE: Joi.number().min(5).max(100).default(20),
-  SEARCH_ENABLE_HIGHLIGHTING: Joi.boolean().default(true),
-  SEARCH_ENABLE_SUGGESTIONS: Joi.boolean().default(true),
+  // SEARCH_CACHE_TTL: Joi.number().min(60).max(3600).default(300), // 5 minutes
+  // SEARCH_MAX_RESULTS: Joi.number().min(10).max(1000).default(100),
+  // SEARCH_DEFAULT_SIZE: Joi.number().min(5).max(100).default(20),
+  // SEARCH_ENABLE_HIGHLIGHTING: Joi.boolean().default(true),
+  // SEARCH_ENABLE_SUGGESTIONS: Joi.boolean().default(true),
 
   // Performance Configuration
-  SEARCH_BULK_SIZE: Joi.number().min(100).max(10000).default(1000),
-  SEARCH_BULK_TIMEOUT: Joi.string().default('30s'),
-  SEARCH_REFRESH_INTERVAL: Joi.string().default('30s'),
-  SEARCH_MAX_CONCURRENT_SEARCHES: Joi.number().min(10).max(1000).default(100),
+  // SEARCH_BULK_SIZE: Joi.number().min(100).max(10000).default(1000),
+  // SEARCH_BULK_TIMEOUT: Joi.string().default('30s'),
+  // SEARCH_REFRESH_INTERVAL: Joi.string().default('30s'),
+  // SEARCH_MAX_CONCURRENT_SEARCHES: Joi.number().min(10).max(1000).default(100),
 
   // Analytics Configuration
-  ANALYTICS_ENABLED: Joi.boolean().default(true),
-  ANALYTICS_SAMPLING_RATE: Joi.number().min(0).max(1).default(0.1),
-  ANALYTICS_RETENTION_DAYS: Joi.number().min(7).max(365).default(90),
+  // ANALYTICS_ENABLED: Joi.boolean().default(true),
+  // ANALYTICS_SAMPLING_RATE: Joi.number().min(0).max(1).default(0.1),
+  // ANALYTICS_RETENTION_DAYS: Joi.number().min(7).max(365).default(90),
 
   // Index Configuration
-  INDEX_NUMBER_OF_SHARDS: Joi.number().min(1).max(10).default(3),
-  INDEX_NUMBER_OF_REPLICAS: Joi.number().min(0).max(3).default(1),
-  INDEX_REFRESH_INTERVAL: Joi.string().default('30s'),
-  INDEX_MAX_RESULT_WINDOW: Joi.number().min(1000).max(100000).default(50000),
+  // INDEX_NUMBER_OF_SHARDS: Joi.number().min(1).max(10).default(3),
+  // INDEX_NUMBER_OF_REPLICAS: Joi.number().min(0).max(3).default(1),
+  // INDEX_REFRESH_INTERVAL: Joi.string().default('30s'),
+  // INDEX_MAX_RESULT_WINDOW: Joi.number().min(1000).max(100000).default(50000),
 
   // Sync Configuration
-  SYNC_BATCH_SIZE: Joi.number().min(100).max(10000).default(1000),
-  SYNC_INTERVAL_SECONDS: Joi.number().min(30).max(3600).default(300),
-  SYNC_RETRY_ATTEMPTS: Joi.number().min(1).max(5).default(3),
-  SYNC_RETRY_DELAY_MS: Joi.number().min(1000).max(60000).default(5000),
+  // SYNC_BATCH_SIZE: Joi.number().min(100).max(10000).default(1000),
+  // SYNC_INTERVAL_SECONDS: Joi.number().min(30).max(3600).default(300),
+  // SYNC_RETRY_ATTEMPTS: Joi.number().min(1).max(5).default(3),
+  // SYNC_RETRY_DELAY_MS: Joi.number().min(1000).max(60000).default(5000),
 
   // Health Check Configuration
-  HEALTH_CHECK_INTERVAL_MS: Joi.number().min(10000).max(300000).default(30000),
-  HEALTH_CHECK_TIMEOUT_MS: Joi.number().min(5000).max(60000).default(10000),
+  // HEALTH_CHECK_INTERVAL_MS: Joi.number().min(10000).max(300000).default(30000),
+  // HEALTH_CHECK_TIMEOUT_MS: Joi.number().min(5000).max(60000).default(10000),
 
   // File Upload Configuration
   MAX_FILE_SIZE: Joi.number().default(10485760), // 10MB
