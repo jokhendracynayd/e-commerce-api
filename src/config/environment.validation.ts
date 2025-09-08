@@ -41,6 +41,7 @@ export const environmentValidationSchema = Joi.object({
   STRIPE_WEBHOOK_SECRET: Joi.string().optional(),
   UPI_API_KEY: Joi.string().optional(),
   UPI_MERCHANT_ID: Joi.string().optional(),
+  VERIFY_UPI_EXISTS: Joi.boolean().default(false),
 
   // Email Configuration
   SMTP_HOST: Joi.string().optional(),

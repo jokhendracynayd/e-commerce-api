@@ -19,10 +19,10 @@ const env = (key: string, fallback?: string): string | undefined => {
 
 function loadAdminSeedFromEnv(): Required<AdminSeedOptions> {
   // Provide sane defaults, but prefer explicit env in production
-  const email = env('ADMIN_EMAIL', 'admin@example.com')!;
-  const password = env('ADMIN_PASSWORD', 'StrongP@ssw0rd')!;
-  const firstName = env('ADMIN_FIRST_NAME', 'Super')!;
-  const lastName = env('ADMIN_LAST_NAME', 'Admin')!;
+  const email = env('ADMIN_EMAIL', 'nothing@nothing.com')!;
+  const password = env('ADMIN_PASSWORD', 'Nothing@123')!;
+  const firstName = env('ADMIN_FIRST_NAME', 'Nothing')!;
+  const lastName = env('ADMIN_LAST_NAME', 'Nothing')!;
   const phone = env('ADMIN_PHONE');
   const overwritePassword = env('ADMIN_OVERWRITE_PASSWORD', 'false') === 'true';
 
