@@ -111,6 +111,7 @@ export class RecommendationResponseDto {
     slug: string;
     price: number;
     discountPrice?: number;
+    currency: string;
     averageRating: number;
     reviewCount: number;
     images?: Array<{

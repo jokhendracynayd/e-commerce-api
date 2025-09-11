@@ -342,6 +342,7 @@ export class RecommendationsService {
               discountPrice: prod.discountPrice
                 ? Number(prod.discountPrice)
                 : undefined,
+              currency: prod.currency || 'USD',
               averageRating: prod.averageRating,
               reviewCount: prod.reviewCount,
               images: (prod as any).images || [],
@@ -560,6 +561,7 @@ export class RecommendationsService {
                   discountPrice: prod.discountPrice
                     ? Number(prod.discountPrice)
                     : undefined,
+                  currency: prod.currency || 'USD',
                   averageRating: prod.averageRating,
                   reviewCount: prod.reviewCount,
                   images: (prod as any).images || [],
@@ -689,6 +691,7 @@ export class RecommendationsService {
                   discountPrice: prod.discountPrice
                     ? Number(prod.discountPrice)
                     : undefined,
+                  currency: prod.currency || 'USD',
                   averageRating: prod.averageRating,
                   reviewCount: prod.reviewCount,
                   images: (prod as any).images || [],
@@ -823,6 +826,7 @@ export class RecommendationsService {
               discountPrice: (item as any).product.discountPrice
                 ? Number((item as any).product.discountPrice)
                 : undefined,
+              currency: (item as any).product.currency || 'USD',
               averageRating: (item as any).product.averageRating,
               reviewCount: (item as any).product.reviewCount,
               images: (item as any).product.images || [],
@@ -918,6 +922,7 @@ export class RecommendationsService {
               discountPrice: prod.discountPrice
                 ? Number(prod.discountPrice)
                 : undefined,
+              currency: prod.currency || 'USD',
               averageRating: prod.averageRating,
               reviewCount: prod.reviewCount,
               images: (prod as any).images || [],
@@ -1049,6 +1054,7 @@ export class RecommendationsService {
                   discountPrice: prod.discountPrice
                     ? Number(prod.discountPrice)
                     : undefined,
+                  currency: prod.currency || 'USD',
                   averageRating: prod.averageRating,
                   reviewCount: prod.reviewCount,
                   images: (prod as any).images || [],
@@ -1140,6 +1146,7 @@ export class RecommendationsService {
               discountPrice: prod.discountPrice
                 ? Number(prod.discountPrice)
                 : undefined,
+              currency: prod.currency || 'USD',
               averageRating: prod.averageRating,
               reviewCount: prod.reviewCount,
               images: (prod as any).images || [],
@@ -1184,6 +1191,7 @@ export class RecommendationsService {
               discountPrice: rec.recommendedProduct.discountPrice
                 ? Number(rec.recommendedProduct.discountPrice)
                 : undefined,
+              currency: rec.recommendedProduct.currency || 'USD',
               averageRating: rec.recommendedProduct.averageRating,
               reviewCount: rec.recommendedProduct.reviewCount,
               images: rec.recommendedProduct.images || [],
