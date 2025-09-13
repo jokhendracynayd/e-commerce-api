@@ -746,6 +746,7 @@ export class RecommendationsService {
                     reviewCount: true,
                     visibility: true,
                     isActive: true,
+                    currency: true,
                     images: {
                       select: {
                         imageUrl: true,
