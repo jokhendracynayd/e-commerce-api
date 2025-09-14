@@ -115,28 +115,6 @@ export class QueryBuilder {
                 boost: 2,
               },
             },
-            // Prefix search for partial matches
-            {
-              multi_match: {
-                query: query.q,
-                fields: [
-                  `${SEARCH_FIELDS.PRODUCTS.TITLE}.keyword`,
-                  `${SEARCH_FIELDS.PRODUCTS.BRAND}.keyword`,
-                ],
-                type: 'phrase_prefix',
-                boost: 1.5,
-              },
-            },
-            // Cross-fields search for better relevance
-            {
-              multi_match: {
-                query: query.q,
-                fields: fields,
-                type: 'cross_fields',
-                operator: 'and',
-                boost: 0.8,
-              },
-            },
           ],
           minimum_should_match: 1,
         },
@@ -196,11 +174,15 @@ export class QueryBuilder {
               },
             },
           },
-          // Multi-match prefix for better coverage
+          // Multi-match prefix for better coverage (text fields only)
           {
             multi_match: {
               query: query.q,
-              fields: this.buildFieldsArray(boosts),
+              fields: [
+                `${SEARCH_FIELDS.PRODUCTS.TITLE}^${boosts.title}`,
+                `${SEARCH_FIELDS.PRODUCTS.DESCRIPTION}^${boosts.description}`,
+                `${SEARCH_FIELDS.PRODUCTS.KEYWORDS}^${boosts.keywords}`,
+              ],
               type: 'phrase_prefix',
             },
           },

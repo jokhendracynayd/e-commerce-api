@@ -42,6 +42,9 @@ export class IndexService {
     );
 
     try {
+      // Delete existing indices first to avoid conflicts
+      await this.deleteExistingIndices();
+
       // Create index templates first
       await this.createIndexTemplates();
 
@@ -141,6 +144,9 @@ export class IndexService {
   async createIndexTemplates(): Promise<void> {
     this.logger.log('Creating index templates...');
 
+    // First, delete existing templates to avoid conflicts
+    await this.deleteExistingTemplates();
+
     const templates: IndexTemplate[] = [
       {
         name: 'ecommerce_products_template',
@@ -186,6 +192,61 @@ export class IndexService {
 
     for (const template of templates) {
       await this.createIndexTemplate(template);
+    }
+  }
+
+  /**
+   * Delete existing indices to avoid conflicts
+   */
+  async deleteExistingIndices(): Promise<void> {
+    const indexNames = [
+      INDEX_CONFIGURATIONS.products.index,
+      INDEX_CONFIGURATIONS.categories.index,
+      INDEX_CONFIGURATIONS.brands.index,
+      INDEX_CONFIGURATIONS.analytics.index
+    ];
+
+    for (const indexName of indexNames) {
+      try {
+        const exists = await this.elasticsearchService.indices.exists({
+          index: indexName,
+        });
+        
+        if (exists) {
+          await this.elasticsearchService.indices.delete({
+            index: indexName,
+          });
+          this.logger.log(`Deleted existing index: ${indexName}`);
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to delete index ${indexName}: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Delete existing templates to avoid conflicts
+   */
+  async deleteExistingTemplates(): Promise<void> {
+    const templateNames = [
+      'ecommerce_products_template',
+      'ecommerce_categories_template', 
+      'ecommerce_brands_template',
+      'ecommerce_analytics_template'
+    ];
+
+    for (const templateName of templateNames) {
+      try {
+        await this.elasticsearchService.indices.deleteIndexTemplate({
+          name: templateName,
+        });
+        this.logger.log(`Deleted existing template: ${templateName}`);
+      } catch (error) {
+        // Template might not exist, which is fine
+        if (error.statusCode !== 404) {
+          this.logger.warn(`Failed to delete template ${templateName}: ${error.message}`);
+        }
+      }
     }
   }
 
@@ -712,5 +773,39 @@ export class IndexService {
       this.logger.error('Failed to get indices info:', error.message);
       throw new Error(`Failed to get indices info: ${error.message}`);
     }
+  }
+
+  /**
+   * Debug: Get total products count from database
+   */
+  async getTotalProductsCount(): Promise<number> {
+    return await this.prismaService.product.count();
+  }
+
+  /**
+   * Debug: Get active products count from database
+   */
+  async getActiveProductsCount(): Promise<number> {
+    return await this.prismaService.product.count({
+      where: { isActive: true }
+    });
+  }
+
+  /**
+   * Debug: Get sample products from database
+   */
+  async getSampleProducts(): Promise<any[]> {
+    return await this.prismaService.product.findMany({
+      where: { isActive: true },
+      include: {
+        category: true,
+        brand: true,
+        images: true,
+        tags: { include: { tag: true } },
+        specifications: true,
+        variants: true,
+      },
+      take: 2,
+    });
   }
 }

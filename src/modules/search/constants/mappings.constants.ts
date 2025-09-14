@@ -3,6 +3,8 @@ import { IndexMapping, IndexSettings } from '../interfaces/index.interface';
 export const PRODUCT_MAPPING: IndexMapping = {
   properties: {
     id: { type: 'keyword' },
+    sku: { type: 'keyword' },
+    slug: { type: 'keyword' },
     title: {
       type: 'text',
       analyzer: 'product_analyzer',
@@ -15,13 +17,6 @@ export const PRODUCT_MAPPING: IndexMapping = {
         autocomplete: {
           type: 'completion',
           analyzer: 'suggest_analyzer',
-          contexts: [
-            {
-              name: 'category',
-              type: 'category',
-              path: 'category.id',
-            },
-          ],
         },
       },
     },
@@ -180,14 +175,13 @@ export const CATEGORY_MAPPING: IndexMapping = {
         keyword: { type: 'keyword' },
         suggest: {
           type: 'completion',
-          analyzer: 'suggest_analyzer',
         },
       },
     },
     slug: { type: 'keyword' },
     description: {
       type: 'text',
-      analyzer: 'product_analyzer',
+      analyzer: 'keyword_analyzer',
     },
     parent_id: { type: 'keyword' },
     level: { type: 'integer' },
@@ -217,6 +211,11 @@ export const CATEGORY_SETTINGS: IndexSettings = {
         type: 'custom',
         tokenizer: 'keyword',
         filter: ['lowercase', 'trim'],
+      },
+      product_analyzer: {
+        type: 'custom',
+        tokenizer: 'standard',
+        filter: ['lowercase', 'stop', 'stemmer'],
       },
     },
   },
@@ -268,6 +267,11 @@ export const BRAND_SETTINGS: IndexSettings = {
         type: 'custom',
         tokenizer: 'keyword',
         filter: ['lowercase', 'trim'],
+      },
+      product_analyzer: {
+        type: 'custom',
+        tokenizer: 'standard',
+        filter: ['lowercase', 'stop', 'stemmer'],
       },
     },
   },

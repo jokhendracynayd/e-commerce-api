@@ -135,33 +135,47 @@ export class SearchService {
         enableSynonyms: true,
       };
 
-      // Use the advanced query builder for text search
-      const textQuery = this.queryBuilder.buildSearchQuery(
-        query,
-        queryBuilderOptions,
-      );
+      // Use optimized multi_match with lightweight function score
+      const textQuery = {
+        function_score: {
+          query: {
+            multi_match: {
+              query: query.q,
+              fields: ['title^3', 'description^1', 'brand.name^2', 'category.name^1.5', 'search_keywords^2'],
+              type: 'best_fields'
+            }
+          },
+          functions: [
+            // Featured products boost (lightweight)
+            {
+              filter: { term: { is_featured: true } },
+              weight: 1.2
+            },
+            // Stock availability boost (lightweight)
+            {
+              filter: { term: { in_stock: true } },
+              weight: 1.1
+            }
+          ],
+          score_mode: 'multiply',
+          boost_mode: 'multiply'
+        }
+      };
 
-      // If function score is already applied in queryBuilder, use it directly
-      // Otherwise, add it to the must clause
-      if (query.function_score !== false && textQuery.function_score) {
-        // Complete query with function score
-        return {
-          query: textQuery,
-          from,
-          size: limit,
-          _source: this.getSourceFields(),
-          sort: query.sort ? this.buildSort(query.sort) : undefined,
-          aggs: query.facets ? this.buildAggregations() : undefined,
-          highlight: this.buildHighlight(),
-        };
-      } else {
-        must.push(textQuery);
-      }
+      // Add the text query to must clause
+      must.push(textQuery);
     }
 
     // Filters
     if (query.category?.length) {
-      filter.push({ terms: { 'category.id': query.category } });
+      filter.push({
+        nested: {
+          path: 'category',
+          query: {
+            terms: { 'category.id': query.category }
+          }
+        }
+      });
     }
 
     if (query.brand?.length) {
@@ -257,13 +271,14 @@ export class SearchService {
               boost: 2,
             },
           },
-          // Prefix search for partial matches
+          // Prefix search for partial matches (text fields only)
           {
             multi_match: {
               query: queryText,
               fields: [
-                `${SEARCH_FIELDS.PRODUCTS.TITLE}.keyword`,
-                `${SEARCH_FIELDS.PRODUCTS.BRAND}.keyword`,
+                `${SEARCH_FIELDS.PRODUCTS.TITLE}`,
+                `${SEARCH_FIELDS.PRODUCTS.DESCRIPTION}`,
+                `${SEARCH_FIELDS.PRODUCTS.KEYWORDS}`,
               ],
               type: 'phrase_prefix',
               boost: 1.5,

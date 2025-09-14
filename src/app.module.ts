@@ -26,7 +26,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { RecommendationsModule } from './modules/recommendations/recommendations.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { PromoBannersModule } from './modules/promo-banners/promo-banners.module';
-// import { SearchModule } from './modules/search/search.module';
+import { SearchModule } from './modules/search/search.module';
 import { HealthModule } from './health/health.module';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -63,7 +63,7 @@ import { CacheModule } from './config/cache.module';
     ReviewsModule,
     PromoBannersModule,
     CacheModule,
-    // SearchModule,
+    SearchModule,
     HealthModule,
   ],
   controllers: [AppController],

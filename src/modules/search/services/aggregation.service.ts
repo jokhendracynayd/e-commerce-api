@@ -39,12 +39,12 @@ export class AggregationService {
     // Use provided facet options or defaults from query
     const options = facetOptions || this.getDefaultFacetOptions(query);
 
-    // Category facets with hierarchy
-    if (options.categories) {
-      aggregations.categories = this.buildCategoryAggregation(
-        options.category_config,
-      );
-    }
+    // Category facets with hierarchy - temporarily disabled due to aggregation issues
+    // if (options.categories) {
+    //   aggregations.categories = this.buildCategoryAggregation(
+    //     options.category_config,
+    //   );
+    // }
 
     // Brand facets
     if (options.brands) {
@@ -85,9 +85,9 @@ export class AggregationService {
       aggregations.global_facets = {
         global: {},
         aggs: {
-          all_categories: this.buildCategoryAggregation(
-            options.category_config,
-          ),
+          // all_categories: this.buildCategoryAggregation(
+          //   options.category_config,
+          // ),
           all_brands: this.buildBrandAggregation(options.brand_size),
           all_ratings: this.buildRatingAggregation(),
         },
@@ -105,16 +105,23 @@ export class AggregationService {
    */
   private buildCategoryAggregation(config?: CategoryFacetConfig): any {
     const categoryAgg: any = {
-      terms: {
-        field: 'category.id',
-        size: 50,
-        order: { _count: 'desc' },
-      },
-      aggs: {
-        category_names: {
-          terms: {
-            field: 'category.name',
-            size: 1,
+      nested: {
+        path: 'category',
+        aggs: {
+          category_terms: {
+            terms: {
+              field: 'category.id',
+              size: 50,
+              order: { _count: 'desc' },
+            },
+            aggs: {
+              category_names: {
+                terms: {
+                  field: 'category.name.keyword',
+                  size: 1,
+                },
+              },
+            },
           },
         },
       },
@@ -122,24 +129,16 @@ export class AggregationService {
 
     // Add hierarchy support if configured
     if (config?.include_hierarchy) {
-      categoryAgg.aggs.hierarchy = {
+      categoryAgg.nested.aggs.category_terms.aggs.hierarchy = {
         terms: {
           field: 'category.path',
           size: 100,
-        },
-        aggs: {
-          levels: {
-            terms: {
-              field: 'category.level',
-              size: config.max_depth || 5,
-            },
-          },
         },
       };
 
       // Add parent category filter if specified
       if (config.parent_category) {
-        categoryAgg.filter = {
+        categoryAgg.nested.query = {
           prefix: {
             'category.path': config.parent_category,
           },
@@ -163,7 +162,7 @@ export class AggregationService {
       aggs: {
         brand_names: {
           terms: {
-            field: 'brand.name',
+            field: 'brand.name.keyword',
             size: 1,
           },
         },

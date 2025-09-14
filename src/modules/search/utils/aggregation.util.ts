@@ -262,28 +262,35 @@ export class AggregationUtil {
     } = {},
   ): any {
     const agg: any = {
-      terms: {
-        field: 'category.id',
-        size: 100,
-      },
-      aggs: {
-        category_names: {
-          terms: {
-            field: 'category.name',
-            size: 1,
+      nested: {
+        path: 'category',
+        aggs: {
+          category_terms: {
+            terms: {
+              field: 'category.id',
+              size: 100,
+            },
+            aggs: {
+              category_names: {
+                terms: {
+                  field: 'category.name.keyword',
+                  size: 1,
+                },
+              },
+            },
           },
-        },
-        category_levels: {
-          terms: {
-            field: 'category.level',
-            size: options.maxDepth || 5,
+          category_paths: {
+            terms: {
+              field: 'category.path',
+              size: options.maxDepth || 5,
+            },
           },
         },
       },
     };
 
     if (options.showPath) {
-      agg.aggs.category_paths = {
+      agg.nested.aggs.category_paths = {
         terms: {
           field: 'category.path',
           size: 100,
@@ -418,7 +425,12 @@ export class AggregationUtil {
       filters.categories = {
         bool: {
           must_not: {
-            terms: { 'category.id': appliedFilters.categories },
+            nested: {
+              path: 'category',
+              query: {
+                terms: { 'category.id': appliedFilters.categories },
+              },
+            },
           },
         },
       };
