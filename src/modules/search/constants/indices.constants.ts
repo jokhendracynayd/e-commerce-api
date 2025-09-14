@@ -41,6 +41,7 @@ export const SORT_OPTIONS = {
 export const SEARCH_FIELDS = {
   PRODUCTS: {
     TITLE: 'title',
+    SHORT_DESCRIPTION: 'short_description',
     DESCRIPTION: 'description',
     BRAND: 'brand.name',
     CATEGORY: 'category.name',
@@ -48,6 +49,7 @@ export const SEARCH_FIELDS = {
   },
   BOOST_VALUES: {
     TITLE: 3,
+    SHORT_DESCRIPTION: 1,
     BRAND: 2,
     KEYWORDS: 2,
     CATEGORY: 1.5,
@@ -75,7 +77,7 @@ export const HIGHLIGHT_CONFIG = {
   POST_TAGS: ['</mark>'],
   FRAGMENT_SIZE: 150,
   NUMBER_OF_FRAGMENTS: 1,
-  FIELDS: ['title', 'description', 'brand.name', 'category.name'],
+  FIELDS: ['title', 'short_description', 'description', 'brand.name', 'category.name'],
 } as const;
 
 export const SUGGESTION_CONFIG = {

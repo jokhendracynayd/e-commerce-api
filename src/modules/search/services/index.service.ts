@@ -347,6 +347,10 @@ export class IndexService {
       is_featured: product.isFeatured,
       sku: product.sku,
       slug: product.slug,
+      short_description: product.shortDescription,
+      meta_title: product.metaTitle,
+      meta_description: product.metaDescription,
+      meta_keywords: product.metaKeywords,
       created_at: product.createdAt,
       updated_at: product.updatedAt,
       category: product.category
@@ -376,6 +380,11 @@ export class IndexService {
         product.title,
         product.brand?.name,
         product.category?.name,
+        product.short_description,
+        product.description,
+        product.meta_title,
+        product.meta_description,
+        product.meta_keywords,
         ...(product.tags?.map((tag: any) => tag.tag?.name || tag.name) || []),
       ]
         .filter(Boolean)

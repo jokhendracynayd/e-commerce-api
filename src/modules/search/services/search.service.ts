@@ -141,7 +141,7 @@ export class SearchService {
           query: {
             multi_match: {
               query: query.q,
-              fields: ['title^3', 'description^1', 'brand.name^2', 'category.name^1.5', 'search_keywords^2'],
+              fields: ['title^3','short_description^1', 'description^1', 'brand.name^2', 'category.name^1.5', 'search_keywords^2', 'meta_title^4', 'meta_description^2', 'meta_keywords^3'],
               type: 'best_fields'
             }
           },
@@ -248,6 +248,7 @@ export class SearchService {
               query: queryText,
               fields: [
                 `${SEARCH_FIELDS.PRODUCTS.TITLE}^${SEARCH_FIELDS.BOOST_VALUES.TITLE}`,
+                `${SEARCH_FIELDS.PRODUCTS.SHORT_DESCRIPTION}^${SEARCH_FIELDS.BOOST_VALUES.SHORT_DESCRIPTION}`,
                 `${SEARCH_FIELDS.PRODUCTS.DESCRIPTION}^${SEARCH_FIELDS.BOOST_VALUES.DESCRIPTION}`,
                 `${SEARCH_FIELDS.PRODUCTS.BRAND}^${SEARCH_FIELDS.BOOST_VALUES.BRAND}`,
                 `${SEARCH_FIELDS.PRODUCTS.CATEGORY}^${SEARCH_FIELDS.BOOST_VALUES.CATEGORY}`,
