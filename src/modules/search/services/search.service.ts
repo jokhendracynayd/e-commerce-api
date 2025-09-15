@@ -437,6 +437,7 @@ export class SearchService {
       'slug',
       'price',
       'discount_price',
+      'currency',
       'in_stock',
       'stock_quantity',
       'is_active',

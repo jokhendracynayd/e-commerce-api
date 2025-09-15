@@ -232,6 +232,7 @@ export interface ProductDocument {
   };
   price: number;
   discount_price?: number;
+  currency?: string;
   in_stock: boolean;
   stock_quantity: number;
   rating: {

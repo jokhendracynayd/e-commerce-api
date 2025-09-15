@@ -22,6 +22,9 @@ export class ProductSearchResult {
   @ApiProperty({ description: 'Discounted price', required: false })
   discount_price?: number;
 
+  @ApiProperty({ description: 'Currency code (USD, INR, EUR, etc.)', required: false })
+  currency?: string;
+
   @ApiProperty({ description: 'Stock availability' })
   in_stock: boolean;
 

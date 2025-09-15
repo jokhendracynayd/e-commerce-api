@@ -24,6 +24,22 @@ export const PRODUCT_MAPPING: IndexMapping = {
       type: 'text',
       analyzer: 'product_analyzer',
     },
+    short_description: {
+      type: 'text',
+      analyzer: 'product_analyzer',
+    },
+    meta_title: {
+      type: 'text',
+      analyzer: 'keyword_analyzer',
+    },
+    meta_description: {
+      type: 'text',
+      analyzer: 'keyword_analyzer',
+    },
+    meta_keywords: {
+      type: 'text',
+      analyzer: 'keyword_analyzer',
+    },
     category: {
       type: 'nested',
       properties: {
@@ -59,6 +75,7 @@ export const PRODUCT_MAPPING: IndexMapping = {
       type: 'scaled_float',
       scaling_factor: 100,
     },
+    currency: { type: 'keyword' },
     in_stock: { type: 'boolean' },
     stock_quantity: { type: 'integer' },
     rating: {
@@ -291,6 +308,10 @@ export const ANALYTICS_MAPPING: IndexMapping = {
     clicked_result_id: { type: 'keyword' },
     clicked_position: { type: 'integer' },
     filters_applied: { type: 'keyword' },
+    sort_applied: { type: 'keyword' },
+    page: { type: 'integer' },
+    limit: { type: 'integer' },
+    from_cache: { type: 'boolean' },
     timestamp: {
       type: 'date',
       format: 'strict_date_optional_time||epoch_millis',

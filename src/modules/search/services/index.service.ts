@@ -341,6 +341,7 @@ export class IndexService {
       discount_price: product.discountPrice
         ? parseFloat(product.discountPrice.toString())
         : null,
+      currency: product.currency || 'USD', // Use product currency or default to USD
       in_stock: product.stockQuantity > 0,
       stock_quantity: product.stockQuantity,
       is_active: product.isActive,

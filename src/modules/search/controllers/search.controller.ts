@@ -10,10 +10,12 @@ import {
 } from '../services/advanced-search.service';
 import {
   SearchProductsQueryDto,
+  SortOption,
   QueryType,
   SearchMode,
 } from '../dto/search-query.dto';
 import { SearchResponseDto } from '../dto/search-response.dto';
+import { SEARCH_FIELDS } from '../constants/indices.constants';
 
 @ApiTags('Search')
 @Controller('search')
@@ -649,5 +651,520 @@ export class SearchController {
     }
 
     return changes;
+  }
+
+  @Get('api-docs')
+  @Public()
+  @ApiOperation({
+    summary: 'Search API Documentation for LLM Integration',
+    description: 'Complete documentation optimized for LLM tools and chatbot integration. Auto-updates when fields change.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'LLM-friendly API documentation with dynamic examples',
+  })
+  getSearchApiDocs() {
+    // Dynamic field mappings from constants
+    const searchFields = SEARCH_FIELDS.PRODUCTS;
+    const boostValues = SEARCH_FIELDS.BOOST_VALUES;
+    
+    // Build dynamic fields_searched array
+    const fieldsSearched = Object.entries(searchFields).map(([key, field]) => {
+      const boost = boostValues[key] || 1;
+      return `${field} (boost: ${boost}x)`;
+    });
+
+    return {
+      // LLM Integration Info
+      llm_integration: {
+        purpose: 'Product search API for e-commerce chatbot integration',
+        version: '1.0.0',
+        last_updated: new Date().toISOString(),
+        auto_updates: true,
+        note: 'This documentation automatically reflects current field mappings and search capabilities'
+      },
+
+      // Core Endpoint Info
+      endpoint: {
+        method: 'GET',
+        url: '/api/v1/search/products',
+        description: 'Search products with natural language queries, filters, and faceting',
+        authentication: 'None required (public endpoint)',
+        rate_limit: 'Standard API limits apply'
+      },
+
+      // Dynamic Field Mappings (Auto-updated from constants)
+      field_mappings: {
+        search_fields: searchFields,
+        boost_values: boostValues,
+        sort_options: Object.values(SortOption),
+        query_types: [
+          QueryType.MULTI_MATCH,
+        ],
+        search_modes: [
+          SearchMode.STANDARD,
+        ],
+        last_updated: new Date().toISOString(),
+        note: 'Advanced query types (phrase, prefix, fuzzy, wildcard, boolean) and search modes (strict, relaxed) are defined in the code but not yet implemented in the search service. Currently uses multi_match with best_fields type.'
+      },
+
+      // Query Parameters (Auto-generated from DTOs)
+      query_parameters: {
+        // Text Search
+        q: {
+          type: 'string',
+          required: false,
+          description: 'Natural language search query. Supports complex queries like "gaming laptop under 1000"',
+          examples: [
+            'Nike',
+            'gaming laptop',
+            'red shoes under 1000',
+            'Apple iPhone',
+            'wireless headphones',
+            'laptop for programming',
+            'shoes for running'
+          ],
+          search_behavior: {
+            fields_searched: fieldsSearched,
+            operator: 'AND (all terms must match)',
+            fuzziness: 'AUTO (handles typos)',
+            minimum_match: '75% of terms must match'
+          }
+        },
+
+        // Filters
+        category: {
+          type: 'string[]',
+          required: false,
+          description: 'Filter by category IDs. Supports multiple categories',
+          example: ['category-id-1', 'category-id-2'],
+          note: 'Categories are nested objects, filtering uses nested queries'
+        },
+
+        brand: {
+          type: 'string[]', 
+          required: false,
+          description: 'Filter by brand IDs. Supports multiple brands',
+          example: ['brand-id-1', 'brand-id-2']
+        },
+
+        price_min: {
+          type: 'number',
+          required: false,
+          description: 'Minimum price filter',
+          example: 100,
+          note: 'Price in your currency units'
+        },
+
+        price_max: {
+          type: 'number',
+          required: false,
+          description: 'Maximum price filter', 
+          example: 1000,
+          note: 'Price in your currency units'
+        },
+
+        rating_min: {
+          type: 'number',
+          required: false,
+          description: 'Minimum rating filter (1-5 scale)',
+          example: 4,
+          note: 'Filters products with rating >= this value'
+        },
+
+        in_stock: {
+          type: 'boolean',
+          required: false,
+          description: 'Filter by stock availability',
+          example: true,
+          note: 'true = only in-stock products, false = only out-of-stock'
+        },
+
+        // Sorting
+        sort: {
+          type: 'string',
+          required: false,
+          description: 'Sort results by different criteria',
+          options: Object.values(SortOption).reduce((acc: Record<string, string>, option) => {
+            acc[option] = this.getSortDescription(option);
+            return acc;
+          }, {}),
+          default: 'relevance'
+        },
+
+        // Pagination
+        page: {
+          type: 'number',
+          required: false,
+          description: 'Page number for pagination',
+          example: 1,
+          default: 1,
+          min: 1
+        },
+
+        limit: {
+          type: 'number',
+          required: false,
+          description: 'Number of results per page',
+          example: 20,
+          default: 20,
+          min: 1,
+          max: 100
+        },
+
+        // Facets
+        facets: {
+          type: 'boolean',
+          required: false,
+          description: 'Include facet aggregations in response',
+          example: true,
+          default: false,
+          note: 'Facets provide filtering options like available categories, brands, price ranges'
+        }
+      },
+
+      // Response Format (Critical for LLM Integration)
+      response_format: {
+        structure: {
+          statusCode: 'number (HTTP status code)',
+          message: 'string (success/error message)',
+          data: {
+            hits: {
+              total: {
+                value: 'number (total results found)',
+                relation: 'string (eq = exact, gte = approximate)'
+              },
+              products: 'array of product objects',
+              max_score: 'number (highest relevance score)'
+            },
+            took: 'number (search execution time in ms)',
+            pagination: {
+              current_page: 'number',
+              total_pages: 'number', 
+              per_page: 'number',
+              total_results: 'number',
+              has_next: 'boolean',
+              has_prev: 'boolean'
+            },
+            facets: 'object (only if facets=true)',
+            from_cache: 'boolean',
+            timestamp: 'string (ISO date)',
+            query_info: {
+              query: 'string (search term used)',
+              filters_applied: 'array of applied filters'
+            }
+          },
+          timestamp: 'string (ISO date)',
+          path: 'string (API endpoint path)'
+        },
+
+        product_object_structure: {
+          id: 'string (UUID)',
+          title: 'string',
+          description: 'string',
+          short_description: 'string',
+          price: 'number',
+          discount_price: 'number',
+          in_stock: 'boolean',
+          stock_quantity: 'number',
+          is_active: 'boolean',
+          is_featured: 'boolean',
+          sku: 'string',
+          slug: 'string',
+          created_at: 'string (ISO date)',
+          updated_at: 'string (ISO date)',
+          category: {
+            id: 'string (UUID)',
+            name: 'string',
+            path: 'string'
+          },
+          brand: {
+            id: 'string (UUID)', 
+            name: 'string'
+          },
+          rating: {
+            average: 'number (0-5)',
+            count: 'number'
+          },
+          tags: 'array of strings',
+          images: 'array of image URLs',
+          variants: 'array of variant objects',
+          _score: 'number (relevance score)'
+        },
+
+        facets_structure: {
+          categories: {
+            buckets: [
+              {
+                key: 'string (category ID)',
+                doc_count: 'number',
+                category_names: {
+                  buckets: [
+                    {
+                      key: 'string (category name)',
+                      doc_count: 'number'
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          brands: {
+            buckets: [
+              {
+                key: 'string (brand ID)',
+                doc_count: 'number',
+                brand_names: {
+                  buckets: [
+                    {
+                      key: 'string (brand name)',
+                      doc_count: 'number'
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          price_ranges: {
+            buckets: [
+              {
+                key: 'string (price range)',
+                doc_count: 'number',
+                from: 'number',
+                to: 'number'
+              }
+            ]
+          },
+          ratings: {
+            buckets: [
+              {
+                key: 'string (rating range)',
+                doc_count: 'number'
+              }
+            ]
+          },
+          stock_status: {
+            buckets: [
+              {
+                key: 'boolean (true/false)',
+                doc_count: 'number'
+              }
+            ]
+          }
+        },
+
+        example_response: {
+          statusCode: 200,
+          message: 'Request processed successfully',
+          data: {
+            hits: {
+              total: { value: 1, relation: 'eq' },
+              products: [
+                {
+                  id: '989fc43d-6762-4fd2-9c4f-d8000afb5d62',
+                  title: 'Apple iPhone 15',
+                  description: 'Latest iPhone with advanced features',
+                  short_description: 'iPhone 15 Pro Max',
+                  price: 99999,
+                  discount_price: 89999,
+                  in_stock: true,
+                  stock_quantity: 50,
+                  is_active: true,
+                  is_featured: true,
+                  sku: 'IPH15-001',
+                  slug: 'apple-iphone-15',
+                  created_at: '2025-09-09T17:49:43.893Z',
+                  updated_at: '2025-09-10T08:06:03.086Z',
+                  category: {
+                    id: '51c99528-c1d9-4b39-b4e1-7512d1088b8f',
+                    name: 'Electronics',
+                    path: 'electronics'
+                  },
+                  brand: {
+                    id: 'ede309d7-6c32-4ec9-9e2a-cf61256aca1e',
+                    name: 'Apple'
+                  },
+                  rating: { average: 4.5, count: 120 },
+                  tags: ['smartphone', 'apple', '5g'],
+                  images: ['https://example.com/iphone15.jpg'],
+                  variants: [],
+                  _score: 1.5249237
+                }
+              ],
+              max_score: 1.5249237
+            },
+            took: 15,
+            pagination: {
+              current_page: 1,
+              total_pages: 1,
+              per_page: 20,
+              total_results: 1,
+              has_next: false,
+              has_prev: false
+            },
+            facets: {
+              categories: {
+                buckets: [
+                  {
+                    key: '51c99528-c1d9-4b39-b4e1-7512d1088b8f',
+                    doc_count: 1,
+                    category_names: {
+                      buckets: [
+                        { key: 'Electronics', doc_count: 1 }
+                      ]
+                    }
+                  }
+                ]
+              },
+              brands: {
+                buckets: [
+                  {
+                    key: 'ede309d7-6c32-4ec9-9e2a-cf61256aca1e',
+                    doc_count: 1,
+                    brand_names: {
+                      buckets: [
+                        { key: 'Apple', doc_count: 1 }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            from_cache: false,
+            timestamp: '2025-09-14T05:16:12.493Z',
+            query_info: {
+              query: 'Apple iPhone',
+              filters_applied: []
+            }
+          },
+          timestamp: '2025-09-14T05:16:12.494Z',
+          path: '/api/v1/search/products'
+        },
+
+        llm_usage_notes: {
+          parsing_guidelines: [
+            'Always check statusCode first - 200 means success',
+            'Use data.hits.total.value to know how many results found',
+            'data.hits.products contains the actual product data',
+            'data.pagination provides navigation info for large result sets',
+            'data.facets provides filtering options (only when facets=true)',
+            'data.query_info shows what search was actually performed'
+          ],
+          error_handling: [
+            'statusCode 400 = Bad request (invalid parameters)',
+            'statusCode 500 = Server error (check server logs)',
+            'data.hits.total.value = 0 means no results found',
+            'Use facets to suggest alternative searches when no results'
+          ],
+          performance_tips: [
+            'data.took shows search time (lower is better)',
+            'data.from_cache indicates if result was cached',
+            'Use pagination for large result sets',
+            'Limit results with filters to improve performance'
+          ]
+        }
+      },
+
+      // LLM Integration Examples
+      llm_examples: {
+        natural_language_queries: [
+          {
+            user_input: 'I want red shoes under 1000',
+            llm_parsing: {
+              search_term: 'red shoes',
+              filters: { price_max: 1000 },
+              expected_api_call: '/api/v1/search/products?q=red shoes&price_max=1000'
+            }
+          },
+          {
+            user_input: 'Show me gaming laptops from ASUS',
+            llm_parsing: {
+              search_term: 'gaming laptops',
+              filters: { brand: ['asus-brand-id'] },
+              expected_api_call: '/api/v1/search/products?q=gaming laptops&brand=asus-brand-id'
+            }
+          },
+          {
+            user_input: 'Find iPhone with good rating',
+            llm_parsing: {
+              search_term: 'iPhone',
+              filters: { rating_min: 4 },
+              expected_api_call: '/api/v1/search/products?q=iPhone&rating_min=4'
+            }
+          }
+        ],
+
+        chatbot_integration_patterns: [
+          {
+            scenario: 'User searches for products',
+            steps: [
+              '1. Parse user query to extract search terms and filters',
+              '2. Call search API with parsed parameters',
+              '3. Present results with highlights and filtering options',
+              '4. Handle pagination for large result sets'
+            ]
+          },
+          {
+            scenario: 'User wants to filter results',
+            steps: [
+              '1. Use facets=true to get available filters',
+              '2. Apply user-selected filters to search query',
+              '3. Re-run search with updated parameters',
+              '4. Show filtered results'
+            ]
+          },
+          {
+            scenario: 'No results found',
+            steps: [
+              '1. Try broader search terms',
+              '2. Remove restrictive filters',
+              '3. Suggest alternative searches',
+              '4. Use search suggestions endpoint'
+            ]
+          }
+        ]
+      },
+
+      // Testing Examples
+      test_examples: [
+        {
+          name: 'Basic Text Search',
+          url: '/api/v1/search/products?q=Nike',
+          expected_result: 'Returns Nike products with relevance scoring'
+        },
+        {
+          name: 'Natural Language Query',
+          url: '/api/v1/search/products?q=gaming laptop under 1000',
+          expected_result: 'Returns gaming laptops under $1000'
+        },
+        {
+          name: 'Filtered Search',
+          url: '/api/v1/search/products?q=shoes&category=fashion&brand=nike&price_max=500',
+          expected_result: 'Returns Nike shoes in fashion category under $500'
+        },
+        {
+          name: 'Search with Facets',
+          url: '/api/v1/search/products?q=laptop&facets=true',
+          expected_result: 'Returns laptops with available categories, brands, price ranges'
+        },
+        {
+          name: 'Sorted Results',
+          url: '/api/v1/search/products?q=phone&sort=price_asc',
+          expected_result: 'Returns phones sorted by price (low to high)'
+        }
+      ]
+    };
+  }
+
+  private getSortDescription(sortOption: SortOption): string {
+    const descriptions = {
+      [SortOption.RELEVANCE]: 'Sort by search relevance (default)',
+      [SortOption.PRICE_ASC]: 'Sort by price (low to high)',
+      [SortOption.PRICE_DESC]: 'Sort by price (high to low)',
+      [SortOption.RATING]: 'Sort by rating (high to low)',
+      [SortOption.NEWEST]: 'Sort by creation date (newest first)',
+      [SortOption.POPULARITY]: 'Sort by popularity score'
+    };
+    return descriptions[sortOption] || 'Unknown sort option';
   }
 }

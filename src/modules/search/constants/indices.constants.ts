@@ -46,14 +46,20 @@ export const SEARCH_FIELDS = {
     BRAND: 'brand.name',
     CATEGORY: 'category.name',
     KEYWORDS: 'search_keywords',
+    META_TITLE: 'meta_title',
+    META_DESCRIPTION: 'meta_description',
+    META_KEYWORDS: 'meta_keywords',
   },
   BOOST_VALUES: {
     TITLE: 3,
     SHORT_DESCRIPTION: 1,
-    BRAND: 2,
-    KEYWORDS: 2,
-    CATEGORY: 1.5,
     DESCRIPTION: 1,
+    BRAND: 2,
+    CATEGORY: 1.5,
+    KEYWORDS: 2,
+    META_TITLE: 4,
+    META_DESCRIPTION: 2,
+    META_KEYWORDS: 3,
   },
 } as const;
 
